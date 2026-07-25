@@ -1,0 +1,22 @@
+[project]
+name = "commerce-agent"
+version = "0.1.0"
+description = "GCP x Solana Agentic Commerce hackathon agent (ADK + Gemini)"
+requires-python = ">=3.11"
+dependencies = [
+    "google-adk>=1.0.0",
+    "google-genai>=1.0.0",
+    "httpx>=0.27",
+    "python-dotenv>=1.0",
+    # macOS 13 Intel: cryptography 46+는 x86_64 macOS 휠 미제공 → 소스빌드 실패 방지
+    "cryptography<46",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+]
+
+[tool.ruff]
+line-length = 100
