@@ -1,6 +1,6 @@
 """저장소 인터페이스.
 
-로컬 개발은 JSON 파일, 파이널 진출 후에는 Firestore로 교체한다.
+로컬 개발은 JSON 파일, 운영은 PostgreSQL(Cloud SQL).
 호출부는 이 모듈만 임포트하므로 백엔드 교체 시 다른 코드는 손대지 않는다.
 
 컬렉션: stores / invoices / negotiations / schedules / events
@@ -22,10 +22,10 @@ class Store(Protocol):
 
 
 def _build() -> Store:
-    if config.STORE_BACKEND == "firestore":
-        from app.db.firestore_store import FirestoreStore
+    if config.STORE_BACKEND == "postgres":
+        from app.db.postgres_store import PostgresStore
 
-        return FirestoreStore()
+        return PostgresStore(config.DATABASE_URL)
     from app.db.local_store import LocalStore
 
     return LocalStore(config.STATE_PATH)

@@ -66,11 +66,12 @@
 │   │   ├── main.py       #   앱 조립
 │   │   ├── config.py     #   환경설정 한 곳
 │   │   ├── api/          #   dashboard(+SSE) · x402 라우터
-│   │   ├── agents/       #   hq · store · runner(재시도/모드 전환)
+│   │   ├── agents/       #   hq/ · store/ (각각 agent.py + prompt.py)
+│   │   │                 #   utils.py(공통 계산) · runner.py · prompt_kit.py
 │   │   ├── core/         #   protocol(x402) · fixtures
-│   │   ├── db/           #   store 인터페이스 → local / (firestore)
+│   │   ├── db/           #   store 인터페이스 → local(JSON) / postgres
 │   │   ├── llm/          #   mock 플래너 (리허설용)
-│   │   └── chain/        #   결제 서비스 클라이언트
+│   │   └── solana/       #   결제 서비스 클라이언트
 │   ├── data/             #   fixtures.json (데모 시나리오가 여기 심어짐)
 │   ├── tests/
 │   └── demo.py           #   데모 3종 오케스트레이터
@@ -85,6 +86,7 @@
 
 ```bash
 make setup     # 의존성 설치 (backend uv + payments npm)
+make db        # PostgreSQL 초기화·기동 (:5432)
 make dev       # 전체 스택 기동 → http://localhost:8080
 
 # 데모 실행 (다른 터미널에서)
@@ -100,10 +102,19 @@ make help      # 전체 명령 목록
 
 ### 필요한 환경 변수
 
-`backend/.env` — `GOOGLE_API_KEY`([AI Studio](https://aistudio.google.com/apikey) 무료 티어),
-선택적으로 `LLM_PROVIDER=mock`으로 LLM 없이 리허설.
+`backend/.env`
+- `GOOGLE_API_KEY` — [AI Studio](https://aistudio.google.com/apikey) 무료 티어
+- `LLM_PROVIDER=mock` — LLM 없이 규칙 기반 리허설 (온체인 결제는 실제로 발생)
+- `SOLPLY_STORE=postgres` + `DATABASE_URL` — 저장소. `local`이면 JSON 파일
+
 `payments/.env` — RPC 주소, USDC 민트, 지갑 디렉터리.
 템플릿은 [.env.example](.env.example) 참고.
+
+### 저장소 전환
+
+`app/db/store.py`가 인터페이스, 구현은 `local_store.py`(JSON) / `postgres_store.py`(JSONB).
+호출부는 파사드만 쓰므로 백엔드를 바꿔도 다른 코드는 손대지 않는다.
+Cloud SQL로 옮길 때도 `DATABASE_URL`만 교체하면 된다.
 
 ## 핵심 레퍼런스
 

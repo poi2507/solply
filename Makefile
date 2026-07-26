@@ -11,6 +11,15 @@ setup:             ## 백엔드·결제 서비스 의존성 설치
 	cd backend && uv sync
 	cd payments && npm install
 
+db:                ## PostgreSQL 초기화·기동 (:5432)
+	bash scripts/setup-postgres.sh
+
+db-stop:           ## PostgreSQL 중지
+	PATH=$$HOME/.local/pg-env/bin:$$PATH pg_ctl -D $$HOME/.local/pgdata stop
+
+psql:              ## DB 접속
+	PATH=$$HOME/.local/pg-env/bin:$$PATH psql solply
+
 dev:               ## 전체 스택 기동 (블록체인 + 결제 + API/대시보드)
 	bash scripts/dev.sh
 
@@ -37,6 +46,7 @@ lint:              ## 포맷·린트
 	cd backend && uv run ruff check app demo.py
 	cd payments && npx tsc --noEmit
 
-clean:             ## 로컬 상태·로그 정리
+clean:             ## 로컬 상태·로그 정리 (JSON 저장소 + DB 비우기)
 	rm -f backend/data/state.json
 	rm -rf .dev-logs
+	-cd backend && uv run python -c "from app.db import store; store.reset()" 

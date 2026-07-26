@@ -7,9 +7,9 @@ from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 
 from app import config
-from app.chain import payments
 from app.core import fixtures
 from app.db import store
+from app.solana import payments
 
 router = APIRouter(prefix="/api", tags=["dashboard"])
 

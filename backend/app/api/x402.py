@@ -8,9 +8,9 @@ from fastapi import APIRouter, Header, HTTPException
 from fastapi.responses import JSONResponse
 
 from app import config
-from app.chain import payments
 from app.core import fixtures, protocol
 from app.db import store
+from app.solana import payments
 
 router = APIRouter(prefix="/x402", tags=["x402"])
 

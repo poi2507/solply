@@ -31,7 +31,10 @@ STORE_ID = os.getenv("STORE_ID", "store-a")
 SPEND_LIMIT_USDC = float(os.getenv("AGENT_SPEND_LIMIT_USDC", "50"))
 
 # ── 저장소 ──
-# local | firestore (firestore는 파이널 진출 후 전환 예정)
+# local | postgres  (Cloud SQL로 옮길 때도 DATABASE_URL만 바꾼다)
 STORE_BACKEND = os.getenv("SOLPLY_STORE", "local")
+DATABASE_URL = os.getenv(
+    "DATABASE_URL", f"postgresql://{os.getenv('USER', 'postgres')}@localhost:5432/solply"
+)
 
 WALLETS = ("hq", "store-a", "store-b", "store-c")
