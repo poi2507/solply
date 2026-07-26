@@ -1,6 +1,16 @@
-# GCP × Solana AI Agentic 해커톤 2026
+# Solply — Settle On Ledger, for supply
 
-> **구글 클라우드 X 솔라나 AI Agentic 해커톤** — AI 에이전트가 사람 승인 없이, 정해진 한도 내에서 스스로 결제를 처리하는 프로덕트를 만드는 해커톤.
+> **프랜차이즈 본사–가맹점 식자재 대금(물대) 정산 에이전트.**
+> 납품 이벤트 하나로 AI 에이전트들이 청구 → 검수 검증 → 협상 → 결제 → 정산을 사람 개입 없이 Solana 온체인에서 완결합니다.
+> Google Cloud AI(Gemini + ADK)가 두뇌, Solana(USDC)가 결제 레이어.
+
+- 📐 [프로덕트 설계](docs/product-design.md) · 🧭 [의사결정 로그](docs/decision-log.md) · 🏗️ [아키텍처 시각화](docs/architecture.html) · ✅ [제출 체크리스트](docs/checklist.md)
+
+---
+
+## 참가 공모전: GCP × Solana AI Agentic 해커톤 2026
+
+> AI 에이전트가 사람 승인 없이, 정해진 한도 내에서 스스로 결제를 처리하는 프로덕트를 만드는 해커톤.
 > 공식 사이트: https://www.gcp-solana-ai-agentic-hacks-kr.xyz
 > 문의: gcp-solana-ai-agentic-hacks-kr@superteamkr.com
 

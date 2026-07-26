@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-GCP × Solana AI Agentic 해커톤 (2026, Demo Day 8/21) 프로젝트. 상세 규칙·심사기준·일정은 README.md 참고.
+**Solply** — 프랜차이즈 본사-가맹점 식자재 대금 정산 에이전트. GCP × Solana AI Agentic 해커톤 (2026, Demo Day 8/21) 출품작. 상세 규칙·심사기준·일정은 README.md, 프로덕트 설계는 docs/product-design.md 참고.
 
 ## 구조
 - `agent/` — Python 3.11+, Google ADK + Gemini 에이전트. `uv` 사용 (`uv sync`, `uv run adk web`)
