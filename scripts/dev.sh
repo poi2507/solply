@@ -45,7 +45,7 @@ echo "▶ payments (:3000)"
 PAY_PID=$!
 
 echo "▶ api + 대시보드 (:8080)"
-(cd "$ROOT/agent" && uv run uvicorn api.main:app --host 0.0.0.0 --port 8080 > "$LOG/api.log" 2>&1) &
+(cd "$ROOT/backend" && uv run uvicorn app.main:app --host 0.0.0.0 --port 8080 > "$LOG/api.log" 2>&1) &
 API_PID=$!
 
 sleep 6
@@ -54,6 +54,7 @@ echo "────────────────────────�
 echo "  대시보드  http://localhost:8080"
 echo "  로그      $LOG/"
 echo ""
-echo "  데모 실행: cd agent && uv run python demo.py"
+echo "  데모 실행: make demo       (Gemini)"
+echo "           make demo-mock  (규칙 기반, 빠름)"
 echo "──────────────────────────────────────────"
 wait

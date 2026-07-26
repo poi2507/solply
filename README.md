@@ -60,32 +60,50 @@
 
 ```
 .
-├── agent/       # Python — Google ADK(Agent Development Kit) + Gemini 에이전트
-├── payments/    # TypeScript — Solana 결제 서비스 (Solana Pay, USDC, devnet)
-├── infra/       # GCP 배포 (Cloud Run Dockerfile, gcloud 스크립트)
-├── scripts/     # 개발용 유틸 스크립트
-└── docs/        # 기획/리서치 문서
+├── Makefile              # 모든 실행 명령 (make help)
+├── backend/              # Python — FastAPI + Gemini/ADK 에이전트
+│   ├── app/
+│   │   ├── main.py       #   앱 조립
+│   │   ├── config.py     #   환경설정 한 곳
+│   │   ├── api/          #   dashboard(+SSE) · x402 라우터
+│   │   ├── agents/       #   hq · store · runner(재시도/모드 전환)
+│   │   ├── core/         #   protocol(x402) · fixtures
+│   │   ├── db/           #   store 인터페이스 → local / (firestore)
+│   │   ├── llm/          #   mock 플래너 (리허설용)
+│   │   └── chain/        #   결제 서비스 클라이언트
+│   ├── data/             #   fixtures.json (데모 시나리오가 여기 심어짐)
+│   ├── tests/
+│   └── demo.py           #   데모 3종 오케스트레이터
+├── frontend/             # 정산 대시보드 (빌드 없는 정적 HTML/CSS/JS)
+├── payments/             # TypeScript — Solana USDC 전송·검증 (Express)
+├── infra/                # Cloud Run 배포
+├── scripts/              # 로컬넷 셋업, 지갑, dev 스택
+└── docs/                 # 설계·의사결정·킥오프 정리
 ```
 
 ## 개발환경 시작하기
 
 ```bash
-# 1. 에이전트 (Python)
-cd agent
-uv sync                          # 의존성 설치 (google-adk 포함)
-cp ../.env.example .env          # GEMINI_API_KEY 등 채우기
-uv run adk web                   # ADK 개발 UI 실행
+make setup     # 의존성 설치 (backend uv + payments npm)
+make dev       # 전체 스택 기동 → http://localhost:8080
 
-# 2. 결제 서비스 (TypeScript)
-cd payments
-npm install
-npm run dev
+# 데모 실행 (다른 터미널에서)
+make demo-mock # 규칙 기반 — 빠름, 리허설용 (온체인 결제는 실제로 발생)
+make demo      # Gemini 판단 — 심사용
 
-# 3. Solana devnet 지갑
-solana-keygen new --outfile ~/.config/solana/hackathon.json
-solana config set --url devnet --keypair ~/.config/solana/hackathon.json
-solana airdrop 2                 # devnet SOL 받기
+make test      # 백엔드 테스트
+make help      # 전체 명령 목록
 ```
+
+> **개발은 로컬넷, 시연은 데브넷.** 주최측 권장 흐름을 따릅니다.
+> 네트워크 전환은 `payments/.env`의 RPC 주소·USDC 민트 세 줄만 바꾸면 됩니다.
+
+### 필요한 환경 변수
+
+`backend/.env` — `GOOGLE_API_KEY`([AI Studio](https://aistudio.google.com/apikey) 무료 티어),
+선택적으로 `LLM_PROVIDER=mock`으로 LLM 없이 리허설.
+`payments/.env` — RPC 주소, USDC 민트, 지갑 디렉터리.
+템플릿은 [.env.example](.env.example) 참고.
 
 ## 핵심 레퍼런스
 

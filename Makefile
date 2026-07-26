@@ -1,0 +1,42 @@
+.DEFAULT_GOAL := help
+SHELL := /bin/bash
+PATH := $(HOME)/.local/bin:$(HOME)/.local/node/bin:$(HOME)/.local/share/solana/install/active_release/bin:$(PATH)
+
+.PHONY: help setup dev chain api pay demo demo-mock test lint clean
+
+help:              ## 사용 가능한 명령
+	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
+
+setup:             ## 백엔드·결제 서비스 의존성 설치
+	cd backend && uv sync
+	cd payments && npm install
+
+dev:               ## 전체 스택 기동 (블록체인 + 결제 + API/대시보드)
+	bash scripts/dev.sh
+
+chain:             ## 로컬 블록체인만 기동
+	solana-test-validator --reset --clone MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr \
+		--url https://api.mainnet-beta.solana.com
+
+pay:               ## 결제 서비스만 (:3000)
+	cd payments && npm run dev
+
+api:               ## API + 대시보드만 (:8080)
+	cd backend && uv run uvicorn app.main:app --reload --port 8080
+
+demo:              ## 데모 3종 — Gemini 판단 (심사용, 느림)
+	cd backend && uv run python demo.py
+
+demo-mock:         ## 데모 3종 — 규칙 기반 (리허설용, 빠름 / 온체인 결제는 동일)
+	cd backend && LLM_PROVIDER=mock uv run python demo.py
+
+test:              ## 백엔드 테스트
+	cd backend && uv run pytest -q
+
+lint:              ## 포맷·린트
+	cd backend && uv run ruff check app demo.py
+	cd payments && npx tsc --noEmit
+
+clean:             ## 로컬 상태·로그 정리
+	rm -f backend/data/state.json
+	rm -rf .dev-logs

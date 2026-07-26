@@ -22,7 +22,7 @@ dist/
 .DS_Store
 .idea/
 .vscode/
-agent/data/state.json
+backend/data/state.json
 
 # dev 로그
 .dev-logs/
