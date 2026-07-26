@@ -103,11 +103,34 @@ def review_proposal(
 
 
 def adjust_invoice_amount(invoice_id: str, new_amount_usdc: float, reason: str) -> dict:
-    """차감 수락 시 청구 금액을 조정해 재발행한다."""
+    """차감 수락 시 청구 금액을 조정해 재발행한다.
+
+    금액만 고치면 가맹점이 재검수할 때 같은 불일치를 또 발견하므로, 청구 내역(items)도
+    실제 입고 수량으로 정정한다. 차감 합의란 곧 "청구서를 실입고분으로 바로잡는 것"이다.
+    """
+    invoice = state.get("invoices", invoice_id)
+    if not invoice:
+        return {"error": f"청구서 없음: {invoice_id}"}
+
+    received = fixtures.load()["receiving_logs"].get(invoice["store_id"], {}).get(invoice["delivery_id"], {})
+    corrected = [
+        {**item, "qty": received.get(item["sku"], item["qty"])} for item in invoice["items"]
+    ]
     invoice = state.update(
-        "invoices", invoice_id, {"amount_usdc": new_amount_usdc, "status": "issued"}
+        "invoices",
+        invoice_id,
+        {
+            "amount_usdc": new_amount_usdc,
+            "items": corrected,
+            "status": "issued",
+            "adjusted": True,
+        },
     )
-    state.log_event(ACTOR, "invoice.adjusted", {"invoice_id": invoice_id, "new_amount": new_amount_usdc, "reason": reason})
+    state.log_event(
+        ACTOR,
+        "invoice.adjusted",
+        {"invoice_id": invoice_id, "new_amount": new_amount_usdc, "reason": reason},
+    )
     return invoice
 
 
