@@ -10,6 +10,8 @@ dependencies = [
     "python-dotenv>=1.0",
     # macOS 13 Intel: cryptography 46+는 x86_64 macOS 휠 미제공 → 소스빌드 실패 방지
     "cryptography<46",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
 ]
 
 [dependency-groups]

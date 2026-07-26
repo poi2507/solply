@@ -1,0 +1,183 @@
+// Solply 대시보드 — SSE로 에이전트 활동을 실시간 반영한다.
+
+const $ = (id) => document.getElementById(id);
+const seenInvoices = new Set();
+
+const ACTION_LABEL = {
+  "invoice.created": "청구서 발행",
+  "invoice.adjusted": "청구 금액 조정",
+  "delivery.verified": "검수 대조",
+  "proposal.adjustment": "차감 제안",
+  "proposal.deferral": "유예 제안",
+  "proposal.reviewed": "제안 심사",
+  "payment.executed": "결제 실행",
+  "payment.verified": "수금 검증",
+  "payment.mismatch": "검증 불일치",
+  "payment.refused": "결제 거부",
+  "payment.blocked_over_limit": "한도 초과 차단",
+  "x402.payment_required": "x402 결제 요구",
+  "x402.settled": "x402 정산 완료",
+  "x402.verification_failed": "x402 검증 실패",
+};
+
+const STATUS_LABEL = {
+  issued: "발행", paid: "결제됨", settled: "정산완료",
+  disputed: "협의중", scheduled: "예약", refused: "거부",
+};
+
+const fmt = (n) => Number(n ?? 0).toLocaleString("ko-KR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const short = (s, head = 6, tail = 4) => (!s ? "" : s.length <= head + tail + 1 ? s : `${s.slice(0, head)}…${s.slice(-tail)}`);
+const clock = (iso) => { try { return new Date(iso).toLocaleTimeString("ko-KR", { hour12: false }); } catch { return "--:--:--"; } };
+
+async function getJSON(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`${url} → ${res.status}`);
+  return res.json();
+}
+
+function renderStores(stores) {
+  const el = $("stores");
+  if (!stores.length) { el.innerHTML = '<div class="empty">가맹점 정보가 없습니다</div>'; return; }
+  el.innerHTML = stores.map((s) => `
+    <article class="store">
+      <div class="top"><span class="name">${s.name}</span><span class="score">${s.creditScore}</span></div>
+      <div class="id">${s.id}</div>
+      <div class="gauge"><i style="width:${Math.min(100, s.creditScore)}%"></i></div>
+      <dl>
+        <dt>미수금</dt><dd>${fmt(s.outstandingUsdc)}</dd>
+        <dt>정산 완료</dt><dd>${fmt(s.settledUsdc)}</dd>
+        <dt>자동결제 한도</dt><dd>${fmt(s.autoPayLimit)}</dd>
+      </dl>
+    </article>`).join("");
+}
+
+function renderInvoices(invoices) {
+  const el = $("invoices");
+  $("invoice-count").textContent = `${invoices.length}건`;
+  if (!invoices.length) {
+    el.innerHTML = '<tr><td colspan="5" class="empty">아직 청구서가 없습니다. 데모를 실행하면 여기에 나타납니다.</td></tr>';
+    return;
+  }
+  el.innerHTML = invoices.map((inv) => {
+    const isNew = seenInvoices.size && !seenInvoices.has(inv.id + inv.status);
+    seenInvoices.add(inv.id + inv.status);
+    const tx = inv.tx_sig
+      ? `<a class="txlink" href="${inv.explorer || `https://explorer.solana.com/tx/${inv.tx_sig}?cluster=devnet`}" target="_blank" rel="noopener">${short(inv.tx_sig, 8, 6)}</a>`
+      : '<span class="dash">—</span>';
+    return `<tr class="${isNew ? "flash" : ""}">
+      <td><span class="inv-id">${inv.id}</span></td>
+      <td>${inv.store_id}</td>
+      <td class="r">${fmt(inv.amount_usdc)}</td>
+      <td><span class="tag ${inv.status}">${STATUS_LABEL[inv.status] ?? inv.status}</span></td>
+      <td>${tx}</td>
+    </tr>`;
+  }).join("");
+}
+
+function renderNegotiations(negs) {
+  const el = $("negotiations");
+  if (!negs.length) {
+    el.innerHTML = '<div class="empty">협상 기록이 없습니다</div>';
+    return;
+  }
+  const KIND = { adjustment: "차감", deferral: "유예", installment: "분할" };
+  const VERDICT = { accept: "수락", reject: "거절", counter: "역제안" };
+  el.innerHTML = negs.map((n) => `
+    <div class="neg">
+      <span class="kind ${n.type}">${KIND[n.type] ?? n.type}</span>
+      <div class="body">
+        <div class="prop">${n.proposal ?? ""}</div>
+        <div class="why"><b>본사 판단:</b> ${n.reasoning ?? ""}</div>
+      </div>
+      <span class="verdict ${n.decision}">${VERDICT[n.decision] ?? n.decision}</span>
+    </div>`).join("");
+}
+
+function eventRow(evt, isNew) {
+  const who = evt.actor === "hq-agent" ? "hq" : "store";
+  const label = ACTION_LABEL[evt.action] ?? evt.action;
+  const p = evt.payload ?? {};
+  let meta = "";
+  if (p.invoice_id) meta = p.invoice_id;
+  if (p.tx) meta += ` · ${short(p.tx, 10, 6)}`;
+  if (p.amount != null) meta += ` · ${fmt(p.amount)} USDC`;
+  if (p.new_amount != null) meta += ` → ${fmt(p.new_amount)} USDC`;
+  if (evt.action === "delivery.verified") meta += p.match ? " · 일치" : ` · 불일치 ${p.discrepancies?.length ?? 0}건`;
+  return `<li class="${isNew ? "new" : ""}">
+    <span class="t">${clock(evt.ts)}</span>
+    <span class="what">
+      <span class="who ${who}">${evt.actor.replace("-agent", "")}</span><span class="act">${label}</span>
+      ${meta ? `<span class="meta">${meta}</span>` : ""}
+    </span>
+  </li>`;
+}
+
+function renderWallets(wallets) {
+  $("wallets").innerHTML = wallets.map((w) => w.error
+    ? `<div class="wallet"><div class="row"><span class="who">${w.wallet}</span></div><div class="err">결제 서비스 연결 안 됨</div></div>`
+    : `<div class="wallet">
+         <div class="row"><span class="who">${w.wallet}</span><span class="usdc">${fmt(w.usdc)} <small>USDC</small></span></div>
+         <div class="row"><span class="addr">${short(w.address, 10, 6)}</span><span class="sol">${Number(w.sol).toFixed(3)} SOL</span></div>
+       </div>`).join("");
+}
+
+async function refresh() {
+  try {
+    const [ov, ev] = await Promise.all([getJSON("/api/overview"), getJSON("/api/events?limit=60")]);
+    $("network").textContent = ov.network;
+    $("m-settled").textContent = fmt(ov.totals.settledUsdc);
+    $("m-settled-count").textContent = `${ov.totals.settledCount}건`;
+    $("m-outstanding").textContent = fmt(ov.totals.outstandingUsdc);
+    $("m-outstanding-count").textContent = `${ov.totals.invoices - ov.totals.settledCount}건`;
+    $("m-negotiations").textContent = ov.totals.negotiations;
+    $("m-human").textContent = ov.totals.humanActions;
+    renderStores(ov.stores);
+    renderInvoices(ov.invoices);
+    renderNegotiations(ov.negotiations);
+    $("event-total").textContent = `${ev.total}건 기록됨`;
+    $("feed").innerHTML = ev.events.map((e) => eventRow(e, false)).join("")
+      || '<li class="empty" style="display:block">아직 활동이 없습니다</li>';
+  } catch (err) {
+    console.error(err);
+  }
+  getJSON("/api/wallets").then((w) => renderWallets(w.wallets)).catch(() => {});
+}
+
+function connect() {
+  const beacon = $("beacon");
+  const src = new EventSource("/api/stream");
+  let hotTimer;
+
+  src.addEventListener("ready", () => {
+    beacon.className = "beacon on";
+    beacon.innerHTML = "<i></i>실시간 연결됨";
+  });
+
+  src.addEventListener("activity", (e) => {
+    const evt = JSON.parse(e.data);
+    const feed = $("feed");
+    const empty = feed.querySelector(".empty");
+    if (empty) empty.remove();
+    feed.insertAdjacentHTML("afterbegin", eventRow(evt, true));
+    while (feed.children.length > 80) feed.lastElementChild.remove();
+
+    beacon.className = "beacon hot";
+    beacon.innerHTML = "<i></i>에이전트 작동 중";
+    clearTimeout(hotTimer);
+    hotTimer = setTimeout(() => {
+      beacon.className = "beacon on";
+      beacon.innerHTML = "<i></i>실시간 연결됨";
+    }, 3000);
+  });
+
+  src.addEventListener("refresh", () => refresh());
+
+  src.onerror = () => {
+    beacon.className = "beacon";
+    beacon.innerHTML = "<i></i>재연결 중";
+  };
+}
+
+refresh();
+connect();
+setInterval(refresh, 15000);

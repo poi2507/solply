@@ -1,0 +1,150 @@
+"""x402 (HTTP 402 Payment Required) 프로토콜 구현.
+
+Solply에서의 매핑:
+  - 판매자(resource server) = 본사. "정산 확정"이 유료 리소스다.
+  - 구매자(client)          = 가맹점 에이전트.
+  - 402 응답의 accepts[]    = 협상 조건 목록 (즉시납 / 유예 / 분할)
+
+핵심 아이디어: x402 스펙의 `accepts` 는 배열이라 하나의 리소스에 복수 결제 조건을
+제시할 수 있다. 우리는 여기에 협상 옵션을 담아 **표준 안에서 협상을 표현**한다.
+
+참고: https://docs.x402.org/introduction (v2 헤더 규약)
+"""
+
+import base64
+import json
+from datetime import datetime, timedelta, timezone
+from typing import Any
+
+X402_VERSION = 2
+
+# CAIP-2 네트워크 식별자
+NETWORKS = {
+    "localnet": "solana:localnet",
+    "devnet": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "mainnet-beta": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+}
+USDC_DECIMALS = 6
+
+
+def to_atomic(amount_usdc: float) -> str:
+    """USDC 금액을 atomic units 문자열로 (스펙 요구사항)."""
+    return str(int(round(amount_usdc * 10**USDC_DECIMALS)))
+
+
+def from_atomic(amount: str) -> float:
+    return int(amount) / 10**USDC_DECIMALS
+
+
+def encode_header(payload: dict[str, Any]) -> str:
+    """헤더 값은 base64로 인코딩된 JSON."""
+    return base64.b64encode(json.dumps(payload, ensure_ascii=False).encode()).decode()
+
+
+def decode_header(value: str) -> dict[str, Any]:
+    return json.loads(base64.b64decode(value).decode())
+
+
+def build_payment_requirements(
+    invoice: dict, hq_address: str, network: str, store_profile: dict | None = None
+) -> dict:
+    """402 응답 본문 = PaymentRequirements.
+
+    accepts[]에 협상 옵션을 담는다. 가맹점 에이전트는 이 중 하나를 선택하거나,
+    검수 불일치를 근거로 조정을 역제안한다.
+    """
+    amount = invoice["amount_usdc"]
+    caip2 = NETWORKS.get(network, NETWORKS["localnet"])
+    now = datetime.now(timezone.utc)
+    policy = (store_profile or {}).get("policy", {})
+    defer_max_pct = policy.get("defer_max_pct", 20)
+    installment_max = policy.get("installment_max", 2)
+
+    accepts = [
+        {
+            "scheme": "exact",
+            "network": caip2,
+            "amount": to_atomic(amount),
+            "asset": "USDC",
+            "payTo": hq_address,
+            "maxTimeoutSeconds": 60,
+            "extra": {
+                "term": "immediate",
+                "label": "즉시 납부",
+                "memo": invoice["id"],
+            },
+        }
+    ]
+
+    # 유예: 청구액이 정책 한도(신용 기반) 안일 때만 제시
+    accepts.append(
+        {
+            "scheme": "exact",
+            "network": caip2,
+            "amount": to_atomic(amount),
+            "asset": "USDC",
+            "payTo": hq_address,
+            "maxTimeoutSeconds": 60,
+            "extra": {
+                "term": "deferred",
+                "label": "납부 유예 (본사 심사 필요)",
+                "memo": invoice["id"],
+                "notBefore": (now + timedelta(days=1)).isoformat(),
+                "requiresApproval": True,
+                "policyHint": f"청구액의 {defer_max_pct}% 이내 & 납부기한 내면 자동 수락",
+            },
+        }
+    )
+
+    # 분할
+    per = round(amount / 2, 2)
+    accepts.append(
+        {
+            "scheme": "exact",
+            "network": caip2,
+            "amount": to_atomic(per),
+            "asset": "USDC",
+            "payTo": hq_address,
+            "maxTimeoutSeconds": 60,
+            "extra": {
+                "term": "installment",
+                "label": f"2회 분할 (회당 {per} USDC)",
+                "memo": invoice["id"],
+                "installments": 2,
+                "requiresApproval": True,
+                "policyHint": f"최대 {installment_max}회까지 허용",
+            },
+        }
+    )
+
+    return {
+        "x402Version": X402_VERSION,
+        "accepts": accepts,
+        "resource": {
+            "url": f"/x402/invoices/{invoice['id']}/settle",
+            "description": f"식자재 대금 정산 — {invoice['store_id']} / {invoice['delivery_id']}",
+            "mimeType": "application/json",
+        },
+        # 표준 외 확장: 우리가 청구 근거를 함께 실어 보낸다 (검수 대조용)
+        "extensions": {
+            "solply.invoice": {
+                "id": invoice["id"],
+                "storeId": invoice["store_id"],
+                "deliveryId": invoice["delivery_id"],
+                "items": invoice["items"],
+                "amountUsdc": amount,
+            }
+        },
+    }
+
+
+def build_settlement_response(invoice_id: str, signature: str, verified: bool, explorer: str) -> dict:
+    """정산 완료 응답 = SettlementResponse (PAYMENT-RESPONSE 헤더에 실린다)."""
+    return {
+        "x402Version": X402_VERSION,
+        "verified": verified,
+        "settled": verified,
+        "transaction": signature,
+        "invoiceId": invoice_id,
+        "explorer": explorer,
+    }

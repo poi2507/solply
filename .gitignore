@@ -23,3 +23,6 @@ dist/
 .idea/
 .vscode/
 agent/data/state.json
+
+# dev 로그
+.dev-logs/

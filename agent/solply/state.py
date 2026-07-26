@@ -68,6 +68,12 @@ def list_docs(collection: str, **filters) -> list[dict]:
     return docs
 
 
+def list_events() -> list[dict]:
+    """실행 증빙 로그 전체 (오래된 것부터)."""
+    with _lock:
+        return _load()["events"]
+
+
 def log_event(actor: str, action: str, payload: dict) -> None:
     """append-only 실행 증빙 로그 — 심사 기준 4번(실행 로그 기반 확인)의 근거."""
     with _lock:
