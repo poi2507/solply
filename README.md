@@ -4,6 +4,7 @@
 > 납품 이벤트 하나로 AI 에이전트들이 청구 → 검수 검증 → 협상 → 결제 → 정산을 사람 개입 없이 Solana 온체인에서 완결합니다.
 > Google Cloud AI(Gemini + ADK)가 두뇌, Solana(USDC)가 결제 레이어.
 
+- 🚀 **[인수인계 — 이어서 작업할 때 먼저 읽기](docs/HANDOFF.md)**
 - 📐 [프로덕트 설계](docs/product-design.md) · 🧭 [의사결정 로그](docs/decision-log.md) · 🏗️ [아키텍처 시각화](docs/architecture.html) · ✅ [제출 체크리스트](docs/checklist.md)
 
 ---
