@@ -19,7 +19,7 @@ const USDC_MINT = new PublicKey(
   process.env.USDC_MINT ?? "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
 );
 const USDC_DECIMALS = 6;
-const MEMO_PROGRAM_ID = new PublicKey("MemoSq4gqABAXKb96qnH8TySNcWxMyWCqXgDLGmfcHr");
+const MEMO_PROGRAM_ID = new PublicKey("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr");
 
 // 에이전트 지갑 디렉터리: hq / store-a / store-b / store-c
 const WALLET_DIR = (process.env.SOLPLY_WALLET_DIR ?? "~/.config/solana/solply").replace(
