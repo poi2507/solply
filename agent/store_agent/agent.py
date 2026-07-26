@@ -125,7 +125,7 @@ def refuse_payment(invoice_id: str, reason: str) -> dict:
 
 root_agent = Agent(
     name=f"solply_{STORE_ID.replace('-', '_')}",
-    model=os.getenv("STORE_MODEL", "gemini-2.5-flash"),
+    model=os.getenv("STORE_MODEL", "gemini-3.6-flash"),
     description=f"Solply 가맹점 에이전트 ({STORE_ID}) — 검수 검증·자율 결제·협상",
     instruction=(
         f"너는 프랜차이즈 {STORE_ID} 지점의 대금 지불 담당 에이전트다.\n"

@@ -138,7 +138,7 @@ def verify_payment(invoice_id: str, tx_signature: str) -> dict:
 
 root_agent = Agent(
     name="solply_hq",
-    model=os.getenv("HQ_MODEL", "gemini-2.5-flash"),
+    model=os.getenv("HQ_MODEL", "gemini-3.6-flash"),
     description="Solply 본사 정산 에이전트 — 식자재 대금의 청구·심사·수금 검증·정산",
     instruction=(
         "너는 프랜차이즈 본사의 식자재 대금(물대) 정산 담당 에이전트다.\n"
