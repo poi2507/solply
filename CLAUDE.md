@@ -34,6 +34,7 @@ GCP × Solana AI Agentic 해커톤 출품작. **제출 마감 8/3 23:59**, 데�
 
 ## 작업 흐름
 - 기능 검증은 `make demo-mock` (LLM 없이 몇 초, 온체인 결제는 실제 발생).
-- **GCP 결제가 풀리면 `LLM_PROVIDER=vertex`로 전환한다** — $300 크레딧이 적용되고
+- **GCP 결제가 풀리면 `make vertex-check` → `LLM_PROVIDER=vertex`** — $300 크레딧이 적용되고
   무료 티어 분당 한도에서 벗어난다. 심사 기준 2(Google Cloud AI 스택)에도 유리하다.
+  Vertex 모델 이름은 AI Studio와 달라 `VERTEX_HQ_MODEL`/`VERTEX_STORE_MODEL`로 따로 준다.
 - Gemini 무료 티어는 모델당 분당 5회 — `make demo`는 재시도 때문에 10분 이상 걸린다.

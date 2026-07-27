@@ -27,6 +27,9 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
 # Vertex AI 경유 시 필요 (GCP 크레딧 적용 + 한도 여유). LLM_PROVIDER=vertex 로 전환
 GOOGLE_CLOUD_PROJECT = os.getenv("GOOGLE_CLOUD_PROJECT", "")
 GOOGLE_CLOUD_LOCATION = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
+# Vertex는 모델 이름 체계가 AI Studio와 다를 수 있어 따로 둔다
+VERTEX_HQ_MODEL = os.getenv("VERTEX_HQ_MODEL", "gemini-2.5-flash")
+VERTEX_STORE_MODEL = os.getenv("VERTEX_STORE_MODEL", "gemini-2.5-flash-lite")
 
 # ── 에이전트 정책 ──
 STORE_ID = os.getenv("STORE_ID", "store-a")

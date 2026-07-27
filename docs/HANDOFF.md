@@ -26,7 +26,20 @@
    - https://faucet.circle.com 에서 **devnet USDC** — store-a·store-b만. **store-c는 받지 말 것** (잔액 부족이 유예 협상 시나리오)
    - 지갑 주소 (**집 맥 기준 — devnet 코인은 여기로 받는다. 최종 작업·시연은 집 맥**): hq `HzQ9FXdXTPmLVs1Q4J89FGqq6zKUFdXbje5EBfX3gdDJ` / store-a `6hWEQwgw7qtC4ducWLbfbVL7JrqMnzzDUsfj82EXwjmk` / store-b `NEcdWbM14tmkwX1ctS2fwcL3Min2vgsebfD4CwfYLu8` / store-c `Fjfd2FjKPDBYtBonZh69AfCVLv3bkwtkbGuwSydy33JD`
    - (참고: 회사 맥에는 로컬넷 전용 지갑이 별도로 있다 — devnet과 무관, 아래 "작업 머신 2대" 참고)
-2. **GCP 결제 해결** ⏱️10분 — 등록된 Mastercard가 체크카드일 가능성이 높다. **신용카드로 교체** 시도. 그래도 ₩16,000 배너가 남으면 입금해도 된다(크레딧으로 적립되며 사라지지 않는다). 7/30까지 결판. 라이브 URL은 가산점이라 최악의 경우 포기 가능.
+2. **GCP 결제 해결** ⏱️10분 — 등록된 Mastercard가 체크카드일 가능성이 높다. **신용카드로 교체** 시도. 그래도 ₩16,000 배너가 남으면 입금해도 된다(크레딧으로 적립되며 사라지지 않는다). 7/30까지 결판.
+   **이게 라이브 URL(가산점)만의 문제가 아니다** — Vertex AI 전환이 여기 걸려 있고, 전환하면
+   ① Gemini 무료 티어 분당 한도에서 벗어나 데모가 빨라지고 ② $300 크레딧이 쓰이며
+   ③ ADK를 안 쓰는 대신 "Google Cloud AI 스택 활용"을 모델 층에서 증명한다.
+
+3. **Vertex 전환** (결제 해결 직후) — 아래 넷을 실행하고 `make vertex-check`가 통과하면
+   `backend/.env`의 `LLM_PROVIDER=vertex` + `GOOGLE_CLOUD_PROJECT=<ID>`로 바꾼다.
+   ```bash
+   gcloud auth login
+   gcloud auth application-default login
+   gcloud config set project <PROJECT_ID>
+   gcloud services enable aiplatform.googleapis.com
+   make vertex-check      # 6단계 점검 + 실제 호출 테스트
+   ```
 
 ### Claude가 이어서 — Phase 1부터
 
@@ -116,7 +129,7 @@ make help        # 전체 명령
 | **LangGraph 전환** (graph/node/state 분리) | ✅ 2026-07-27 |
 | **프롬프트 md 분리** (`<agent>/prompts/*.md`) | ✅ |
 | **거래 정책 DB화 + 프론트 설정 UI** | ✅ 상한·하한을 사용자가 설정, 즉시 판단에 반영 |
-| Vertex AI 전환 (크레딧·한도 해방) | ⏸ GCP 결제 해결 후 `LLM_PROVIDER=vertex` |
+| Vertex AI 전환 (크레딧·한도 해방) | ⏸ 패키지·분기·점검 스크립트는 준비됨. **gcloud 인증과 결제만 남음** → `make vertex-check` |
 | **x402를 에이전트 플로우에 실제 연결** | ❌ 지금은 엔드포인트만 있고 에이전트는 직접 호출 안 함 |
 | **가맹점 간 직거래 (시나리오 E)** | ❌ 설계만 완료 — [store-to-store-design.md](store-to-store-design.md), Phase 2.5 |
 | **이상 청구 거부 시나리오** | ❌ 도구(`refuse_payment`)는 있고 데모에 없음 |
