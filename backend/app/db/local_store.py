@@ -9,7 +9,12 @@ import threading
 from datetime import datetime, timezone
 from pathlib import Path
 
-_EMPTY: dict = {"stores": {}, "invoices": {}, "negotiations": {}, "schedules": {}, "events": []}
+_EMPTY: dict = {"events": []}
+
+
+def _collection(state: dict, name: str) -> dict:
+    """컬렉션을 늘려도 코드를 고치지 않도록 없으면 만들어 쓴다 (Postgres 쪽과 같은 성질)."""
+    return state.setdefault(name, {})
 
 
 class LocalStore:
@@ -39,20 +44,20 @@ class LocalStore:
     # ── 인터페이스 ──
     def get(self, collection: str, doc_id: str) -> dict | None:
         with self._lock:
-            return self._load()[collection].get(doc_id)
+            return _collection(self._load(), collection).get(doc_id)
 
     def put(self, collection: str, doc_id: str, doc: dict) -> dict:
         with self._lock:
             state = self._load()
             doc = {**doc, "id": doc_id, "updated_at": self._now()}
-            state[collection][doc_id] = doc
+            _collection(state, collection)[doc_id] = doc
             self._save(state)
             return doc
 
     def update(self, collection: str, doc_id: str, patch: dict) -> dict:
         with self._lock:
             state = self._load()
-            doc = state[collection][doc_id]
+            doc = _collection(state, collection)[doc_id]
             doc.update(patch)
             doc["updated_at"] = self._now()
             self._save(state)
@@ -60,23 +65,29 @@ class LocalStore:
 
     def list_docs(self, collection: str, **filters) -> list[dict]:
         with self._lock:
-            docs = list(self._load()[collection].values())
+            docs = list(_collection(self._load(), collection).values())
         for key, value in filters.items():
             docs = [d for d in docs if d.get(key) == value]
         return docs
 
     def list_events(self) -> list[dict]:
         with self._lock:
-            return self._load()["events"]
+            return self._load().setdefault("events", [])
 
     def log_event(self, actor: str, action: str, payload: dict) -> None:
         with self._lock:
             state = self._load()
-            state["events"].append(
+            state.setdefault("events", []).append(
                 {"ts": self._now(), "actor": actor, "action": action, "payload": payload}
             )
             self._save(state)
 
-    def reset(self) -> None:
+    def reset(self, keep: tuple[str, ...] = ()) -> None:
         with self._lock:
-            self.path.unlink(missing_ok=True)
+            if not keep:
+                self.path.unlink(missing_ok=True)
+                return
+            preserved = {name: self._load().get(name, {}) for name in keep}
+            fresh = json.loads(json.dumps(_EMPTY))
+            fresh.update(preserved)
+            self._save(fresh)

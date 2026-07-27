@@ -1,5 +1,5 @@
-"""가맹점 에이전트 — 지점마다 같은 코드에 지갑·정책만 다르게 주입한다."""
+"""가맹점 에이전트 — 돈을 내는 쪽. 지점 구분은 상태(store_id)로만 한다."""
 
-from app.agents.store.agent import build, make_tools, root_agent
+from app.agents.store import graph, node, tools
 
-__all__ = ["build", "make_tools", "root_agent"]
+__all__ = ["graph", "node", "tools"]

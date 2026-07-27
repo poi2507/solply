@@ -18,7 +18,7 @@ class Store(Protocol):
     def list_docs(self, collection: str, **filters) -> list[dict]: ...
     def list_events(self) -> list[dict]: ...
     def log_event(self, actor: str, action: str, payload: dict) -> None: ...
-    def reset(self) -> None: ...
+    def reset(self, keep: tuple[str, ...] = ()) -> None: ...
 
 
 def _build() -> Store:
@@ -60,8 +60,9 @@ def log_event(actor: str, action: str, payload: dict) -> None:
     _store.log_event(actor, action, payload)
 
 
-def reset() -> None:
-    _store.reset()
+def reset(keep: tuple[str, ...] = ()) -> None:
+    """상태를 비운다. `keep`에 든 컬렉션은 남긴다 — 사용자가 설정한 정책이 대표적이다."""
+    _store.reset(keep)
 
 
 def new_id(prefix: str) -> str:

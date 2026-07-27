@@ -113,6 +113,10 @@ make help        # 전체 명령
 | x402 402 챌린지 + 정산 확정 | ✅ 엔드포인트는 동작 |
 | PostgreSQL 저장소 | ✅ |
 | mock LLM 리허설 모드 | ✅ |
+| **LangGraph 전환** (graph/node/state 분리) | ✅ 2026-07-27 |
+| **프롬프트 md 분리** (`<agent>/prompts/*.md`) | ✅ |
+| **거래 정책 DB화 + 프론트 설정 UI** | ✅ 상한·하한을 사용자가 설정, 즉시 판단에 반영 |
+| Vertex AI 전환 (크레딧·한도 해방) | ⏸ GCP 결제 해결 후 `LLM_PROVIDER=vertex` |
 | **x402를 에이전트 플로우에 실제 연결** | ❌ 지금은 엔드포인트만 있고 에이전트는 직접 호출 안 함 |
 | **가맹점 간 직거래 (시나리오 E)** | ❌ 설계만 완료 — [store-to-store-design.md](store-to-store-design.md), Phase 2.5 |
 | **이상 청구 거부 시나리오** | ❌ 도구(`refuse_payment`)는 있고 데모에 없음 |
@@ -161,12 +165,13 @@ Discord `#pay-sh-질문` 채널에 Solana Foundation 개발자(Ludo)가 한/영�
 backend/app/
 ├── main.py        FastAPI 조립 (API + x402 + 프론트 서빙, 컨테이너 1개)
 ├── config.py      환경변수는 여기서만 읽는다
-├── api/           dashboard.py(+SSE) · x402.py
-├── agents/        hq/{agent,prompt}.py · store/{agent,prompt}.py
-│                  utils.py(공통 계산) · runner.py(실행·재시도) · prompt_kit.py
-├── core/          protocol.py(x402 메시지) · fixtures.py
+├── api/           dashboard.py(+SSE) · policy.py(정책 설정) · x402.py
+├── agents/        state.py(그래프 상태) · runner.py(실행기) · prompts.py(md 로더) · utils.py
+│   ├── hq/        graph.py · node.py · tools.py · prompts/{role,task,policy,output}.md
+│   └── store/     (동일 구조)
+├── core/          protocol.py(x402) · policy.py(거래 정책) · fixtures.py
 ├── db/            store.py(파사드) → local_store.py | postgres_store.py
-├── llm/           mock.py (규칙 기반 플래너)
+├── llm/           factory.py(gemini|vertex|mock) · judge.py(판단) · rules.py(mock 규칙)
 └── solana/        payments.py (TS 결제 서비스 HTTP 클라이언트)
 
 frontend/          빌드 없는 정적 대시보드 (FastAPI가 /assets로 서빙)
@@ -177,9 +182,10 @@ payments/          TypeScript — Solana USDC 전송·검증 (Solana SDK가 JS�
 
 - 환경변수는 `config.py`에서만. 다른 모듈에서 `os.getenv` 직접 호출 금지.
 - 저장소 접근은 `app.db.store` 파사드로만. local/postgres를 갈아끼운다.
-- 프롬프트는 각 에이전트의 `prompt.py`에만. ROLE/TASK/POLICY/OUTPUT 네 섹션 고정.
+- 프롬프트는 `<agent>/prompts/*.md`에만. role·task·policy·output 네 파일.
   프롬프트에 적는 도구 이름은 실제 함수명과 일치해야 한다 (테스트가 검사).
-- 에이전트 도구는 부수효과만. 순수 계산은 `agents/utils.py`로.
+- 한도·기준 같은 개인별 수치는 md가 아니라 **DB의 정책**에서 주입된다 (`core/policy.py`).
+- 에이전트 도구는 부수효과만. 순수 계산은 `utils.py`, 판단은 `llm/judge.py`, 흐름은 `node.py`.
 - 결제는 로컬넷/devnet 전용. **메인넷 금지.**
 
 ---

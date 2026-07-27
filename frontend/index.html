@@ -92,6 +92,14 @@
       </section>
 
       <section class="panel">
+        <div class="panel-head">
+          <h2>거래 정책</h2>
+          <span class="hint">에이전트의 판단 경계</span>
+        </div>
+        <div id="policy"></div>
+      </section>
+
+      <section class="panel">
         <div class="panel-head"><h2>지갑</h2></div>
         <div class="wallets" id="wallets"></div>
       </section>
@@ -103,5 +111,9 @@
   </footer>
 </div>
 <script src="/assets/app.js"></script>
+<script type="module">
+  import { mount } from "/assets/policy.js";
+  mount(document.getElementById("policy"));
+</script>
 </body>
 </html>

@@ -212,3 +212,54 @@ td.r { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 
 .empty { padding: 26px 18px; text-align: center; color: var(--text-3); font-size: 13px; }
 .foot-note { margin-top: 26px; text-align: center; font-size: 12px; color: var(--text-3); }
+
+/* ── 거래 정책 ── */
+.gate { padding: 18px; }
+.gate h3 { margin: 0 0 4px; font-size: 14.5px; }
+.gate p { margin: 0 0 14px; font-size: 12.5px; color: var(--text-3); }
+.gate-list { display: flex; flex-direction: column; gap: 7px; }
+.gate-btn {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: 9px;
+  padding: 11px 14px; cursor: pointer; text-align: left; font: inherit; color: var(--text);
+}
+.gate-btn:hover, .gate-btn:focus-visible { border-color: var(--mint); outline: none; }
+.gate-btn.hq { border-left: 3px solid var(--mint); }
+.gate-btn.store { border-left: 3px solid var(--amber); }
+.gate-name { font-size: 13.5px; font-weight: 600; }
+.gate-id { font-family: var(--mono); font-size: 11px; color: var(--text-3); }
+
+.policy { padding: 4px 0 0; }
+.policy-head {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  padding: 12px 18px 14px; border-bottom: 1px solid var(--line-soft);
+}
+.policy-head .who { display: block; font-size: 13.5px; font-weight: 600; }
+.policy-head .sub { display: block; font-size: 11.5px; color: var(--text-3); margin-top: 2px; }
+.linkish {
+  background: none; border: none; color: var(--text-2); font: inherit; font-size: 12px;
+  cursor: pointer; padding: 2px 6px; border-radius: 5px; flex: none;
+}
+.linkish:hover, .linkish:focus-visible { color: var(--mint); background: var(--mint-dim); outline: none; }
+
+.field { display: block; padding: 12px 18px; border-bottom: 1px solid var(--line-soft); }
+.f-label { display: block; font-size: 13px; font-weight: 600; }
+.f-help { display: block; font-size: 11.5px; color: var(--text-3); margin: 2px 0 8px; }
+.f-input { display: flex; align-items: center; gap: 8px; }
+.f-input input {
+  flex: 1; min-width: 0; background: var(--void); color: var(--text);
+  border: 1px solid var(--line); border-radius: 7px; padding: 7px 10px;
+  font-family: var(--mono); font-size: 13.5px; font-variant-numeric: tabular-nums;
+}
+.f-input input:focus { outline: none; border-color: var(--mint); }
+.f-input em { font-style: normal; font-size: 11.5px; color: var(--text-3); flex: none; width: 34px; }
+
+.policy-actions { display: flex; align-items: center; gap: 12px; padding: 14px 18px; }
+.save {
+  background: var(--mint); color: var(--void); border: none; border-radius: 7px;
+  padding: 8px 18px; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer;
+}
+.save:hover, .save:focus-visible { filter: brightness(1.1); outline: none; }
+.saved { font-size: 11.5px; }
+.saved.ok { color: var(--mint); }
+.saved.err { color: var(--rose); }

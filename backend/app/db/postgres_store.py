@@ -121,9 +121,13 @@ class PostgresStore:
             )
 
     # ── 관리 ──────────────────────────────────────────────────────
-    def reset(self) -> None:
+    def reset(self, keep: tuple[str, ...] = ()) -> None:
         with self.pool.connection() as conn:
-            conn.execute("TRUNCATE documents, events RESTART IDENTITY")
+            if keep:
+                conn.execute("DELETE FROM documents WHERE collection <> ALL(%s)", (list(keep),))
+                conn.execute("TRUNCATE events RESTART IDENTITY")
+            else:
+                conn.execute("TRUNCATE documents, events RESTART IDENTITY")
 
     def close(self) -> None:
         if not self.pool.closed:

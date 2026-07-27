@@ -19,12 +19,14 @@ NETWORK = os.getenv("SOLANA_NETWORK", "localnet")
 PAYMENTS_API_URL = os.getenv("PAYMENTS_API_URL", "http://localhost:3000")
 
 # ── LLM ──
-# LLM_PROVIDER=mock 이면 Gemini를 호출하지 않고 규칙 기반으로 동작한다.
-# 무료 티어 rate limit 없이 데모 리허설을 반복할 때 쓴다.
+# gemini(AI Studio 무료) | vertex(GCP 크레딧·한도 여유) | mock(LLM 없이 규칙)
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini")
 HQ_MODEL = os.getenv("HQ_MODEL", "gemini-3.6-flash")
 STORE_MODEL = os.getenv("STORE_MODEL", "gemini-3.5-flash-lite")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
+# Vertex AI 경유 시 필요 (GCP 크레딧 적용 + 한도 여유). LLM_PROVIDER=vertex 로 전환
+GOOGLE_CLOUD_PROJECT = os.getenv("GOOGLE_CLOUD_PROJECT", "")
+GOOGLE_CLOUD_LOCATION = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
 
 # ── 에이전트 정책 ──
 STORE_ID = os.getenv("STORE_ID", "store-a")
