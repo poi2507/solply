@@ -80,6 +80,17 @@ def execute_payment(store_id: str, invoice_id: str) -> dict:
     return {**result, "amount": amount}
 
 
+def request_approval(store_id: str, invoice_id: str, reason: str) -> dict:
+    """자동결제 상한을 넘는 건을 사람에게 넘긴다. 결제는 하지 않는다."""
+    db.update("invoices", invoice_id, {"status": "pending_approval"})
+    utils.log(
+        utils.actor_name(store_id),
+        "payment.needs_approval",
+        {"invoice_id": invoice_id, "reason": reason},
+    )
+    return {"status": "pending_approval", "reason": reason}
+
+
 def propose_adjustment(store_id: str, invoice_id: str, deduction_usdc: float, reason: str) -> dict:
     """검수 불일치분 차감을 본사에 제안한다."""
     proposal = {

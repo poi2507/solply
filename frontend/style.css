@@ -158,6 +158,7 @@ td.r { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 .tag.disputed { background: var(--amber-dim);  color: var(--amber); }
 .tag.scheduled{ background: var(--violet-dim); color: var(--violet); }
 .tag.refused  { background: var(--rose-dim);   color: var(--rose); }
+.tag.pending_approval { background: var(--amber-dim); color: var(--amber); }
 
 /* ── 협상 ── */
 .negotiations { display: flex; flex-direction: column; }

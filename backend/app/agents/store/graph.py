@@ -7,6 +7,7 @@
         └─► verify_delivery                     │
               ├─(불일치)─► propose_adjustment ──┼─► report ► END
               └─(일치)───► assess_cashflow ─────┤
+                              ├─(상한 초과)─► escalate ────────┤
                               ├─(여력 있음)─► execute_payment ─┤
                               └─(부족·하한)─► propose_deferral ┘
 
@@ -33,6 +34,7 @@ def build():
     g.add_node("propose_adjustment", node.propose_adjustment)
     g.add_node("cashflow", node.assess_cashflow)
     g.add_node("pay", node.execute_payment)
+    g.add_node("escalate", node.escalate)
     g.add_node("propose_deferral", node.propose_deferral)
     g.add_node("refuse", node.refuse)
     g.add_node("report", node.report)
@@ -51,9 +53,9 @@ def build():
     g.add_conditional_edges(
         "cashflow",
         node.route_after_cashflow,
-        {"pay": "pay", "propose_deferral": "propose_deferral"},
+        {"pay": "pay", "escalate": "escalate", "propose_deferral": "propose_deferral"},
     )
-    for terminal in ("propose_adjustment", "pay", "propose_deferral", "refuse"):
+    for terminal in ("propose_adjustment", "pay", "escalate", "propose_deferral", "refuse"):
         g.add_edge(terminal, "report")
     g.add_edge("report", END)
 

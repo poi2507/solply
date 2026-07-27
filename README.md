@@ -109,7 +109,7 @@ make help      # 전체 명령 목록
 - `SOLPLY_STORE=postgres` + `DATABASE_URL` — 저장소. `local`이면 JSON 파일
 
 `payments/.env` — RPC 주소, USDC 민트, 지갑 디렉터리.
-템플릿은 [.env.example](.env.example) 참고.
+템플릿은 각 폴더의 `.env.example` 참고 ([backend](backend/.env.example) · [payments](payments/.env.example)).
 
 ### 저장소 전환
 

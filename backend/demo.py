@@ -121,7 +121,7 @@ async def scenario_c() -> None:
 
 def summary() -> None:
     banner("정산 결과", "hq")
-    icons = {"settled": "✅", "scheduled": "🕐", "paid": "💸", "issued": "📄", "disputed": "⚖️", "refused": "🚫"}
+    icons = {"settled": "✅", "scheduled": "🕐", "paid": "💸", "issued": "📄", "disputed": "⚖️", "refused": "🚫", "pending_approval": "🙋"}
     for inv in sorted(db.list_docs("invoices"), key=lambda d: d["updated_at"]):
         print(f"  {icons.get(inv['status'], '•')} {inv['id']}  {inv['store_id']:9} "
               f"{inv['amount_usdc']:>7.2f} USDC  {inv['status']}")

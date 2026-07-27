@@ -1,5 +1,7 @@
 // Solply 대시보드 — SSE로 에이전트 활동을 실시간 반영한다.
 
+import { mount as mountPolicy } from "./policy.js";
+
 const $ = (id) => document.getElementById(id);
 const seenInvoices = new Set();
 
@@ -15,6 +17,7 @@ const ACTION_LABEL = {
   "payment.mismatch": "검증 불일치",
   "payment.refused": "결제 거부",
   "payment.blocked_over_limit": "한도 초과 차단",
+  "payment.needs_approval": "사람 승인 요청",
   "x402.payment_required": "x402 결제 요구",
   "x402.settled": "x402 정산 완료",
   "x402.verification_failed": "x402 검증 실패",
@@ -23,6 +26,7 @@ const ACTION_LABEL = {
 const STATUS_LABEL = {
   issued: "발행", paid: "결제됨", settled: "정산완료",
   disputed: "협의중", scheduled: "예약", refused: "거부",
+  pending_approval: "승인 대기",
 };
 
 const fmt = (n) => Number(n ?? 0).toLocaleString("ko-KR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -180,4 +184,5 @@ function connect() {
 
 refresh();
 connect();
+mountPolicy(document.getElementById("policy"));
 setInterval(refresh, 15000);

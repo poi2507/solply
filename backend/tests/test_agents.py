@@ -102,7 +102,10 @@ def test_prompts_only_name_existing_tools():
 
 def test_store_graph_has_every_decision_path():
     nodes = set(store_graph.build().get_graph().nodes)
-    assert {"verify", "cashflow", "pay", "propose_adjustment", "propose_deferral", "refuse"} <= nodes
+    assert {
+        "verify", "cashflow", "pay", "escalate",
+        "propose_adjustment", "propose_deferral", "refuse",
+    } <= nodes
 
 
 def test_hq_graph_routes_each_intent():
@@ -113,16 +116,22 @@ def test_hq_graph_routes_each_intent():
         assert target in nodes, f"intent가 가리키는 노드 {target}가 그래프에 없다"
 
 
-def test_store_routes_to_deferral_when_reserve_would_break():
-    """잔액은 충분해도 하한을 깨면 결제하지 않고 유예를 제안해야 한다."""
+@pytest.mark.parametrize(
+    ("cashflow", "expected", "why"),
+    [
+        ({"sufficient": True, "keeps_reserve": True, "within_auto_limit": True}, "pay",
+         "여력도 권한도 있으면 결제"),
+        ({"sufficient": True, "keeps_reserve": False, "within_auto_limit": True}, "propose_deferral",
+         "잔액은 있어도 운영 하한을 깨면 유예"),
+        ({"sufficient": False, "keeps_reserve": False, "within_auto_limit": True}, "propose_deferral",
+         "잔액 부족이면 유예"),
+        ({"sufficient": True, "keeps_reserve": True, "within_auto_limit": False}, "escalate",
+         "상한 초과는 권한 문제라 사람에게"),
+        ({"sufficient": False, "keeps_reserve": False, "within_auto_limit": False}, "escalate",
+         "잔액도 없고 상한도 넘으면 권한이 먼저 — 유예를 제안할 자격 자체가 없다"),
+    ],
+)
+def test_cashflow_routing(cashflow, expected, why):
     from app.agents.store import node
 
-    state = {"cashflow": {"sufficient": True, "keeps_reserve": False, "within_auto_limit": True}}
-    assert node.route_after_cashflow(state) == "propose_deferral"
-
-
-def test_store_routes_to_pay_when_all_clear():
-    from app.agents.store import node
-
-    state = {"cashflow": {"sufficient": True, "keeps_reserve": True, "within_auto_limit": True}}
-    assert node.route_after_cashflow(state) == "pay"
+    assert node.route_after_cashflow({"cashflow": cashflow}) == expected, why

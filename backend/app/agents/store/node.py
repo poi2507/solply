@@ -82,6 +82,21 @@ def execute_payment(state: StoreState) -> dict:
     }
 
 
+def escalate(state: StoreState) -> dict:
+    """자동결제 상한을 넘는 청구 — 능력이 아니라 권한의 문제라 사람에게 넘긴다."""
+    cash = state["cashflow"]
+    reason = (
+        f"청구액 {cash['invoice_amount_usdc']} USDC가 자동결제 상한 "
+        f"{cash['auto_pay_limit_usdc']} USDC를 초과합니다."
+    )
+    tools.request_approval(state["store_id"], state["invoice_id"], reason)
+    return {
+        "outcome": "needs_human",
+        "messages": [f"{reason} 결제를 보류하고 담당자 승인을 요청했습니다."],
+        "reasoning": ["점주가 정한 상한을 넘는 금액이라 에이전트가 단독으로 결정하지 않았습니다."],
+    }
+
+
 def propose_deferral(state: StoreState) -> dict:
     """잔액이 모자라면 예상 입금 일정을 근거로 유예를 제안한다."""
     cash = state["cashflow"]
@@ -142,10 +157,14 @@ def route_after_verify(state: StoreState) -> str:
 
 
 def route_after_cashflow(state: StoreState) -> str:
-    """상한(자동결제 한도)과 하한(최소 보유 잔액)을 둘 다 본다."""
+    """상한(권한)을 먼저 보고, 그 다음 잔액과 하한(능력)을 본다.
+
+    순서가 중요하다. 상한 초과는 "이 금액은 애초에 에이전트가 정할 문제가 아니다"라는
+    권한의 문제라, 잔액이 넉넉하든 아니든 사람에게 간다.
+    """
     cash = state["cashflow"]
+    if not cash.get("within_auto_limit", True):
+        return "escalate"
     if not cash.get("sufficient") or not cash.get("keeps_reserve", True):
         return "propose_deferral"
-    if not cash.get("within_auto_limit"):
-        return "pay"  # 한도 초과는 execute_payment가 사람 승인으로 돌린다
     return "pay"
