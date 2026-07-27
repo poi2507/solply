@@ -1,6 +1,6 @@
 # 인수인계 — 다른 세션에서 이어받을 때 먼저 읽는 문서
 
-> 마지막 갱신: **2026-07-27** · 저장소 `github.com/poi2507/solply` (private)
+> 마지막 갱신: **2026-07-28** · 저장소 `github.com/poi2507/solply` (private)
 > 프로젝트 배경은 [README](../README.md), 작업 규칙은 [CLAUDE.md](../CLAUDE.md),
 > 작업 계획은 [wbs.md](wbs.md), 전체 브리핑은 [briefing.html](briefing.html).
 
@@ -16,58 +16,69 @@
 
 ## 🔴 다음 세션에서 바로 할 일 (2026-07-28 기준)
 
-### 사용자가 먼저 — 30분이면 끝난다
+### 회사 맥에서 이어받을 때 — 먼저 동기화 ⏱️5분
 
-크리티컬 패스 두 개가 모두 사람 손에 걸려 있다. **이것부터 걸어두고 개발을 시작한다.**
-
-1. **devnet 코인 확보 착수** ⏱️20분 — 유일하게 막히면 프로젝트가 아픈 항목. explorer 링크가 없으면 심사 기준 4에서 크게 잃는다.
-   - Discord 가입 → discord.gg/bYrJCUAsj
-   - `#일반` 또는 운영 채널에 **devnet SOL 추가 수령 요청** (주최측이 안내한 유일한 공식 경로, 답변에 시간이 걸리니 미리)
-   - https://faucet.circle.com 에서 **devnet USDC** — store-a·store-b만. **store-c는 받지 말 것** (잔액 부족이 유예 협상 시나리오)
-   - 지갑 주소 (**집 맥 기준 — devnet 코인은 여기로 받는다. 최종 작업·시연은 집 맥**): hq `HzQ9FXdXTPmLVs1Q4J89FGqq6zKUFdXbje5EBfX3gdDJ` / store-a `6hWEQwgw7qtC4ducWLbfbVL7JrqMnzzDUsfj82EXwjmk` / store-b `NEcdWbM14tmkwX1ctS2fwcL3Min2vgsebfD4CwfYLu8` / store-c `Fjfd2FjKPDBYtBonZh69AfCVLv3bkwtkbGuwSydy33JD`
-   - (참고: 회사 맥에는 로컬넷 전용 지갑이 별도로 있다 — devnet과 무관, 아래 "작업 머신 2대" 참고)
-2. **GCP 결제 해결** ⏱️10분 — 등록된 Mastercard가 체크카드일 가능성이 높다. **신용카드로 교체** 시도. 그래도 ₩16,000 배너가 남으면 입금해도 된다(크레딧으로 적립되며 사라지지 않는다). 7/30까지 결판.
-   **이게 라이브 URL(가산점)만의 문제가 아니다** — Vertex AI 전환이 여기 걸려 있고, 전환하면
-   ① Gemini 무료 티어 분당 한도에서 벗어나 데모가 빨라지고 ② $300 크레딧이 쓰이며
-   ③ ADK를 안 쓰는 대신 "Google Cloud AI 스택 활용"을 모델 층에서 증명한다.
-
-3. **Vertex 전환** (결제 해결 직후) — 아래 넷을 실행하고 `make vertex-check`가 통과하면
-   `backend/.env`의 `LLM_PROVIDER=vertex` + `GOOGLE_CLOUD_PROJECT=<ID>`로 바꾼다.
-   ```bash
-   gcloud auth login
-   gcloud auth application-default login
-   gcloud config set project <PROJECT_ID>
-   gcloud services enable aiplatform.googleapis.com
-   make vertex-check      # 6단계 점검 + 실제 호출 테스트
-   ```
-
-### Claude가 이어서 — Phase 1부터
-
-[wbs.md](wbs.md)의 Phase 1(x402를 에이전트 플로우에 연결) → Phase 2(신용점수 실계산·거부 시나리오·예약 실행) 순서.
-
-**신규 (7/27)**: 가맹점 간 직거래(시나리오 E) 아이디어가 추가됐다. **구현 설계가 [store-to-store-design.md](store-to-store-design.md)에 완성돼 있어 문서만 읽고 바로 착수 가능** — 도구·데이터·데모 대본·완료 기준 포함. Phase 2 후 착수 추천 (트랙 C 커버, 예상 반나절~1일).
+7/27 저녁에 **에이전트 프레임워크를 LangGraph로 갈아엎었다.** 의존성과 `.env` 항목이 늘었으니
+`git pull`만으로는 안 돌아간다.
 
 ```bash
-make db && make dev      # 환경 복구
-make demo-mock           # 현재 상태 확인
+cd ~/workplace/solply && git pull
+cd backend && uv sync                    # langgraph · langchain-google-* · psycopg 추가됨
 ```
+
+`backend/.env`에 아래 세 줄이 없으면 추가한다 (회사 맥은 API 키가 없으므로 mock 모드):
+
+```bash
+LLM_PROVIDER=mock
+SOLPLY_STORE=postgres
+DATABASE_URL=postgresql://$USER@localhost:5432/solply
+```
+
+그다음 `make db && make dev`, 확인은 `make demo-mock`.
+
+> **`.env`나 지갑 키를 집에서 가져올 필요 없다.** 회사 맥은 mock 모드로 돌고, 로컬넷 전용
+> 지갑이 이미 따로 있다. `GOOGLE_API_KEY`가 필요해지면 AI Studio에서 **회사용 키를 새로
+> 발급**하는 편이 안전하다(키를 채널로 옮기지 않는다). devnet 코인과 시연은 집 맥에서만 한다.
+
+### 사용자 작업 — 오늘 안에 두 개
+
+1. **devnet 코인 확보 착수** ⏱️20분 — 막히면 explorer 링크 없는 데모가 되어 심사 기준 4에서 크게 잃는다.
+   - Discord 가입 → discord.gg/bYrJCUAsj → **devnet SOL 추가 수령 요청** (답변에 시간이 걸리니 미리)
+   - https://faucet.circle.com 에서 **devnet USDC** — store-a·store-b만. **store-c는 받지 말 것** (잔액 부족이 유예 협상 시나리오)
+   - 받는 주소는 **집 맥 지갑**: hq `HzQ9FXdXTPmLVs1Q4J89FGqq6zKUFdXbje5EBfX3gdDJ` / store-a `6hWEQwgw7qtC4ducWLbfbVL7JrqMnzzDUsfj82EXwjmk` / store-b `NEcdWbM14tmkwX1ctS2fwcL3Min2vgsebfD4CwfYLu8` / store-c `Fjfd2FjKPDBYtBonZh69AfCVLv3bkwtkbGuwSydy33JD`
+
+2. **GCP 결제 해결** ⏱️10분 — 등록된 Mastercard가 체크카드일 가능성이 높으니 **신용카드로 교체**. ₩16,000 배너가 남으면 입금해도 된다(크레딧으로 적립되며 사라지지 않는다).
+   **라이브 URL만의 문제가 아니다** — 여기에 세 가지가 걸려 있다.
+   ① Vertex 전환 시 Gemini 무료 티어 분당 한도에서 벗어나 데모가 빨라진다
+   ② $300 크레딧이 쓰인다 ③ ADK를 안 쓰는 대신 "Google Cloud AI 스택 활용"을 모델 층에서 증명한다
+
+   결제가 풀리면 (집 맥에서):
+   ```bash
+   gcloud auth login && gcloud auth application-default login
+   gcloud config set project <PROJECT_ID>
+   gcloud services enable aiplatform.googleapis.com
+   make vertex-check        # 6단계 점검 + 실제 호출까지
+   ```
+   통과하면 스크립트가 `.env`에 넣을 값을 알려준다.
+
+### Claude가 이어서 — WBS Phase 1
+
+**x402를 에이전트 플로우에 연결**한다. 지금 엔드포인트는 동작하지만 에이전트가 그걸 거치지
+않고 직접 결제한다. 심사 기준 3의 핵심이라 "만들어는 뒀다" 수준이면 점수가 안 된다.
+→ [wbs.md](wbs.md) Phase 1 · 그다음 Phase 2(신용점수 실계산·거부·예약)
 
 ### 사용자가 생각해둘 것 — 수익모델
 
-소개서 PPT 필수 4요소(타깃·문제·**수익모델**·아키텍처) 중 하나인데 아직 없다. 후보:
+소개서 PPT 필수 4요소 중 하나인데 아직 없다.
 
 | 안 | 내용 | 평가 |
 |---|---|---|
-| 정산 건당 수수료 | 본사에 건당 과금 | 단순하지만 "온체인은 수수료가 싸다"는 우리 논거와 충돌 |
+| 정산 건당 수수료 | 본사에 건당 과금 | "온체인은 수수료가 싸다"는 우리 논거와 충돌 |
 | **SaaS 구독** | 가맹점 수 기준 월정액 | B2B SaaS라 심사위원이 익숙함 |
 | 결제규모 bp | 거래액의 0.x% | 스케일하면 크지만 초기엔 미미 |
-| **여신 데이터** | 쌓인 신용 이력을 금융사에 판매 | 확장 스토리로 가장 강력, 프라이버시 이슈 있음 |
+| **여신 데이터** | 쌓인 신용 이력을 금융사에 판매 | 확장 스토리로 가장 강력 |
 
-**추천 조합: SaaS 구독(당장의 수익) + 여신 데이터(미래 비전).** 정해지면 소개서에 반영한다.
-
-### 선택 — 도메인 리서치
-
-Q&A 방어의 유일한 약점. 주변에 프랜차이즈·요식업 종사자가 있으면 10분만 물어볼 것: "물대 정산 주기는? 검수가 안 맞으면 어떻게 처리하나?" 업계 한마디가 리서치 열 페이지보다 세다. 없으면 Claude가 자료로 채운다.
+**추천 조합: SaaS 구독(당장의 수익) + 여신 데이터(미래 비전).**
 
 ---
 
