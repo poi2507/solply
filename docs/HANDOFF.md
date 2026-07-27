@@ -24,12 +24,15 @@
    - Discord 가입 → discord.gg/bYrJCUAsj
    - `#일반` 또는 운영 채널에 **devnet SOL 추가 수령 요청** (주최측이 안내한 유일한 공식 경로, 답변에 시간이 걸리니 미리)
    - https://faucet.circle.com 에서 **devnet USDC** — store-a·store-b만. **store-c는 받지 말 것** (잔액 부족이 유예 협상 시나리오)
-   - 지갑 주소: hq `HzQ9FXdXTPmLVs1Q4J89FGqq6zKUFdXbje5EBfX3gdDJ` / store-a `6hWEQwgw7qtC4ducWLbfbVL7JrqMnzzDUsfj82EXwjmk` / store-b `NEcdWbM14tmkwX1ctS2fwcL3Min2vgsebfD4CwfYLu8` / store-c `Fjfd2FjKPDBYtBonZh69AfCVLv3bkwtkbGuwSydy33JD`
+   - 지갑 주소 (**집 맥 기준 — devnet 코인은 여기로 받는다. 최종 작업·시연은 집 맥**): hq `HzQ9FXdXTPmLVs1Q4J89FGqq6zKUFdXbje5EBfX3gdDJ` / store-a `6hWEQwgw7qtC4ducWLbfbVL7JrqMnzzDUsfj82EXwjmk` / store-b `NEcdWbM14tmkwX1ctS2fwcL3Min2vgsebfD4CwfYLu8` / store-c `Fjfd2FjKPDBYtBonZh69AfCVLv3bkwtkbGuwSydy33JD`
+   - (참고: 회사 맥에는 로컬넷 전용 지갑이 별도로 있다 — devnet과 무관, 아래 "작업 머신 2대" 참고)
 2. **GCP 결제 해결** ⏱️10분 — 등록된 Mastercard가 체크카드일 가능성이 높다. **신용카드로 교체** 시도. 그래도 ₩16,000 배너가 남으면 입금해도 된다(크레딧으로 적립되며 사라지지 않는다). 7/30까지 결판. 라이브 URL은 가산점이라 최악의 경우 포기 가능.
 
 ### Claude가 이어서 — Phase 1부터
 
 [wbs.md](wbs.md)의 Phase 1(x402를 에이전트 플로우에 연결) → Phase 2(신용점수 실계산·거부 시나리오·예약 실행) 순서.
+
+**신규 (7/27)**: 가맹점 간 직거래(시나리오 E) 아이디어가 추가됐다. **구현 설계가 [store-to-store-design.md](store-to-store-design.md)에 완성돼 있어 문서만 읽고 바로 착수 가능** — 도구·데이터·데모 대본·완료 기준 포함. Phase 2 후 착수 추천 (트랙 C 커버, 예상 반나절~1일).
 
 ```bash
 make db && make dev      # 환경 복구
@@ -60,7 +63,7 @@ Q&A 방어의 유일한 약점. 주변에 프랜차이즈·요식업 종사자�
 세 개의 서버가 필요하다. 순서대로:
 
 ```bash
-cd ~/workspace/gcp-solana-agentic-hackathon
+cd ~/workspace/gcp-solana-agentic-hackathon   # 집 맥 (메인) — 회사 맥은 ~/workplace/solply
 
 make db      # PostgreSQL (:5432) — 데이터가 여기 있다
 make dev     # 블록체인(:8899) + 결제(:3000) + API/대시보드(:8080)
@@ -77,9 +80,11 @@ make test        # 17개 테스트
 make help        # 전체 명령
 ```
 
-### 툴체인 위치 (이 맥은 Homebrew가 죽어 있다)
+### 작업 머신 2대 (7/27부터)
 
-macOS 13.5 Intel이라 Homebrew가 지원을 끊었다. 전부 공식 인스톨러로 우회 설치돼 있고 `~/.zshrc`의 `# gcp-solana-hackathon-paths` 블록에 PATH가 등록돼 있다.
+**집 맥이 메인**(최종 작업·devnet 시연·제출), 회사 맥은 낮 시간 보조 개발용이다.
+
+**① 집 맥 — macOS 13.5 Intel, Homebrew 죽음.** 레포 `~/workspace/gcp-solana-agentic-hackathon`. 전부 공식 인스톨러로 우회 설치, `~/.zshrc`의 `# gcp-solana-hackathon-paths` 블록에 PATH 등록. **여기서는 brew 쓰지 말 것** — 공식 인스톨러나 conda-forge.
 
 | 도구 | 위치 |
 |---|---|
@@ -90,7 +95,9 @@ macOS 13.5 Intel이라 Homebrew가 지원을 끊었다. 전부 공식 인스톨�
 | gh CLI | `~/.local/bin/gh` (poi2507 로그인됨) |
 | PostgreSQL | `~/.local/pg-env/bin` (conda-forge), 데이터 `~/.local/pgdata` |
 
-**새 도구가 필요하면 brew 쓰지 말 것.** 공식 인스톨러나 conda-forge를 쓴다.
+원본 지갑 키(`~/.config/solana/solply/`)와 `GOOGLE_API_KEY`가 든 `backend/.env`는 **집 맥에만 있다.**
+
+**② 회사 맥 — Apple Silicon, Homebrew 정상 (7/27 환경 구축).** 레포 `~/workplace/solply`. uv·Solana CLI는 공식 인스톨러(집 맥과 같은 경로), Node·PostgreSQL 17·gh는 Homebrew. gcloud 미설치. 지갑은 **로컬넷 전용으로 새로 생성**(devnet 코인 받는 주소 아님), `GOOGLE_API_KEY` 없음 → `LLM_PROVIDER=mock`으로 동작. Docker가 8000 포트를 점유해 validator gossip을 8010으로 옮겼다(`dev.sh`·`Makefile`에 반영, 집 맥에서도 무해).
 
 ---
 
@@ -198,7 +205,7 @@ spl-token mint "$MINT" 100 --recipient-owner "$(solana-keygen pubkey ~/.config/s
 
 **conda Postgres에는 zoneinfo가 없다.** 시스템 타임존(KST-9)을 못 읽어서 UTC로 고정해뒀다.
 
-**Solana validator가 8000번 포트를 쓴다.** FastAPI는 8080을 쓰는 이유.
+**Solana validator가 8000번 포트를 쓴다.** FastAPI는 8080을 쓰는 이유. 회사 맥에서는 Docker가 8000을 점유하고 있어 validator gossip 포트를 **8010**으로 옮겼다 (`dev.sh`·`Makefile`에 반영, 집 맥에서도 무해).
 
 **API 키가 `.env.example`에 들어간 적이 있다.** 이 파일은 git에 올라가므로 실제 값은 `backend/.env`에만. **제출 시 레포를 public으로 바꾸므로** 그 전에 한 번 더 확인할 것.
 
