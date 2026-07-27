@@ -24,7 +24,8 @@ dev:               ## 전체 스택 기동 (블록체인 + 결제 + API/대시�
 	bash scripts/dev.sh
 
 chain:             ## 로컬 블록체인만 기동
-	solana-test-validator --reset --clone MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr \
+	solana-test-validator --reset --gossip-port 8010 \
+		--clone MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr \
 		--url https://api.mainnet-beta.solana.com
 
 pay:               ## 결제 서비스만 (:3000)

@@ -11,15 +11,19 @@ PG_HOME="${PG_HOME:-$HOME/.local/pg-env}"
 PGDATA="${PGDATA:-$HOME/.local/pgdata}"
 PGPORT="${PGPORT:-5432}"
 DB_NAME="${DB_NAME:-solply}"
-export PATH="$PG_HOME/bin:$PATH"
 
-if [ ! -d "$PG_HOME/bin" ]; then
+if [ -d "$PG_HOME/bin" ]; then
+  export PATH="$PG_HOME/bin:$PATH"
+elif command -v pg_isready >/dev/null 2>&1; then
+  # Homebrew 등 시스템 PostgreSQL 사용 (예: M칩 맥). 서버 관리는 brew services에 맡긴다
+  echo "✓ 시스템 PostgreSQL 사용: $(command -v pg_isready)"
+else
   echo "✗ PostgreSQL이 없습니다. 먼저 설치하세요:"
-  echo "  conda create -y -p $PG_HOME -c conda-forge postgresql"
+  echo "  brew install postgresql@17  (또는 conda create -y -p $PG_HOME -c conda-forge postgresql)"
   exit 1
 fi
 
-if [ ! -f "$PGDATA/PG_VERSION" ]; then
+if ! pg_isready -p "$PGPORT" >/dev/null 2>&1 && [ ! -f "$PGDATA/PG_VERSION" ]; then
   echo "▶ 데이터 디렉터리 초기화: $PGDATA"
   initdb -D "$PGDATA" -U "$USER" --encoding=UTF8 --locale=C >/dev/null
   # conda 배포판에는 zoneinfo가 없어 시스템 타임존(KST-9)을 못 읽는다
