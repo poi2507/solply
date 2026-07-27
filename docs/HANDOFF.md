@@ -26,7 +26,7 @@ cd ~/workplace/solply && git pull
 cd backend && uv sync                    # langgraph · langchain-google-* · psycopg 추가됨
 ```
 
-`backend/.env`에 아래 세 줄이 없으면 추가한다 (회사 맥은 API 키가 없으므로 mock 모드):
+`backend/.env`에 아래 세 줄이 없으면 추가한다:
 
 ```bash
 LLM_PROVIDER=mock
@@ -36,9 +36,10 @@ DATABASE_URL=postgresql://$USER@localhost:5432/solply
 
 그다음 `make db && make dev`, 확인은 `make demo-mock`.
 
-> **`.env`나 지갑 키를 집에서 가져올 필요 없다.** 회사 맥은 mock 모드로 돌고, 로컬넷 전용
-> 지갑이 이미 따로 있다. `GOOGLE_API_KEY`가 필요해지면 AI Studio에서 **회사용 키를 새로
-> 발급**하는 편이 안전하다(키를 채널로 옮기지 않는다). devnet 코인과 시연은 집 맥에서만 한다.
+> **(7/27 갱신)** 사용자가 집 폴더를 zip으로 직접 가져오면서 회사 맥 `.env`에도
+> `GOOGLE_API_KEY`가 설정됐다(유효성 확인됨, `LLM_PROVIDER=gemini`). 원래 권고는
+> "회사용 키를 따로 발급"이었으니, 키를 분리하고 싶어지면 AI Studio에서 새로 발급해
+> 교체하면 된다. 지갑 키는 여전히 집 맥에만 있고, devnet 코인과 시연은 집 맥에서만 한다.
 
 ### 사용자 작업 — 오늘 안에 두 개
 
@@ -121,7 +122,7 @@ make help        # 전체 명령
 
 원본 지갑 키(`~/.config/solana/solply/`)와 `GOOGLE_API_KEY`가 든 `backend/.env`는 **집 맥에만 있다.**
 
-**② 회사 맥 — Apple Silicon, Homebrew 정상 (7/27 환경 구축).** 레포 `~/workplace/solply`. uv·Solana CLI는 공식 인스톨러(집 맥과 같은 경로), Node·PostgreSQL 17·gh는 Homebrew. gcloud 미설치. 지갑은 **로컬넷 전용으로 새로 생성**(devnet 코인 받는 주소 아님), `GOOGLE_API_KEY` 없음 → `LLM_PROVIDER=mock`으로 동작. Docker가 8000 포트를 점유해 validator gossip을 8010으로 옮겼다(`dev.sh`·`Makefile`에 반영, 집 맥에서도 무해).
+**② 회사 맥 — Apple Silicon, Homebrew 정상 (7/27 환경 구축).** 레포 `~/workplace/solply`. uv·Solana CLI는 공식 인스톨러(집 맥과 같은 경로), Node·PostgreSQL 17·gh는 Homebrew. gcloud 미설치. 지갑은 **로컬넷 전용으로 새로 생성**(devnet 코인 받는 주소 아님). `GOOGLE_API_KEY`는 집 폴더 복사본(`~/workplace/gcp-solana-agentic-hackathon`)에서 가져와 설정 완료(7/27, 유효성 확인됨) — `make demo`(Gemini)도 동작한다. Docker가 8000 포트를 점유해 validator gossip을 8010으로 옮겼다(`dev.sh`·`Makefile`에 반영, 집 맥에서도 무해).
 
 ---
 
