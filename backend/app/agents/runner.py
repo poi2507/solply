@@ -7,7 +7,7 @@ LLM 재시도·provider 분기는 `app/llm/judge.py`가 처리하므로 여기�
 from typing import Any, Callable
 
 from app.agents import hq, store
-from app.agents.state import AgentState, initial_state
+from app.agents.state import initial_state
 
 _GRAPHS = {"hq": hq.graph.build, "store": store.graph.build}
 
@@ -19,7 +19,7 @@ async def run(
     on_node: Callable[[str], None] | None = None,
     on_message: Callable[[str], None] | None = None,
     **state_kwargs: Any,
-) -> AgentState:
+) -> dict[str, Any]:
     """에이전트 그래프를 한 번 돌리고 최종 상태를 돌려준다.
 
     Args:
@@ -32,7 +32,7 @@ async def run(
     state = initial_state(actor=actor, intent=intent, **state_kwargs)
     graph = _GRAPHS[agent]()
 
-    final: AgentState = state
+    final: dict[str, Any] = dict(state)
     seen_messages = 0
     async for chunk in graph.astream(state, stream_mode="values"):
         final = chunk
@@ -53,7 +53,7 @@ async def run_verbose(
     on_node: Callable[[str, dict], None] | None = None,
     on_message: Callable[[str], None] | None = None,
     **state_kwargs: Any,
-) -> AgentState:
+) -> dict[str, Any]:
     """노드 이름까지 중계하는 실행 — 데모에서 판단 경로를 보여줄 때 쓴다."""
     actor = f"{state_kwargs.get('store_id')}-agent" if agent == "store" else "hq-agent"
     state = initial_state(actor=actor, intent=intent, **state_kwargs)
@@ -77,7 +77,7 @@ async def run_verbose(
                     merged[key] = list(merged[key]) + list(value or [])
                 else:
                     merged[key] = value
-    return merged  # type: ignore[return-value]
+    return merged
 
 
 def latest_event(events: list[dict], action: str) -> dict | None:

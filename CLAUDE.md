@@ -8,8 +8,8 @@ GCP × Solana AI Agentic 해커톤 출품작. **제출 마감 8/3 23:59**, 데�
 
 ## 구조
 - `backend/app/` — FastAPI. `api/`(라우터) `agents/` `core/`(protocol·fixtures·policy) `db/`(store 추상화) `llm/` `solana/`(결제 클라이언트)
-- **에이전트 프레임워크는 LangGraph.** 에이전트마다 폴더에 `graph.py`(배선) · `node.py`(단계) · `tools.py`(부수효과) · `prompts/*.md`.
-  상태 정의는 `agents/state.py`, 실행기는 `runner.py`, 공통 계산은 `utils.py`, md 로더는 `prompts.py`.
+- **에이전트 프레임워크는 LangGraph.** 에이전트마다 폴더에 `graph.py`(배선) · `node.py`(단계) · `state.py`(그 에이전트의 상태) · `tools.py`(부수효과) · `prompts/*.md`.
+  공통 상태 베이스는 `agents/state.py`의 `BaseState`, 실행기는 `runner.py`, 공통 계산은 `utils.py`, md 로더는 `prompts.py`.
 - `llm/` — `factory.py`(gemini/vertex/mock 분기) · `judge.py`(판단 호출 지점) · `rules.py`(mock 규칙)
 - `frontend/` — 빌드 없는 정적 대시보드. FastAPI가 `/assets`로 서빙한다.
 - `payments/` — TypeScript. Solana SDK가 JS 생태계라 분리했다.

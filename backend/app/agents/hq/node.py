@@ -6,12 +6,12 @@
 
 from app.agents import utils
 from app.agents.hq import tools
-from app.agents.state import AgentState
+from app.agents.hq.state import HQState
 from app.core import policy as policy_mod
 from app.llm import judge
 
 
-def load_context(state: AgentState) -> dict:
+def load_context(state: HQState) -> dict:
     """본사 정책을 DB에서 읽는다."""
     pol = policy_mod.get("hq")
     context: dict = {"policy": pol.as_prompt_values(), "_policy_raw": None}
@@ -28,7 +28,7 @@ def load_context(state: AgentState) -> dict:
     return context
 
 
-def issue_invoice(state: AgentState) -> dict:
+def issue_invoice(state: HQState) -> dict:
     """납품 완료 → 청구서 발행."""
     invoice = tools.create_invoice(state["delivery_id"])
     if invoice.get("error"):
@@ -44,7 +44,7 @@ def issue_invoice(state: AgentState) -> dict:
     }
 
 
-def review_adjustment(state: AgentState) -> dict:
+def review_adjustment(state: HQState) -> dict:
     """차감 제안 심사 — 납품 로그와 대조해 근거를 검증한 뒤 LLM이 결정한다."""
     invoice = state["invoice"]
     proposal = state.get("payload", {})
@@ -78,7 +78,7 @@ def review_adjustment(state: AgentState) -> dict:
     }
 
 
-def apply_adjustment(state: AgentState) -> dict:
+def apply_adjustment(state: HQState) -> dict:
     """차감 수락 시 청구서를 정정해 재발행한다."""
     invoice = state["invoice"]
     deduction = state["decision"]["verified_over_billed"]
@@ -91,7 +91,7 @@ def apply_adjustment(state: AgentState) -> dict:
     }
 
 
-def review_deferral(state: AgentState) -> dict:
+def review_deferral(state: HQState) -> dict:
     """유예 제안 심사 — 신용 이력과 정책 한도를 근거로 LLM이 결정한다."""
     invoice = state["invoice"]
     proposal = state.get("payload", {})
@@ -130,7 +130,7 @@ def review_deferral(state: AgentState) -> dict:
     }
 
 
-def verify_settlement(state: AgentState) -> dict:
+def verify_settlement(state: HQState) -> dict:
     """결제 트랜잭션을 온체인에서 대조하고 정산을 확정한다."""
     signature = state.get("payload", {}).get("tx_signature") or state.get("tx_signature", "")
     if not signature:
@@ -156,7 +156,7 @@ def verify_settlement(state: AgentState) -> dict:
     }
 
 
-def report(state: AgentState) -> dict:
+def report(state: HQState) -> dict:
     if not state.get("messages"):
         return {}
     summary = judge.narrate(
@@ -178,11 +178,11 @@ _INTENT_ROUTE = {
 }
 
 
-def route_intent(state: AgentState) -> str:
+def route_intent(state: HQState) -> str:
     if state.get("outcome") == "noop":
         return "end"
     return _INTENT_ROUTE.get(state.get("intent", ""), "end")
 
 
-def route_after_adjustment(state: AgentState) -> str:
+def route_after_adjustment(state: HQState) -> str:
     return "apply" if state["decision"]["decision"] == "accept" else "report"

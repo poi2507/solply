@@ -19,14 +19,14 @@ from functools import lru_cache
 
 from langgraph.graph import END, StateGraph
 
-from app.agents.state import AgentState
 from app.agents.store import node
+from app.agents.store.state import StoreState
 
 
 @lru_cache(maxsize=1)
 def build():
     """그래프를 조립해 컴파일한다. 지점별로 다른 건 상태(store_id·정책)뿐이라 재사용한다."""
-    g = StateGraph(AgentState)
+    g = StateGraph(StoreState)
 
     g.add_node("load_context", node.load_context)
     g.add_node("verify", node.verify_delivery)

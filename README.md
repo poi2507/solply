@@ -67,8 +67,8 @@
 │   │   ├── main.py       #   앱 조립
 │   │   ├── config.py     #   환경설정 한 곳
 │   │   ├── api/          #   dashboard(+SSE) · x402 라우터
-│   │   ├── agents/       #   hq/ · store/ (각각 agent.py + prompt.py)
-│   │   │                 #   utils.py(공통 계산) · runner.py · prompt_kit.py
+│   │   ├── agents/       #   hq/ · store/ — 각각 graph·node·state·tools + prompts/*.md
+│   │   │                 #   state.py(BaseState) · runner.py · prompts.py · utils.py
 │   │   ├── core/         #   protocol(x402) · fixtures
 │   │   ├── db/           #   store 인터페이스 → local(JSON) / postgres
 │   │   ├── llm/          #   mock 플래너 (리허설용)

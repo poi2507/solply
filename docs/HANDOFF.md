@@ -166,8 +166,8 @@ backend/app/
 ├── main.py        FastAPI 조립 (API + x402 + 프론트 서빙, 컨테이너 1개)
 ├── config.py      환경변수는 여기서만 읽는다
 ├── api/           dashboard.py(+SSE) · policy.py(정책 설정) · x402.py
-├── agents/        state.py(그래프 상태) · runner.py(실행기) · prompts.py(md 로더) · utils.py
-│   ├── hq/        graph.py · node.py · tools.py · prompts/{role,task,policy,output}.md
+├── agents/        state.py(BaseState) · runner.py(실행기) · prompts.py(md 로더) · utils.py
+│   ├── hq/        graph.py · node.py · state.py · tools.py · prompts/{role,task,policy,output}.md
 │   └── store/     (동일 구조)
 ├── core/          protocol.py(x402) · policy.py(거래 정책) · fixtures.py
 ├── db/            store.py(파사드) → local_store.py | postgres_store.py

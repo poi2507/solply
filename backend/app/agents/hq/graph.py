@@ -18,12 +18,12 @@ from functools import lru_cache
 from langgraph.graph import END, StateGraph
 
 from app.agents.hq import node
-from app.agents.state import AgentState
+from app.agents.hq.state import HQState
 
 
 @lru_cache(maxsize=1)
 def build():
-    g = StateGraph(AgentState)
+    g = StateGraph(HQState)
 
     g.add_node("load_context", node.load_context)
     g.add_node("issue", node.issue_invoice)

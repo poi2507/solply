@@ -8,13 +8,13 @@ LLM이 필요한 노드는 `llm.judge()`를 호출하고, 나머지는 도구를
 """
 
 from app.agents import utils
-from app.agents.state import AgentState
 from app.agents.store import tools
+from app.agents.store.state import StoreState
 from app.core import policy as policy_mod
 from app.llm import judge
 
 
-def load_context(state: AgentState) -> dict:
+def load_context(state: StoreState) -> dict:
     """정책을 DB에서 읽고 청구서를 집는다. 모든 경로의 시작점."""
     store_id = state["store_id"]
     pol = policy_mod.get(store_id)
@@ -29,7 +29,7 @@ def load_context(state: AgentState) -> dict:
     return {"policy": pol.as_prompt_values(), "invoice": invoice}
 
 
-def verify_delivery(state: AgentState) -> dict:
+def verify_delivery(state: StoreState) -> dict:
     """청구 품목을 검수 기록과 대조한다."""
     result = tools.verify_delivery(state["store_id"], state["invoice_id"])
     if result.get("match"):
@@ -44,7 +44,7 @@ def verify_delivery(state: AgentState) -> dict:
     }
 
 
-def propose_adjustment(state: AgentState) -> dict:
+def propose_adjustment(state: StoreState) -> dict:
     """불일치분 차감을 제안하고 결제를 보류한다."""
     discrepancies = state["verification"]["discrepancies"]
     total = utils.total_over_billed(discrepancies)
@@ -57,13 +57,13 @@ def propose_adjustment(state: AgentState) -> dict:
     }
 
 
-def assess_cashflow(state: AgentState) -> dict:
+def assess_cashflow(state: StoreState) -> dict:
     """잔액·정책 한도·예상 입금으로 지불 여력을 본다."""
     cash = tools.assess_cashflow(state["store_id"], state["invoice_id"])
     return {"cashflow": cash}
 
 
-def execute_payment(state: AgentState) -> dict:
+def execute_payment(state: StoreState) -> dict:
     """결제를 실행한다."""
     result = tools.execute_payment(state["store_id"], state["invoice_id"])
     if result.get("status") == "needs_human_approval":
@@ -82,7 +82,7 @@ def execute_payment(state: AgentState) -> dict:
     }
 
 
-def propose_deferral(state: AgentState) -> dict:
+def propose_deferral(state: StoreState) -> dict:
     """잔액이 모자라면 예상 입금 일정을 근거로 유예를 제안한다."""
     cash = state["cashflow"]
     forecast = cash.get("pos_forecast", {})
@@ -100,7 +100,7 @@ def propose_deferral(state: AgentState) -> dict:
     }
 
 
-def refuse(state: AgentState) -> dict:
+def refuse(state: StoreState) -> dict:
     """이상 청구를 거부하고 사람에게 넘긴다."""
     reason = state.get("payload", {}).get("refuse_reason") or "발주 내역에 없는 청구입니다."
     tools.refuse_payment(state["store_id"], state["invoice_id"], reason)
@@ -111,7 +111,7 @@ def refuse(state: AgentState) -> dict:
     }
 
 
-def report(state: AgentState) -> dict:
+def report(state: StoreState) -> dict:
     """지금까지의 판단을 사람이 읽는 한 문단으로 정리한다 (LLM)."""
     if not state.get("messages"):
         return {}
@@ -126,7 +126,7 @@ def report(state: AgentState) -> dict:
 
 # ── 분기 조건 ────────────────────────────────────────────────────────
 
-def route_after_context(state: AgentState) -> str:
+def route_after_context(state: StoreState) -> str:
     """청구서가 없으면 끝, 재발행분이면 검수를 건너뛴다."""
     if state.get("outcome") == "noop":
         return "end"
@@ -137,11 +137,11 @@ def route_after_context(state: AgentState) -> str:
     return "verify"
 
 
-def route_after_verify(state: AgentState) -> str:
+def route_after_verify(state: StoreState) -> str:
     return "pay" if state["verification"]["match"] else "propose_adjustment"
 
 
-def route_after_cashflow(state: AgentState) -> str:
+def route_after_cashflow(state: StoreState) -> str:
     """상한(자동결제 한도)과 하한(최소 보유 잔액)을 둘 다 본다."""
     cash = state["cashflow"]
     if not cash.get("sufficient") or not cash.get("keeps_reserve", True):
