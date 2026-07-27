@@ -114,6 +114,7 @@ make help        # 전체 명령
 | PostgreSQL 저장소 | ✅ |
 | mock LLM 리허설 모드 | ✅ |
 | **x402를 에이전트 플로우에 실제 연결** | ❌ 지금은 엔드포인트만 있고 에이전트는 직접 호출 안 함 |
+| **가맹점 간 직거래 (시나리오 E)** | ❌ 설계만 완료 — [store-to-store-design.md](store-to-store-design.md), Phase 2.5 |
 | **이상 청구 거부 시나리오** | ❌ 도구(`refuse_payment`)는 있고 데모에 없음 |
 | **예약 납부 실행** | ❌ C지점이 `scheduled`에서 멈춤 |
 | **Cloud Run 배포** | ❌ |
@@ -131,8 +132,8 @@ make help        # 전체 명령
 | 날짜 | 목표 | 담당 |
 |---|---|---|
 | 7/28 (월) | 에이전트가 x402로 대화 · 신용점수 실계산 착수 | 🤖 |
-| 7/29 (화) | 데모 4종(거부 추가) · 예약 실행 | 🤖 |
-| 7/30 (수) | 대시보드 완성 · **GCP 결제 해결** | 🤖 👤 |
+| 7/29 (화) | 데모 4종·예약 실행 → 오후 P2P 착수 | 🤖 |
+| 7/30 (수) | **시나리오 E (가맹점 간 직거래) 완주** · **GCP 결제 해결** | 🤖 👤 |
 | **7/31 (목)** | **Cloud Run 배포** — 라이브 URL(가산점) | 🤖 |
 | **8/1 (금)** | **devnet 전환 + 데모 영상 3분** | 🤖 👤 |
 | 8/2 (토) | 소개서 PPT (타깃·문제·**수익모델**·아키텍처) | 🤝 |
@@ -243,4 +244,5 @@ spl-token mint "$MINT" 100 --recipient-owner "$(solana-keygen pubkey ~/.config/s
 | [briefing.html](briefing.html) | 전체 브리핑 (사람이 읽는 학습용) |
 | [architecture.html](architecture.html) | 아키텍처 시각화 |
 | [wbs.md](wbs.md) · [wbs.html](wbs.html) | 남은 기간 작업 분해, 담당·의존성·리스크 |
+| [store-to-store-design.md](store-to-store-design.md) | 시나리오 E(가맹점 간 P2P 직거래) 구현 설계 |
 | [checklist.md](checklist.md) | 제출 전 체크리스트 |
