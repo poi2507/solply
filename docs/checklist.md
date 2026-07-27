@@ -12,8 +12,14 @@
 
 ## 되돌릴 수 없는 것 — 두 번 확인
 
-- [ ] **키 유출** — `backend/.env`, `payments/.env`, 지갑 키가 커밋에 없는가
-      `git log --all -S "AIza" --oneline` 과 `git log --all -S "SOLPLY" --oneline` 이 비어 있는가
+- [ ] **키 유출** — 아래 세 명령이 모두 **아무것도 출력하지 않아야** 한다.
+      키 형식을 문자열로 추측하지 말 것 (AI Studio 키는 `AIza`가 아니라 `AQ.`로 시작하기도 한다).
+
+      ```bash
+      git ls-files | grep -E '\.env$'                                    # .env가 추적되면 안 됨
+      git log --all -S "$(grep '^GOOGLE_API_KEY=' backend/.env | cut -d= -f2)" --oneline
+      git log --all --name-only --format= | sort -u | grep -i 'solply/.*\.json'   # 지갑 키
+      ```
 - [ ] **레포 public 전환** — `gh repo edit poi2507/solply --visibility public --accept-visibility-change-consequences`
 - [ ] 영상에 API 키·지갑 키가 화면에 스치지 않았는가
 
