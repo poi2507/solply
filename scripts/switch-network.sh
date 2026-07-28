@@ -10,6 +10,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="$ROOT/payments/.env"
+API_ENV="$ROOT/backend/.env"
 STASH="$ROOT/.dev-logs/localnet-mint"
 DEVNET_USDC="4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU"
 
@@ -24,6 +25,16 @@ set_env() {
   sed -e "s|^SOLANA_RPC_URL=.*|SOLANA_RPC_URL=$rpc|" \
       -e "s|^SOLANA_NETWORK=.*|SOLANA_NETWORK=$net|" \
       -e "s|^USDC_MINT=.*|USDC_MINT=$mint|" "$ENV_FILE" > "$tmp" && mv "$tmp" "$ENV_FILE"
+
+  # 대시보드도 같은 네트워크를 말해야 한다 — 표시가 어긋나면 심사에서 오해를 산다
+  if [ -f "$API_ENV" ]; then
+    if grep -q '^SOLANA_NETWORK=' "$API_ENV"; then
+      tmp=$(mktemp)
+      sed -e "s|^SOLANA_NETWORK=.*|SOLANA_NETWORK=$net|" "$API_ENV" > "$tmp" && mv "$tmp" "$API_ENV"
+    else
+      printf '\n# 대시보드 표시용 (switch-network.sh가 관리)\nSOLANA_NETWORK=%s\n' "$net" >> "$API_ENV"
+    fi
+  fi
 }
 
 case "$TARGET" in

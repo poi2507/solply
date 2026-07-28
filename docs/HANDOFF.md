@@ -251,7 +251,12 @@ spl-token mint "$MINT" 100 --recipient-owner "$(solana-keygen pubkey ~/.config/s
 
 **데모 시나리오는 코드가 아니라 데이터로 만들어진다.** `backend/data/fixtures.json`의 B지점 검수 불일치(닭 10 청구 / 9 입고)와 C지점 신용점수 92, 그리고 지갑 잔액(A·B 넉넉, C 5 USDC)이 시나리오의 전부다. 건드리면 데모가 죽고, `tests/test_core.py`가 이를 지킨다.
 
-**conda Postgres에는 zoneinfo가 없다.** 시스템 타임존(KST-9)을 못 읽어서 UTC로 고정해뒀다.
+**conda Postgres에는 zoneinfo가 없다.** 시스템 타임존(KST-9)을 못 읽어 UTC로 고정해뒀고,
+`$PG_HOME/share/zoneinfo`를 `/usr/share/zoneinfo`로 심볼릭 링크했다 (setup-postgres.sh가 처리).
+이게 없으면 **DBeaver 등 JDBC 클라이언트가 `TimeZone=Asia/Seoul`을 보내며 연결이 거부된다.**
+
+**DB를 GUI로 보려면** — DBeaver: localhost / 5432 / solply / taewoong / 비밀번호 없음(trust 인증).
+테이블은 `documents`(collection·doc_id·data JSONB)와 `events`(append-only 로그) 둘뿐이다.
 
 **Solana validator가 8000번 포트를 쓴다.** FastAPI는 8080을 쓰는 이유. 회사 맥에서는 Docker가 8000을 점유하고 있어 validator gossip 포트를 **8010**으로 옮겼다 (`dev.sh`·`Makefile`에 반영, 집 맥에서도 무해).
 

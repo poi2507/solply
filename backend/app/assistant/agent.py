@@ -11,6 +11,7 @@ LangGraph 에이전트가 정책 안에서 수행하고, 모든 행동이 증빙
 from functools import lru_cache
 
 from app import config
+from app.llm import factory
 from app.assistant import tools
 
 INSTRUCTION = """너는 Solply의 정산 어시스턴트다. 프랜차이즈 본사 정산 담당자와 지점 점주가
@@ -33,7 +34,7 @@ def _runner():
 
     agent = Agent(
         name="solply_assistant",
-        model=config.HQ_MODEL,
+        model=factory.model_for("hq"),  # provider(gemini|vertex)에 맞는 모델명을 고른다
         description="정산 현황 조회와 사람 권한의 실행(승인·반려·예약)을 돕는 대화 창구",
         instruction=INSTRUCTION,
         tools=list(tools.ALL),
