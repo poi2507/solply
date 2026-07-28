@@ -23,6 +23,9 @@
 
 * { box-sizing: border-box; }
 
+/* display를 지정한 요소(.gate-screen, .chat-drawer 등)는 hidden 속성이 무시되므로 못박는다 */
+[hidden] { display: none !important; }
+
 body {
   margin: 0;
   background:
