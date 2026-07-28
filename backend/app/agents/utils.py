@@ -49,6 +49,11 @@ def pos_forecast(store_id: str) -> dict:
     return fixtures.load()["pos_forecast"].get(store_id, {})
 
 
+def store_orders(store_id: str) -> list[str]:
+    """지점이 발주한 SKU 목록 — 이상 청구 판별의 기준."""
+    return fixtures.load().get("orders", {}).get(store_id, [])
+
+
 # ── 계산 (순수 함수) ──────────────────────────────────────────────────
 
 def line_total(items: list[dict]) -> float:
@@ -84,6 +89,12 @@ def correct_items(items: list[dict], received: dict[str, int]) -> list[dict]:
 
 def total_over_billed(discrepancies: list[dict]) -> float:
     return round(sum(d["over_billed_usdc"] for d in discrepancies), 2)
+
+
+def unordered_items(ordered_skus: list[str], items: list[dict]) -> list[dict]:
+    """발주 내역에 없는 청구 품목 — 수량 불일치(협상감)와 달리 거부·에스컬레이션 대상이다."""
+    allowed = set(ordered_skus)
+    return [item for item in items if item["sku"] not in allowed]
 
 
 def describe_discrepancies(discrepancies: list[dict]) -> str:

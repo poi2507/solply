@@ -92,5 +92,18 @@ def test_fixtures_scenarios_are_intact():
     received = data["receiving_logs"]["store-b"]["DEL-002"]
     assert any(received[sku] < qty for sku, qty in invoiced.items())
 
-    # C지점은 신용점수가 높아야 유예가 수락된다
-    assert data["stores"]["store-c"]["credit_score"] >= 85
+    # C지점은 시드 이력이 만드는 신용점수가 심사 기준(85) 이상이어야 유예가 수락된다
+    from app.core import credit
+
+    hist = data["payment_history"]["store-c"]
+    seeded_score = (
+        credit.BASE
+        + credit.ON_TIME_POINTS * hist.get("on_time", 0)
+        - credit.LATE_PENALTY * hist.get("late", 0)
+        - credit.DISPUTE_PENALTY * hist.get("disputed", 0)
+    )
+    assert seeded_score >= 85
+
+    # D 시나리오: DEL-004에는 발주 목록에 없는 품목이 있어야 거부가 발동한다
+    ordered = set(data["orders"]["store-a"])
+    assert any(i["sku"] not in ordered for i in data["deliveries"]["DEL-004"]["items"])

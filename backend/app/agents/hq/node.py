@@ -108,7 +108,10 @@ def review_deferral(state: HQState) -> dict:
             "amount_usdc": invoice["amount_usdc"],
             "credit_score": credit["credit_score"],
             "credit_limit_usdc": credit["credit_limit_usdc"],
-            "history": f"정산 완료 {credit['settled_count']}건 / 누적 {credit['settled_usdc']} USDC",
+            "history": (
+                f"납부 이력 정시납 {credit['on_time']}건 · 연체 {credit['late']}건 · "
+                f"분쟁 {credit['disputed']}건"
+            ),
             "pay_when": proposal.get("pay_when", "미지정"),
             "reason": proposal.get("reason", ""),
         },

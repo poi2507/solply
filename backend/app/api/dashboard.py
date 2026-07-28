@@ -7,7 +7,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 
 from app import config
-from app.core import fixtures
+from app.core import credit, fixtures
 from app.db import store
 from app.solana import payments
 
@@ -32,11 +32,18 @@ def overview() -> dict:
     stores = []
     for sid, profile in profiles.items():
         mine = [i for i in invoices if i["store_id"] == sid]
+        rating = credit.evaluate(sid)  # 점수는 상수가 아니라 납부 이력에서 계산된다
         stores.append(
             {
                 "id": sid,
                 "name": profile["name"],
-                "creditScore": profile["credit_score"],
+                "creditScore": rating["credit_score"],
+                "creditBasis": {
+                    "onTime": rating["on_time"],
+                    "late": rating["late"],
+                    "disputed": rating["disputed"],
+                    "liveSettled": rating["live_settled"],
+                },
                 "creditLimit": profile["credit_limit_usdc"],
                 "autoPayLimit": profile["policy"]["auto_pay_limit_usdc"],
                 "invoiceCount": len(mine),

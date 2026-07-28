@@ -11,7 +11,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app import config
-from app.api import dashboard, policy, x402
+from app.api import dashboard, policy, schedules, x402
 
 app = FastAPI(
     title="Solply",
@@ -21,6 +21,7 @@ app = FastAPI(
 
 app.include_router(dashboard.router)
 app.include_router(policy.router)
+app.include_router(schedules.router)
 app.include_router(x402.router)
 
 if config.FRONTEND_DIR.exists():

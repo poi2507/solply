@@ -111,11 +111,18 @@ def verify_payment(invoice_id: str, tx_signature: str) -> dict:
 
 
 def store_credit(store_id: str) -> dict:
-    """가맹점의 신용 정보 — 유예 심사의 근거."""
+    """가맹점의 신용 정보 — 유예 심사의 근거.
+
+    점수는 상수가 아니라 `core/credit.py`가 납부 이력(시드 + 이번 세션 온체인 정산)에서
+    계산한다. 근거(정시납·연체·분쟁 건수)가 함께 온다.
+    """
+    from app.core import credit
+
     profile = utils.store_profile(store_id) or {}
+    rating = credit.evaluate(store_id)
     settled = [i for i in store.list_docs("invoices", store_id=store_id) if i["status"] == "settled"]
     return {
-        "credit_score": profile.get("credit_score", 0),
+        **rating,
         "credit_limit_usdc": profile.get("credit_limit_usdc", 0),
         "settled_count": len(settled),
         "settled_usdc": round(sum(i["amount_usdc"] for i in settled), 2),

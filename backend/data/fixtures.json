@@ -3,24 +3,31 @@
     "store-a": {
       "name": "A지점 (강남)",
       "wallet_name": "store-a",
-      "credit_score": 88,
       "credit_limit_usdc": 200,
       "policy": { "auto_pay_limit_usdc": 50, "defer_max_pct": 20, "installment_max": 2 }
     },
     "store-b": {
       "name": "B지점 (홍대)",
       "wallet_name": "store-b",
-      "credit_score": 81,
       "credit_limit_usdc": 150,
       "policy": { "auto_pay_limit_usdc": 50, "defer_max_pct": 20, "installment_max": 2 }
     },
     "store-c": {
       "name": "C지점 (부산)",
       "wallet_name": "store-c",
-      "credit_score": 92,
       "credit_limit_usdc": 250,
       "policy": { "auto_pay_limit_usdc": 50, "defer_max_pct": 20, "installment_max": 2 }
     }
+  },
+  "payment_history": {
+    "store-a": { "on_time": 20, "late": 0, "disputed": 1, "note": "개점 후 물대 21건 — 정시납 20, 검수 분쟁 1" },
+    "store-b": { "on_time": 17, "late": 1, "disputed": 0, "note": "개점 후 물대 18건 — 정시납 17, 연체 1 (3일)" },
+    "store-c": { "on_time": 21, "late": 0, "disputed": 0, "note": "개점 후 물대 21건 전건 정시납" }
+  },
+  "orders": {
+    "store-a": ["CHK-10", "VEG-05"],
+    "store-b": ["CHK-10", "SAU-01"],
+    "store-c": ["CHK-10", "VEG-05"]
   },
   "deliveries": {
     "DEL-001": {
@@ -43,10 +50,20 @@
         { "sku": "CHK-10", "name": "냉장 닭 10kg", "qty": 12, "unit_price_usdc": 2.5 },
         { "sku": "VEG-05", "name": "모둠 야채 5kg", "qty": 4, "unit_price_usdc": 1.25 }
       ]
+    },
+    "DEL-004": {
+      "store_id": "store-a",
+      "items": [
+        { "sku": "CHK-10", "name": "냉장 닭 10kg", "qty": 10, "unit_price_usdc": 2.5 },
+        { "sku": "LOB-01", "name": "활 랍스터 3kg", "qty": 4, "unit_price_usdc": 12.5 }
+      ]
     }
   },
   "receiving_logs": {
-    "store-a": { "DEL-001": { "CHK-10": 10, "VEG-05": 8 } },
+    "store-a": {
+      "DEL-001": { "CHK-10": 10, "VEG-05": 8 },
+      "DEL-004": { "CHK-10": 10 }
+    },
     "store-b": { "DEL-002": { "CHK-10": 9, "SAU-01": 4 } },
     "store-c": { "DEL-003": { "CHK-10": 12, "VEG-05": 4 } }
   },

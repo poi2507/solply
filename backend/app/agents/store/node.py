@@ -30,8 +30,24 @@ def load_context(state: StoreState) -> dict:
 
 
 def verify_delivery(state: StoreState) -> dict:
-    """청구 품목을 검수 기록과 대조한다."""
-    result = tools.verify_delivery(state["store_id"], state["invoice_id"])
+    """청구 품목을 발주 내역·검수 기록과 대조한다.
+
+    두 가지 이상을 구분한다: 발주한 품목의 수량 불일치는 협상(차감 제안) 대상이고,
+    **발주한 적 없는 품목의 청구는 거부** 대상이다 — 깎아줄 문제가 아니라 내면 안 되는 돈이다.
+    """
+    store_id = state["store_id"]
+    result = tools.verify_delivery(store_id, state["invoice_id"])
+
+    suspects = utils.unordered_items(utils.store_orders(store_id), state["invoice"]["items"])
+    if suspects:
+        names = ", ".join(f"{i['name']} ×{i['qty']}" for i in suspects)
+        total = round(sum(i["qty"] * i["unit_price_usdc"] for i in suspects), 2)
+        return {
+            "verification": {**result, "suspect_items": suspects},
+            "messages": [f"발주 내역에 없는 품목이 청구됐습니다: {names} ({total} USDC)"],
+            "reasoning": [f"발주 SKU 목록 대조 — {names}는 발주 기록이 없다"],
+        }
+
     if result.get("match"):
         return {"verification": result, "messages": ["검수 대조 결과 일치합니다."]}
 
@@ -149,12 +165,17 @@ def propose_deferral(state: StoreState) -> dict:
 
 def refuse(state: StoreState) -> dict:
     """이상 청구를 거부하고 사람에게 넘긴다."""
-    reason = state.get("payload", {}).get("refuse_reason") or "발주 내역에 없는 청구입니다."
+    suspects = state.get("verification", {}).get("suspect_items", [])
+    if suspects:
+        names = ", ".join(f"{i['name']} ×{i['qty']}" for i in suspects)
+        reason = f"발주 내역에 없는 품목 청구: {names}"
+    else:
+        reason = state.get("payload", {}).get("refuse_reason") or "발주 내역에 없는 청구입니다."
     tools.refuse_payment(state["store_id"], state["invoice_id"], reason)
     return {
         "outcome": "refused",
-        "messages": [f"결제를 거부하고 담당자에게 전달했습니다. 사유: {reason}"],
-        "reasoning": [reason],
+        "messages": [f"결제를 거부하고 담당자에게 넘겼습니다. 사유: {reason}"],
+        "reasoning": ["에이전트는 근거 없는 돈을 쓰지 않는다 — 거부 후 사람 확인"],
     }
 
 
@@ -174,10 +195,10 @@ def report(state: StoreState) -> dict:
 # ── 분기 조건 ────────────────────────────────────────────────────────
 
 def route_after_context(state: StoreState) -> str:
-    """청구서가 없으면 끝, 재발행분이면 검수를 건너뛰고 바로 정산 요청."""
+    """청구서가 없으면 끝, 재발행분·예약 실행분이면 검수를 건너뛰고 바로 정산 요청."""
     if state.get("outcome") == "noop":
         return "end"
-    if state.get("intent") == "invoice.pay_adjusted":
+    if state.get("intent") in ("invoice.pay_adjusted", "invoice.pay_scheduled"):
         return "request_terms"
     if state.get("payload", {}).get("suspect"):
         return "refuse"
@@ -185,7 +206,9 @@ def route_after_context(state: StoreState) -> str:
 
 
 def route_after_verify(state: StoreState) -> str:
-    """검수가 일치할 때만 본사에 정산을 요청한다 — 분쟁 중에는 결제 테이블에 앉지 않는다."""
+    """미발주 품목이면 거부, 수량 불일치면 협상, 일치할 때만 정산 테이블에 앉는다."""
+    if state["verification"].get("suspect_items"):
+        return "refuse"
     return "request_terms" if state["verification"]["match"] else "propose_adjustment"
 
 

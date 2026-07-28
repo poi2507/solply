@@ -2,9 +2,10 @@
 
 에이전트 그래프를 번갈아 호출해 협상을 성사시킨다. 사람은 아무 버튼도 누르지 않는다.
 
-  A지점 — 검수 일치 → 즉시 자율 결제
+  A지점 — 검수 일치 → x402 왕복 즉시 자율 결제
   B지점 — 검수 불일치 → 차감 협상 → 조정 결제
-  C지점 — 잔액 부족 → 유예 협상 → 예약
+  D(A지점) — 발주 없는 품목 청구 → 결제 거부 → 사람 에스컬레이션
+  C지점 — 잔액 부족 → 유예 협상 → 예약 → 예약일 도래 시 실제 실행
 
 협상이 그래프 안의 루프가 아니라 **에이전트 사이의 왕복**인 이유: 실제 서비스에서
 두 에이전트는 다른 프로세스(나중엔 다른 회사)에 있다. 여기서는 오케스트레이터가
@@ -23,7 +24,9 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from app import config
 from app.agents.runner import latest_event, run_verbose
+from app.core import policy as policy_mod
 from app.db import store as db
+from app.solana import payments
 
 C = {
     "hq": "\033[36m", "a": "\033[32m", "b": "\033[33m", "c": "\033[35m",
@@ -73,6 +76,7 @@ def confirm_settlement(invoice_id: str) -> bool:
 
 async def scenario_a() -> None:
     banner("A지점 (강남) — 검수 일치, x402 왕복으로 즉시 자율 결제", "a")
+    simulate_card_settlement("store-a", 35.0)  # 주간 매출 입금 — 리허설을 반복해도 잔액이 유지된다
     issued = await act("hq", "invoice.issue", "본사", "hq", delivery_id="DEL-001")
     invoice_id = issued.get("invoice_id")
     if not invoice_id:
@@ -91,6 +95,7 @@ async def scenario_a() -> None:
 
 async def scenario_b() -> None:
     banner("B지점 (홍대) — 검수 불일치 발견, 차감 협상", "b")
+    simulate_card_settlement("store-b", 35.0)
     issued = await act("hq", "invoice.issue", "본사", "hq", delivery_id="DEL-002")
     invoice_id = issued.get("invoice_id")
     if not invoice_id:
@@ -116,8 +121,23 @@ async def scenario_b() -> None:
         )
 
 
+def simulate_card_settlement(store_id: str, invoice_amount: float) -> None:
+    """예약일의 카드정산금 입금 시뮬레이션 — 본사가 카드매출 정산을 대행하는 구조.
+
+    '청구액 + 운영 하한'을 채우는 만큼만 넣는다. 데모를 반복해도 지점 잔액이
+    불어나 '잔액 부족' 시나리오가 깨지지 않도록 자기 유지되는 금액이다.
+    """
+    balance = payments.balance(store_id)
+    reserve = policy_mod.get(store_id).min_reserve_usdc
+    needed = round(max(0.0, invoice_amount + reserve - balance["usdc"]), 2)
+    if needed <= 0:
+        return
+    payments.pay("hq", balance["address"], needed, "CARD-SETTLEMENT")
+    print(f"  {C['dim']}💳 카드정산금 {needed} USDC 입금 확인 (지점 지갑){C['0']}")
+
+
 async def scenario_c() -> None:
-    banner("C지점 (부산) — 잔액 부족, 유예 협상", "c")
+    banner("C지점 (부산) — 잔액 부족, 유예 협상 → 예약 실행", "c")
     issued = await act("hq", "invoice.issue", "본사", "hq", delivery_id="DEL-003")
     invoice_id = issued.get("invoice_id")
     if not invoice_id:
@@ -129,6 +149,29 @@ async def scenario_c() -> None:
         return print(f"  {C['dim']}유예 제안이 나오지 않았습니다{C['0']}")
 
     await act("hq", "proposal.deferral", "본사", "hq", invoice_id=invoice_id, payload=proposal)
+
+    # ── 예약일 도래 — 시간을 당겨 합의된 예약 납부를 실제로 실행한다 ──
+    invoice = db.get("invoices", invoice_id)
+    if invoice["status"] != "scheduled":
+        return
+    print(f"\n  {C['dim']}⏩ 금요일로 시간을 당깁니다 — 예약 실행 (운영에선 Cloud Scheduler → POST /api/schedules/{{id}}/run){C['0']}")
+    simulate_card_settlement("store-c", invoice["amount_usdc"])
+    paid = await act(
+        "store", "invoice.pay_scheduled", "C지점", "c",
+        store_id="store-c", invoice_id=invoice_id,
+    )
+    if paid.get("outcome") == "paid":
+        confirm_settlement(invoice_id)
+
+
+async def scenario_d() -> None:
+    banner("A지점 (강남) — 발주 없는 품목 청구, 결제 거부 → 사람 에스컬레이션", "a")
+    issued = await act("hq", "invoice.issue", "본사", "hq", delivery_id="DEL-004")
+    invoice_id = issued.get("invoice_id")
+    if not invoice_id:
+        return print("  청구서 발행 실패")
+
+    await act("store", "invoice.handle", "A지점", "a", store_id="store-a", invoice_id=invoice_id)
 
 
 def summary() -> None:
@@ -150,7 +193,7 @@ def summary() -> None:
 
 async def main() -> None:
     parser = argparse.ArgumentParser(description="Solply 데모")
-    parser.add_argument("--only", choices=["a", "b", "c"], help="한 시나리오만 실행")
+    parser.add_argument("--only", choices=["a", "b", "c", "d"], help="한 시나리오만 실행")
     parser.add_argument("--keep", action="store_true", help="기존 상태를 유지")
     args = parser.parse_args()
 
@@ -165,8 +208,8 @@ async def main() -> None:
         print("  ⚠ SOLPLY_STORE=local이면 API 서버와 상태가 분리돼 x402 왕복이 어긋난다 — postgres 권장")
     print(f"  {C['dim']}대시보드를 띄워두면 활동이 실시간으로 표시됩니다 → http://localhost:8080{C['0']}")
 
-    scenarios = {"a": scenario_a, "b": scenario_b, "c": scenario_c}
-    for key in [args.only] if args.only else ["a", "b", "c"]:
+    scenarios = {"a": scenario_a, "b": scenario_b, "c": scenario_c, "d": scenario_d}
+    for key in [args.only] if args.only else ["a", "b", "d", "c"]:
         try:
             await scenarios[key]()
         except Exception as exc:  # noqa: BLE001 — 하나가 죽어도 나머지는 계속

@@ -47,6 +47,7 @@ function renderStores(stores) {
       <div class="top"><span class="name">${s.name}</span><span class="score">${s.creditScore}</span></div>
       <div class="id">${s.id}</div>
       <div class="gauge"><i style="width:${Math.min(100, s.creditScore)}%"></i></div>
+      ${s.creditBasis ? `<div class="basis">정시납 ${s.creditBasis.onTime}${s.creditBasis.liveSettled ? ` <em>(+${s.creditBasis.liveSettled} 온체인)</em>` : ""} · 연체 ${s.creditBasis.late} · 분쟁 ${s.creditBasis.disputed}</div>` : ""}
       <dl>
         <dt>미수금</dt><dd>${fmt(s.outstandingUsdc)}</dd>
         <dt>정산 완료</dt><dd>${fmt(s.settledUsdc)}</dd>

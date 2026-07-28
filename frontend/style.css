@@ -122,7 +122,9 @@ body {
 .store .name { font-weight: 600; font-size: 14.5px; }
 .store .score { font-family: var(--mono); font-size: 12px; color: var(--mint); }
 .store .id { font-family: var(--mono); font-size: 11px; color: var(--text-3); margin-bottom: 11px; }
-.gauge { height: 3px; background: var(--surface-2); border-radius: 2px; overflow: hidden; margin-bottom: 11px; }
+.gauge { height: 3px; background: var(--surface-2); border-radius: 2px; overflow: hidden; margin-bottom: 7px; }
+.store .basis { font-family: var(--mono); font-size: 10.5px; color: var(--text-3); margin-bottom: 9px; }
+.store .basis em { font-style: normal; color: var(--mint); }
 .gauge i { display: block; height: 100%; background: linear-gradient(90deg, #1c8f66, var(--mint)); }
 .store dl { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; margin: 0; font-size: 12.5px; }
 .store dt { color: var(--text-3); }

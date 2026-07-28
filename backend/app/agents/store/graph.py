@@ -3,9 +3,10 @@
     load_context
         ├─(청구서 없음)──────────────────────────► END
         ├─(이상 징후)────────► refuse ───────────► report ► END
-        ├─(조정분 재청구)────► request_terms ───┐
+        ├─(조정분·예약분)────► request_terms ───┐
         └─► verify_delivery                     │
-              ├─(불일치)─► propose_adjustment ──┼─► report ► END
+              ├─(미발주 품목)─► refuse ─────────┼─► report ► END
+              ├─(불일치)─► propose_adjustment ──┤
               └─(일치)───► request_terms ───────┤
                               │ x402: GET → 402 + 조건(즉시/유예/분할)
                               ▼
@@ -52,7 +53,7 @@ def build():
     g.add_conditional_edges(
         "verify",
         node.route_after_verify,
-        {"request_terms": "request_terms", "propose_adjustment": "propose_adjustment"},
+        {"request_terms": "request_terms", "propose_adjustment": "propose_adjustment", "refuse": "refuse"},
     )
     g.add_conditional_edges(
         "request_terms",
