@@ -5,7 +5,7 @@
 > Google Cloud AI(Gemini + ADK)가 두뇌, Solana(USDC)가 결제 레이어.
 
 - 🚀 **[인수인계 — 이어서 작업할 때 먼저 읽기](docs/HANDOFF.md)** · 📋 [WBS (D-7 작업계획)](docs/wbs.md)
-- 📐 [프로덕트 설계](docs/product-design.md) · 🧭 [의사결정 로그](docs/decision-log.md) · 🏗️ [아키텍처 시각화](docs/architecture.html) · ✅ [제출 체크리스트](docs/checklist.md)
+- 📐 [프로덕트 설계](docs/product-design.md) · 🧭 [의사결정 로그](docs/decision-log.md) · ✅ [제출 체크리스트](docs/checklist.md)
 
 ---
 

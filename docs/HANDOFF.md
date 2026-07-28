@@ -2,7 +2,7 @@
 
 > 마지막 갱신: **2026-07-28** · 저장소 `github.com/poi2507/solply` (private)
 > 프로젝트 배경은 [README](../README.md), 작업 규칙은 [CLAUDE.md](../CLAUDE.md),
-> 작업 계획은 [wbs.md](wbs.md), 전체 브리핑은 [briefing.html](briefing.html).
+> 작업 계획은 [wbs.md](wbs.md).
 
 ## 30초 요약
 
@@ -171,7 +171,6 @@ make help        # 전체 명령
 ## 3. 남은 일정
 
 > 상세 작업 분해는 [wbs.md](wbs.md) — 25개 항목, 담당·의존성·크리티컬 패스·리스크.
-> 시각화: `docs/wbs.html`
 
 | 날짜 | 목표 | 담당 |
 |---|---|---|
@@ -287,8 +286,6 @@ spl-token mint "$MINT" 100 --recipient-owner "$(solana-keygen pubkey ~/.config/s
 | [product-design.md](product-design.md) | 프로덕트 설계, 에이전트 구성, 데모 시나리오 |
 | [decision-log.md](decision-log.md) | 아이디어가 여기까지 온 과정, 기각된 후보들 |
 | [kickoff-notes.md](kickoff-notes.md) | 킥오프 발표자료 4종 분석 (일정·x402 스펙·pay.sh) |
-| [briefing.html](briefing.html) | 전체 브리핑 (사람이 읽는 학습용) |
-| [architecture.html](architecture.html) | 아키텍처 시각화 |
-| [wbs.md](wbs.md) · [wbs.html](wbs.html) | 남은 기간 작업 분해, 담당·의존성·리스크 |
+| [wbs.md](wbs.md) | 남은 기간 작업 분해, 담당·의존성·리스크 |
 | [store-to-store-design.md](store-to-store-design.md) | 시나리오 E(가맹점 간 P2P 직거래) 구현 설계 |
 | [checklist.md](checklist.md) | 제출 전 체크리스트 |
