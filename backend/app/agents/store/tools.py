@@ -169,3 +169,106 @@ def refuse_payment(store_id: str, invoice_id: str, reason: str) -> dict:
         utils.actor_name(store_id), "payment.refused", {"invoice_id": invoice_id, "reason": reason}
     )
     return {"status": "refused", "escalated_to_human": True, "reason": reason}
+
+
+# ── 지점 간 직거래 (P2P) ─────────────────────────────────────────────
+
+def check_inventory(store_id: str) -> dict:
+    """지점 재고 현황 — 시드 재고에 확정된 직거래를 반영한 값과 안전재고 미달 품목."""
+    inventory = utils.effective_inventory(store_id)
+    return {"inventory": inventory, "shortages": utils.stock_shortages(inventory)}
+
+
+def find_peer_supply(store_id: str, sku: str, qty: int) -> dict:
+    """다른 지점의 잉여 재고를 조회하고, 본사 발주 조건과 비교할 재료를 만든다."""
+    from app.core import fixtures
+
+    peers = []
+    for sid, profile in fixtures.load()["stores"].items():
+        if sid == store_id:
+            continue
+        surplus = utils.sellable_surplus(utils.effective_inventory(sid), sku)
+        if surplus >= qty:
+            peers.append({"store_id": sid, "name": profile["name"], "surplus": surplus})
+    return {"sku": sku, "qty": qty, "peers": peers, "hq_reorder": utils.hq_reorder_terms(sku)}
+
+
+def propose_p2p_trade(store_id: str, seller_id: str, sku: str, name: str, qty: int, price_usdc: float) -> dict:
+    """잉여 지점에 재고 직거래를 제안한다. 대금은 구매 지점이 판매 지점에 직접 낸다."""
+    trade = db.put(
+        "p2p_trades",
+        db.new_id("P2P"),
+        {
+            "sku": sku, "name": name, "qty": qty, "price_usdc": price_usdc,
+            "buyer_id": store_id, "seller_id": seller_id,
+            "status": "proposed", "tx_sig": None,
+        },
+    )
+    utils.log(
+        utils.actor_name(store_id),
+        "p2p.proposed",
+        {"trade_id": trade["id"], "seller_id": seller_id, "sku": sku, "qty": qty,
+         "price_usdc": price_usdc},
+    )
+    return trade
+
+
+def respond_p2p_trade(store_id: str, trade_id: str, decision: str, reasoning: str) -> dict:
+    """(판매 지점) 직거래 제안에 응답한다. 안전재고를 지킬 수 있을 때만 수락한다."""
+    trade = utils.get_trade(trade_id)
+    if not trade or trade["seller_id"] != store_id:
+        return utils.error(f"이 지점 앞으로 온 제안이 아님: {trade_id}")
+    if trade["status"] != "proposed":
+        return utils.error(f"응답할 수 있는 상태가 아님: {trade['status']}")
+
+    updated = db.update(
+        "p2p_trades", trade_id, {"status": "accepted" if decision == "accept" else "rejected"}
+    )
+    utils.log(
+        utils.actor_name(store_id),
+        "p2p.responded",
+        {"trade_id": trade_id, "decision": decision, "reasoning": reasoning},
+    )
+    return updated
+
+
+def pay_p2p_trade(store_id: str, trade_id: str) -> dict:
+    """(구매 지점) 직거래 대금을 x402 왕복으로 결제한다.
+
+    **본사 승인(approved) 전에는 결제하지 않는다** — 이 가드가 심사 포인트다.
+    정책 상한도 본사 정산과 동일하게 적용된다.
+    """
+    trade = utils.get_trade(trade_id)
+    if not trade or trade["buyer_id"] != store_id:
+        return utils.error(f"이 지점의 직거래 건이 아님: {trade_id}")
+    if trade["status"] != "approved":
+        utils.log(
+            utils.actor_name(store_id),
+            "p2p.blocked_unapproved",
+            {"trade_id": trade_id, "status": trade["status"]},
+        )
+        return utils.error(f"본사 승인 전에는 결제할 수 없음 (현재: {trade['status']})")
+
+    pol = policy_mod.get(store_id)
+    amount = trade["price_usdc"]
+    actor = utils.actor_name(store_id)
+    if amount > pol.auto_pay_limit_usdc:
+        utils.log(actor, "p2p.blocked_over_limit", {"trade_id": trade_id, "amount": amount})
+        return {
+            "status": "needs_human_approval",
+            "reason": f"자동결제 상한 초과: {amount} > {pol.auto_pay_limit_usdc} USDC",
+        }
+
+    challenge = x402_client.fetch_trade_terms(trade_id)
+    term = utils.pick_term(challenge.get("accepts", []), "immediate")
+    if not term:
+        return utils.error("판매 지점의 402 응답에 결제 조건이 없습니다")
+
+    result = payments.pay(store_id, term["payTo"], protocol.from_atomic(term["amount"]), trade_id)
+    utils.log(actor, "p2p.paid", {"trade_id": trade_id, "tx": result["signature"], "amount": amount})
+
+    receipt = x402_client.submit_trade_payment(trade_id, result["signature"]).get("receipt", {})
+    if not receipt.get("settled"):
+        return {**result, "amount": amount, "settled": False,
+                "error": "판매 지점 검증에 실패해 거래가 확정되지 않았습니다."}
+    return {**result, "amount": amount, "settled": True, "explorer": receipt.get("explorer", "")}

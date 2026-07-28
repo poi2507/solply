@@ -43,12 +43,28 @@ def build():
     g.add_node("propose_deferral", node.propose_deferral)
     g.add_node("refuse", node.refuse)
     g.add_node("report", node.report)
+    # 지점 간 직거래 (P2P)
+    g.add_node("check_stock", node.check_stock)
+    g.add_node("find_supply", node.find_supply)
+    g.add_node("propose_trade", node.propose_trade)
+    g.add_node("respond_trade", node.respond_trade)
+    g.add_node("pay_trade", node.pay_trade)
 
     g.set_entry_point("load_context")
     g.add_conditional_edges(
         "load_context",
         node.route_after_context,
-        {"verify": "verify", "request_terms": "request_terms", "refuse": "refuse", "end": END},
+        {
+            "verify": "verify", "request_terms": "request_terms", "refuse": "refuse",
+            "check_stock": "check_stock", "respond_trade": "respond_trade",
+            "pay_trade": "pay_trade", "end": END,
+        },
+    )
+    g.add_conditional_edges(
+        "check_stock", node.route_after_stock, {"find_supply": "find_supply", "report": "report"}
+    )
+    g.add_conditional_edges(
+        "find_supply", node.route_after_supply, {"propose_trade": "propose_trade", "report": "report"}
     )
     g.add_conditional_edges(
         "verify",
@@ -65,7 +81,10 @@ def build():
         node.route_after_cashflow,
         {"pay": "pay", "escalate": "escalate", "propose_deferral": "propose_deferral"},
     )
-    for terminal in ("propose_adjustment", "pay", "escalate", "propose_deferral", "refuse"):
+    for terminal in (
+        "propose_adjustment", "pay", "escalate", "propose_deferral", "refuse",
+        "propose_trade", "respond_trade", "pay_trade",
+    ):
         g.add_edge(terminal, "report")
     g.add_edge("report", END)
 

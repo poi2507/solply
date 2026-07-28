@@ -4,6 +4,7 @@
 
   A지점 — 검수 일치 → x402 왕복 즉시 자율 결제
   B지점 — 검수 불일치 → 차감 협상 → 조정 결제
+  E(B⇄A) — 재고 소진 → 지점 간 직거래 협상 → 본사 승인 → B→A 온체인 결제
   D(A지점) — 발주 없는 품목 청구 → 결제 거부 → 사람 에스컬레이션
   C지점 — 잔액 부족 → 유예 협상 → 예약 → 예약일 도래 시 실제 실행
 
@@ -174,6 +175,35 @@ async def scenario_d() -> None:
     await act("store", "invoice.handle", "A지점", "a", store_id="store-a", invoice_id=invoice_id)
 
 
+async def scenario_e() -> None:
+    banner("B지점 ⇄ A지점 — 가맹점 간 재고 직거래, 본사는 심판", "b")
+    simulate_card_settlement("store-b", 10.0)
+
+    # 1) 구매측(B): 재고 점검 → 조달 경로 비교 → 직거래 제안
+    proposed = await act("store", "restock.check", "B지점", "b", store_id="store-b")
+    trade_id = (proposed.get("trade") or {}).get("id")
+    if not trade_id:
+        return print(f"  {C['dim']}직거래 제안이 나오지 않았습니다{C['0']}")
+
+    # 2) 판매측(A): 안전재고 확인 후 응답
+    responded = await act("store", "p2p.respond", "A지점", "a", store_id="store-a", trade_id=trade_id)
+    if (responded.get("trade") or {}).get("status") != "accepted":
+        return print(f"  {C['dim']}판매 지점이 수락하지 않았습니다{C['0']}")
+
+    # 3) 본사: 위생·신용·가격 심사 (자율성과 통제의 경계)
+    await act("hq", "p2p.review", "본사", "hq", trade_id=trade_id)
+    if (db.get("p2p_trades", trade_id) or {}).get("status") != "approved":
+        return print(f"  {C['dim']}본사가 승인하지 않아 거래를 중단합니다{C['0']}")
+
+    # 4) 구매측(B): 승인 확인 후 x402 왕복으로 B→A 온체인 결제
+    paid = await act("store", "p2p.pay", "B지점", "b", store_id="store-b", trade_id=trade_id)
+    if paid.get("outcome") != "paid":
+        return
+
+    # 5) 본사: 확정된 거래를 장부에 기록
+    await act("hq", "p2p.record", "본사", "hq", trade_id=trade_id)
+
+
 def summary() -> None:
     banner("정산 결과", "hq")
     icons = {"settled": "✅", "scheduled": "🕐", "paid": "💸", "issued": "📄", "disputed": "⚖️", "refused": "🚫", "pending_approval": "🙋"}
@@ -182,6 +212,16 @@ def summary() -> None:
               f"{inv['amount_usdc']:>7.2f} USDC  {inv['status']}")
         if inv.get("tx_sig"):
             print(f"     {C['dim']}tx {inv['tx_sig'][:48]}…{C['0']}")
+
+    trades = db.list_docs("p2p_trades")
+    if trades:
+        print()
+        icons = {"confirmed": "🤝", "rejected": "🚫"}
+        for t in sorted(trades, key=lambda d: d["updated_at"]):
+            print(f"  {icons.get(t['status'], '•')} {t['id']}  {t['buyer_id']}→{t['seller_id']:8} "
+                  f"{t['price_usdc']:>7.2f} USDC  직거래 {t['status']}")
+            if t.get("tx_sig"):
+                print(f"     {C['dim']}tx {t['tx_sig'][:48]}…{C['0']}")
 
     negotiations = db.list_docs("negotiations")
     print(f"\n  협상 {len(negotiations)}건 · 실행 증빙 이벤트 {len(db.list_events())}건")
@@ -193,7 +233,7 @@ def summary() -> None:
 
 async def main() -> None:
     parser = argparse.ArgumentParser(description="Solply 데모")
-    parser.add_argument("--only", choices=["a", "b", "c", "d"], help="한 시나리오만 실행")
+    parser.add_argument("--only", choices=["a", "b", "c", "d", "e"], help="한 시나리오만 실행")
     parser.add_argument("--keep", action="store_true", help="기존 상태를 유지")
     args = parser.parse_args()
 
@@ -208,8 +248,8 @@ async def main() -> None:
         print("  ⚠ SOLPLY_STORE=local이면 API 서버와 상태가 분리돼 x402 왕복이 어긋난다 — postgres 권장")
     print(f"  {C['dim']}대시보드를 띄워두면 활동이 실시간으로 표시됩니다 → http://localhost:8080{C['0']}")
 
-    scenarios = {"a": scenario_a, "b": scenario_b, "c": scenario_c, "d": scenario_d}
-    for key in [args.only] if args.only else ["a", "b", "d", "c"]:
+    scenarios = {"a": scenario_a, "b": scenario_b, "c": scenario_c, "d": scenario_d, "e": scenario_e}
+    for key in [args.only] if args.only else ["a", "b", "e", "d", "c"]:
         try:
             await scenarios[key]()
         except Exception as exc:  # noqa: BLE001 — 하나가 죽어도 나머지는 계속

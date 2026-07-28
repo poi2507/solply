@@ -138,6 +138,48 @@ def build_payment_requirements(
     }
 
 
+def build_trade_requirements(trade: dict, seller_address: str, network: str) -> dict:
+    """지점 간 직거래의 402 — 이번엔 판매 지점이 resource server다.
+
+    본사-가맹점 정산과 같은 규약을 그대로 쓴다. x402가 세로(본사↔지점)와
+    가로(지점↔지점) 정산을 한 프로토콜로 관통한다는 게 포인트다.
+    """
+    caip2 = NETWORKS.get(network, NETWORKS["localnet"])
+    return {
+        "x402Version": X402_VERSION,
+        "accepts": [
+            {
+                "scheme": "exact",
+                "network": caip2,
+                "amount": to_atomic(trade["price_usdc"]),
+                "asset": "USDC",
+                "payTo": seller_address,
+                "maxTimeoutSeconds": 60,
+                "extra": {
+                    "term": "immediate",
+                    "label": f"직거래 대금 즉시 납부 ({trade['name']} ×{trade['qty']})",
+                    "memo": trade["id"],
+                },
+            }
+        ],
+        "resource": {
+            "url": f"/x402/trades/{trade['id']}/settle",
+            "description": f"지점 간 재고 직거래 — {trade['buyer_id']} → {trade['seller_id']}",
+            "mimeType": "application/json",
+        },
+        "extensions": {
+            "solply.trade": {
+                "id": trade["id"],
+                "sku": trade["sku"],
+                "qty": trade["qty"],
+                "buyerId": trade["buyer_id"],
+                "sellerId": trade["seller_id"],
+                "amountUsdc": trade["price_usdc"],
+            }
+        },
+    }
+
+
 def build_settlement_response(invoice_id: str, signature: str, verified: bool, explorer: str) -> dict:
     """정산 완료 응답 = SettlementResponse (PAYMENT-RESPONSE 헤더에 실린다)."""
     return {

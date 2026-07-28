@@ -28,13 +28,27 @@ def fetch_terms(invoice_id: str) -> dict:
 
 def submit_payment(invoice_id: str, signature: str) -> dict:
     """결제 서명을 제출한다. 본사가 온체인 대조 후 정산을 확정하면 영수증이 온다."""
+    return _submit(f"/x402/invoices/{invoice_id}/settle", signature)
+
+
+def fetch_trade_terms(trade_id: str) -> dict:
+    """직거래 대금 결제 조건을 판매 지점(resource server)에서 받아온다."""
+    resp = httpx.get(f"{_BASE}/x402/trades/{trade_id}/settle", timeout=15)
+    if resp.status_code == 402:
+        return resp.json()
+    resp.raise_for_status()
+    return resp.json()
+
+
+def submit_trade_payment(trade_id: str, signature: str) -> dict:
+    """직거래 결제 서명을 제출한다. 판매 지점 검증이 끝나면 재고 인수가 확정된다."""
+    return _submit(f"/x402/trades/{trade_id}/settle", signature)
+
+
+def _submit(path: str, signature: str) -> dict:
     header = protocol.encode_header(
         {"x402Version": protocol.X402_VERSION, "payload": {"signature": signature}}
     )
-    resp = httpx.post(
-        f"{_BASE}/x402/invoices/{invoice_id}/settle",
-        headers={"PAYMENT-SIGNATURE": header},
-        timeout=60,
-    )
+    resp = httpx.post(f"{_BASE}{path}", headers={"PAYMENT-SIGNATURE": header}, timeout=60)
     body = resp.json()
     return {"status_code": resp.status_code, **body}

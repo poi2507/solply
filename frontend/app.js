@@ -126,6 +126,31 @@ function renderWallets(wallets) {
        </div>`).join("");
 }
 
+function renderTrades(trades) {
+  const el = $("trades");
+  if (!el) return;
+  if (!trades || !trades.length) {
+    el.innerHTML = '<div class="empty">아직 지점 간 직거래가 없습니다</div>';
+    return;
+  }
+  const STATUS = { proposed: "제안됨", accepted: "수락", approved: "본사 승인", paid: "결제됨", confirmed: "확정", rejected: "거절" };
+  el.innerHTML = trades.map((t) => {
+    const tx = t.tx_sig
+      ? ` · <a class="txlink" href="https://explorer.solana.com/tx/${t.tx_sig}?cluster=devnet" target="_blank" rel="noopener">${short(t.tx_sig, 8, 6)}</a>`
+      : "";
+    return `
+    <div class="neg">
+      <span class="kind p2p">P2P</span>
+      <div class="body">
+        <div class="prop">${t.buyer_id} → ${t.seller_id} · ${t.name ?? t.sku} ×${t.qty} · ${fmt(t.price_usdc)} USDC</div>
+        <div class="why"><b>상태:</b> ${STATUS[t.status] ?? t.status}${tx}</div>
+      </div>
+      <span class="verdict ${t.status === "confirmed" ? "accept" : t.status === "rejected" ? "reject" : "counter"}">${STATUS[t.status] ?? t.status}</span>
+    </div>`;
+  }).join("");
+}
+
+
 async function refresh() {
   try {
     const [ov, ev] = await Promise.all([getJSON("/api/overview"), getJSON("/api/events?limit=60")]);
@@ -139,6 +164,7 @@ async function refresh() {
     renderStores(ov.stores);
     renderInvoices(ov.invoices);
     renderNegotiations(ov.negotiations);
+    renderTrades(ov.trades);
     $("event-total").textContent = `${ev.total}건 기록됨`;
     $("feed").innerHTML = ev.events.map((e) => eventRow(e, false)).join("")
       || '<li class="empty" style="display:block">아직 활동이 없습니다</li>';

@@ -79,23 +79,21 @@ Phase 2.5(P2P)의 여유가 사라졌다.**
 
 **완료 기준 충족 확인 (7/28)**: 데모 4종(A/B/D/C 순), 신용점수가 이력에서 계산되고 데모 중 오르며, C지점 예약이 실행되어 `settled`로 끝난다. 덤: 시나리오가 카드정산 입금을 시뮬레이션해 반복 리허설에도 잔액이 유지된다.
 
-## Phase 2.5 — 가맹점 간 직거래 (7/30 수) ⚠️ 조건부
+## Phase 2.5 — 가맹점 간 직거래 ✅ 완료 (7/28, 회사 맥 — 예정보다 이틀 앞당김)
 
-> 설계는 [store-to-store-design.md](store-to-store-design.md)에 도구·데이터·대본·완료 기준까지 있다.
-> **7/29 밤까지 Phase 1·2가 끝나지 않으면 버린다.** 배포(Phase 3)와 제출물이 우선이다.
-> 7/27을 구조 개편에 쓰면서 여유가 사라졌으므로, 이 판단을 7/29에 냉정하게 내릴 것.
+> 설계: [store-to-store-design.md](store-to-store-design.md). LangGraph 구조에 맞춰 구현.
 
 | ID | 작업 | 담당 | 산출물 | 의존 |
 |---|---|---|---|---|
-| 2.9 | `fixtures.json`에 `inventory` · `hq_reorder` | 🤖 | A 잉여 6 / B 부족 / 본사발주 D+2 | — |
-| 2.10 | 가맹점 P2P 도구 6종 | 🤖 | `check_inventory` … `confirm_p2p_trade` | 2.9 |
-| 2.11 | 본사 P2P 심사 도구 2종 | 🤖 | `review_p2p_trade` · `record_p2p_settlement` | 2.9 |
-| 2.12 | 프롬프트 POLICY 확장 (양쪽) | 🤖 | 안전재고·승인 조건 | 2.10, 2.11 |
-| 2.13 | mock 플래너 + `scenario_e` | 🤖 | `make demo-mock`으로 완주 | 2.10–2.12 |
-| 2.14 | 대시보드에 P2P 거래 표시 | 🤖 | B→A 방향·금액·tx | 2.13 |
-| 2.15 | 테스트 (안전재고·미승인 결제 차단) | 🤖 | — | 2.13 |
+| 2.9 | ✅ `fixtures.json`에 `inventory` · `hq_reorder` | 🤖 | A 잉여 6 / B 부족(0<4) / 본사발주 D+2·최소 10개 | — |
+| 2.10 | ✅ 가맹점 P2P 도구 5종 + 그래프 노드 5개 | 🤖 | `check_inventory`·`find_peer_supply`·`propose_p2p_trade`·`respond_p2p_trade`·`pay_p2p_trade` (인수 확정은 x402 settle이 대신) | 2.9 |
+| 2.11 | ✅ 본사 P2P 심사·기록 | 🤖 | `review_p2p_trade`·`record_p2p_settlement` + `p2p_min_credit_score` 정책(즉시 결제라 유예 기준과 분리) | 2.9 |
+| 2.12 | ✅ 프롬프트 확장 (양쪽 task·policy) | 🤖 | 안전재고·본사 승인 선행·공급가 상한 | 2.10, 2.11 |
+| 2.13 | ✅ mock 규칙(`rules.review_p2p`) + `scenario_e` | 🤖 | `make demo-mock` 5종(A→B→E→D→C) 완주 | 2.10–2.12 |
+| 2.14 | ✅ 대시보드 "지점 간 직거래" 패널 | 🤖 | B→A 방향·품목·금액·상태·tx | 2.13 |
+| 2.15 | ✅ 테스트 15개 | 🤖 | 안전재고·**미승인 결제 차단**·재고 이동·직거래 x402 왕복 | 2.13 |
 
-**완료 기준**: `p2p.proposed → responded → reviewed → paid → confirmed`가 순서대로 찍히고, **B→A 온체인 USDC 트랜잭션**이 실제 발생한다. 본사 미승인 시 결제가 막힌다.
+**완료 기준 충족 확인 (7/28)**: `p2p.proposed → responded → reviewed → paid → confirmed` 순서로 찍히고(+`recorded`), **B→A 온체인 USDC 트랜잭션** 실제 발생, 미승인 상태 3종에서 결제가 전부 차단됨(테스트). 직거래 결제도 x402 왕복이라 세로·가로 정산이 한 프로토콜로 관통한다.
 
 ## Phase 3 — 배포와 전환 (7/30 수 – 7/31 목)
 

@@ -52,6 +52,7 @@ def overview() -> dict:
             }
         )
 
+    trades = store.list_docs("p2p_trades")
     return {
         "network": config.NETWORK,
         "totals": {
@@ -65,6 +66,7 @@ def overview() -> dict:
         "stores": stores,
         "invoices": sorted(invoices, key=lambda i: i.get("updated_at", ""), reverse=True),
         "negotiations": sorted(negotiations, key=lambda n: n.get("updated_at", ""), reverse=True),
+        "trades": sorted(trades, key=lambda t: t.get("updated_at", ""), reverse=True),
     }
 
 

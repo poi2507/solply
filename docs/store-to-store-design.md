@@ -1,7 +1,8 @@
 # 가맹점 간 직거래 (Store-to-Store) — 시나리오 E 구현 설계
 
-> 2026-07-27 작성 (사용자 아이디어). 집 세션에서 이 문서만 읽고 바로 구현에 착수할 수 있게 쓴 문서.
-> 배경 요약은 [product-design.md](product-design.md) §2, 일정 편성은 [wbs.md](wbs.md) 후보 9번.
+> 2026-07-27 작성 (사용자 아이디어). **2026-07-28 구현 완료** — 이 문서는 ADK 구조 기준이라
+> 실제 구현은 LangGraph 구조(그래프 노드 + tools)로 옮겨졌다. 현황은 [wbs.md](wbs.md) Phase 2.5.
+> 배경 요약은 [product-design.md](product-design.md) §2.
 
 ## 한 줄 요약
 

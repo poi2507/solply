@@ -15,3 +15,10 @@ class StoreState(BaseState, total=False):
     x402_terms: list[dict]          # 402 챌린지의 accepts[] — 본사가 제시한 결제 조건들
     cashflow: dict[str, Any]        # 지불 여력 {sufficient, keeps_reserve, within_auto_limit, …}
     proposal: dict[str, Any]        # 본사에 낸 협상 제안
+
+    # 지점 간 직거래 (P2P)
+    trade_id: str
+    trade: dict[str, Any]           # 직거래 문서 {sku, qty, price_usdc, buyer_id, seller_id, status}
+    inventory: dict[str, Any]       # 재고 현황 (시드 + 확정 거래 반영)
+    shortage: dict[str, Any]        # 안전재고 미달 품목 {sku, qty, safety, need}
+    supply: dict[str, Any]          # 선택한 조달처 {store_id, name, surplus, unit_price_usdc}

@@ -45,8 +45,10 @@ class HQPolicy:
 
     owner_id: str = "hq"
 
-    # 유예를 자동 수락할 최소 신용점수
+    # 유예를 자동 수락할 최소 신용점수 (유예 = 여신이라 기준이 높다)
     min_credit_score: int = 85
+    # 지점 간 직거래 참가 자격 점수 — 즉시 온체인 결제라 여신이 없어 유예보다 완만하다
+    p2p_min_credit_score: int = 75
     # 청구액의 몇 %까지 유예를 허용하는가
     defer_max_pct: float = 20.0
     # 분할 최대 회차
@@ -111,6 +113,8 @@ def _validate(policy: StorePolicy | HQPolicy) -> None:
     else:
         if not 0 <= policy.min_credit_score <= 100:
             raise ValueError("신용점수 기준은 0~100 사이여야 합니다")
+        if not 0 <= policy.p2p_min_credit_score <= 100:
+            raise ValueError("직거래 신용점수 기준은 0~100 사이여야 합니다")
         if not 0 <= policy.defer_max_pct <= 100:
             raise ValueError("유예 허용 비율은 0~100% 사이여야 합니다")
         if policy.installment_max < 1:
@@ -130,6 +134,7 @@ def describe(owner_id: str) -> list[dict[str, Any]]:
     else:
         spec = [
             ("min_credit_score", "유예 승인 최소 신용점수", "이 점수 이상이면 유예를 자동 수락합니다", "점", 0, 100),
+            ("p2p_min_credit_score", "직거래 참가 신용점수", "지점 간 직거래는 즉시 결제라 유예보다 완만한 기준을 씁니다", "점", 0, 100),
             ("defer_max_pct", "유예 허용 비율", "청구액의 몇 %까지 유예를 허용할지", "%", 0, 100),
             ("installment_max", "분할 최대 회차", "몇 회까지 나눠 받을지", "회", 1, 12),
             ("auto_adjust_limit_usdc", "자동 차감 승인 한도", "이 금액을 넘는 차감은 사람이 확인합니다", "USDC", 0, 1000),

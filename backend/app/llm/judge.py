@@ -61,22 +61,29 @@ def _invoke(agent: str, system_prompt: str, user_prompt: str, schema=None, attem
 
 # ── 판단 ──────────────────────────────────────────────────────────────
 
+_REVIEW_RULES = {
+    "adjustment": ("차감", lambda: rules.review_adjustment),
+    "deferral": ("유예", lambda: rules.review_deferral),
+    "p2p_trade": ("가맹점 간 직거래", lambda: rules.review_p2p),
+}
+
+
 def review_proposal(kind: str, facts: dict, policy_values: dict) -> dict[str, str]:
-    """차감·유예 제안을 심사한다. 본사 에이전트가 부른다.
+    """차감·유예·직거래 제안을 심사한다. 본사 에이전트가 부른다.
 
     Args:
-        kind: adjustment | deferral
-        facts: 심사 재료 (요청액, 검증된 과청구액, 신용점수, 납부 이력 …)
+        kind: adjustment | deferral | p2p_trade
+        facts: 심사 재료 (요청액, 검증된 과청구액, 신용점수, 잉여 수량 …)
         policy_values: DB에서 온 본사 정책 (min_credit_score, defer_max_pct …)
     """
+    label, rule = _REVIEW_RULES[kind]
     if factory.is_mock():
-        fn = rules.review_adjustment if kind == "adjustment" else rules.review_deferral
-        return fn(facts, policy_values)
+        return rule()(facts, policy_values)
 
     system = prompts.system("hq", **policy_values)
     lines = "\n".join(f"- {k}: {v}" for k, v in facts.items())
     user = (
-        f"아래 {'차감' if kind == 'adjustment' else '유예'} 제안을 심사하고 "
+        f"아래 {label} 제안을 심사하고 "
         "accept / reject / counter 중 하나로 결정해라.\n\n"
         f"{lines}\n\n"
         "정책 기준에 비추어 판단하고, 근거에 수치를 반드시 포함해라."

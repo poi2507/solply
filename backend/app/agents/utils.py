@@ -54,6 +54,54 @@ def store_orders(store_id: str) -> list[str]:
     return fixtures.load().get("orders", {}).get(store_id, [])
 
 
+def get_trade(trade_id: str) -> dict | None:
+    return store.get("p2p_trades", trade_id)
+
+
+def effective_inventory(store_id: str) -> dict[str, dict]:
+    """현재 재고 = 시드 재고(fixtures) ± 확정된 지점 간 직거래.
+
+    거래가 확정되면 산 쪽은 늘고 판 쪽은 준다. 데모 초기화(db.reset)가 거래를
+    지우면 재고도 시드값으로 돌아온다 — 반복 리허설에 안전하다.
+    """
+    inventory = {
+        sku: dict(entry)
+        for sku, entry in fixtures.load().get("inventory", {}).get(store_id, {}).items()
+    }
+    for trade in store.list_docs("p2p_trades"):
+        if trade["status"] != "confirmed":
+            continue
+        if trade["buyer_id"] == store_id:
+            entry = inventory.setdefault(trade["sku"], {"name": trade["sku"], "qty": 0, "safety": 0})
+            entry["qty"] += trade["qty"]
+        elif trade["seller_id"] == store_id and trade["sku"] in inventory:
+            inventory[trade["sku"]]["qty"] -= trade["qty"]
+    return inventory
+
+
+def stock_shortages(inventory: dict[str, dict]) -> list[dict]:
+    """안전재고 아래로 내려간 품목과 복구에 필요한 수량."""
+    return [
+        {"sku": sku, "name": e.get("name", sku), "qty": e["qty"], "safety": e["safety"],
+         "need": e["safety"] - e["qty"]}
+        for sku, e in inventory.items()
+        if e["qty"] < e["safety"]
+    ]
+
+
+def sellable_surplus(inventory: dict[str, dict], sku: str, safety_multiplier: float = 1.0) -> int:
+    """안전재고(×점주가 정한 배수)를 지키고 팔 수 있는 수량."""
+    entry = inventory.get(sku)
+    if not entry:
+        return 0
+    return max(0, int(entry["qty"] - entry["safety"] * safety_multiplier))
+
+
+def hq_reorder_terms(sku: str) -> dict:
+    """본사 발주 조건 — 직거래와 비교할 기준."""
+    return fixtures.load().get("hq_reorder", {}).get(sku, {})
+
+
 # ── 계산 (순수 함수) ──────────────────────────────────────────────────
 
 def line_total(items: list[dict]) -> float:

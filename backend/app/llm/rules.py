@@ -69,6 +69,47 @@ def review_deferral(facts: dict[str, Any], policy: dict[str, Any]) -> dict[str, 
     }
 
 
+def review_p2p(facts: dict[str, Any], policy: dict[str, Any]) -> dict[str, str]:
+    """가맹점 간 직거래 심사 — 판매측 안전재고, 양쪽 신용, 가격 상한(본사 공급가)을 본다.
+
+    신용 기준은 유예(`min_credit_score`)가 아니라 직거래 전용 값이다 —
+    직거래는 즉시 온체인 결제라 여신이 없고, 기준은 참가 자격 수준이면 충분하다.
+    """
+    qty = int(facts.get("qty", 0))
+    surplus = int(facts.get("seller_surplus", 0))
+    buyer_score = int(facts.get("buyer_credit_score", 0))
+    seller_score = int(facts.get("seller_credit_score", 0))
+    min_score = int(policy.get("p2p_min_credit_score", 75))
+    unit = float(facts.get("unit_price_usdc", 0))
+    hq_unit = float(facts.get("hq_unit_price_usdc", unit))
+
+    if surplus < qty:
+        return {
+            "decision": "reject",
+            "reasoning": f"판매 지점 잉여가 {surplus}개로 요청 수량 {qty}개에 못 미쳐 안전재고를 침범합니다.",
+        }
+    if min(buyer_score, seller_score) < min_score:
+        return {
+            "decision": "reject",
+            "reasoning": (
+                f"신용점수 기준({min_score}점) 미달 — 구매측 {buyer_score}점 / 판매측 {seller_score}점."
+            ),
+        }
+    if unit > hq_unit:
+        return {
+            "decision": "counter",
+            "reasoning": f"거래 단가 {unit} USDC가 본사 공급가 {hq_unit} USDC를 넘어 조정이 필요합니다.",
+        }
+    return {
+        "decision": "accept",
+        "reasoning": (
+            f"판매측 잉여 {surplus}개 ≥ 요청 {qty}개로 안전재고가 지켜지고, "
+            f"양측 신용 {buyer_score}/{seller_score}점이 기준({min_score}점)을 충족하며, "
+            f"단가 {unit} USDC는 본사 공급가 이내입니다. 승인합니다."
+        ),
+    }
+
+
 def narrate(facts: list[str], reasoning: list[str]) -> str:
     """보고문 — mock에서는 사실을 그대로 이어 붙인다."""
     return " ".join(facts[-2:]) if facts else ""

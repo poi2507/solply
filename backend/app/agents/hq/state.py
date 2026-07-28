@@ -12,3 +12,5 @@ from app.agents.state import BaseState
 class HQState(BaseState, total=False):
     delivery_id: str                # 청구서를 만들 납품 건
     decision: dict[str, Any]        # 협상 심사 결과 {decision, reasoning, kind, …}
+    trade_id: str                   # 심사·기록할 지점 간 직거래 건
+    trade: dict[str, Any]

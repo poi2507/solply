@@ -15,18 +15,26 @@ from app.llm import judge
 
 
 def load_context(state: StoreState) -> dict:
-    """정책을 DB에서 읽고 청구서를 집는다. 모든 경로의 시작점."""
+    """정책을 DB에서 읽고 처리 대상(청구서 또는 직거래 건)을 집는다. 모든 경로의 시작점."""
     store_id = state["store_id"]
-    pol = policy_mod.get(store_id)
-    invoice = utils.get_invoice(state["invoice_id"], store_id=store_id) if state.get("invoice_id") else None
+    base = {"policy": policy_mod.get(store_id).as_prompt_values()}
 
+    if state.get("intent", "").startswith(("restock.", "p2p.")):
+        if not state.get("trade_id"):
+            return base  # 재고 점검(restock.check)은 대상 문서 없이 시작한다
+        trade = utils.get_trade(state["trade_id"])
+        if not trade:
+            return {**base, "outcome": "noop", "messages": [f"직거래 건을 찾을 수 없습니다: {state['trade_id']}"]}
+        return {**base, "trade": trade}
+
+    invoice = utils.get_invoice(state["invoice_id"], store_id=store_id) if state.get("invoice_id") else None
     if not invoice:
         return {
-            "policy": pol.as_prompt_values(),
+            **base,
             "outcome": "noop",
             "messages": [f"처리할 청구서가 없습니다: {state.get('invoice_id')}"],
         }
-    return {"policy": pol.as_prompt_values(), "invoice": invoice}
+    return {**base, "invoice": invoice}
 
 
 def verify_delivery(state: StoreState) -> dict:
@@ -179,6 +187,122 @@ def refuse(state: StoreState) -> dict:
     }
 
 
+# ── 지점 간 직거래 (P2P) ─────────────────────────────────────────────
+
+def check_stock(state: StoreState) -> dict:
+    """(구매측) 재고를 점검한다. 안전재고 미달이 조달의 트리거다."""
+    result = tools.check_inventory(state["store_id"])
+    shortages = result["shortages"]
+    if not shortages:
+        return {"outcome": "noop", "messages": ["재고가 전 품목 안전재고 위입니다 — 조달 불필요."]}
+
+    s = shortages[0]
+    return {
+        "inventory": result["inventory"],
+        "shortage": s,
+        "messages": [
+            (
+                f"재고 점검: {s['name']}이 {s['qty']}개로 안전재고({s['safety']}개) 미달 — "
+                f"{s['need']}개 조달이 필요합니다."
+            )
+        ],
+    }
+
+
+def find_supply(state: StoreState) -> dict:
+    """(구매측) 본사 발주와 지점 잉여를 비교해 조달 경로를 고른다."""
+    s = state["shortage"]
+    result = tools.find_peer_supply(state["store_id"], s["sku"], s["need"])
+    hq_terms = result["hq_reorder"]
+    hq_line = (
+        f"본사 발주는 리드타임 {hq_terms.get('lead_time', '?')}, 최소 {hq_terms.get('min_qty', '?')}개"
+        if hq_terms else "본사 발주 조건 미확인"
+    )
+    if not result["peers"]:
+        return {"outcome": "noop", "messages": [f"잉여 지점이 없습니다. {hq_line} — 본사 발주로 진행합니다."]}
+
+    best = max(result["peers"], key=lambda p: p["surplus"])
+    return {
+        "supply": {**best, "unit_price_usdc": hq_terms.get("unit_price_usdc", 0)},
+        "messages": [
+            f"조달 비교 — {hq_line}. {best['name']}에 잉여 {best['surplus']}개, 오늘 인수 가능."
+        ],
+        "reasoning": [
+            f"필요 수량 {s['need']}개는 최소 발주량 미만이고 리드타임을 기다리면 결품 위험 — 지점 간 직거래가 유리"
+        ],
+    }
+
+
+def propose_trade(state: StoreState) -> dict:
+    """(구매측) 잉여 지점에 직거래를 제안한다. 가격은 본사 공급가 기준."""
+    s, sup = state["shortage"], state["supply"]
+    price = round(s["need"] * sup["unit_price_usdc"], 2)
+    trade = tools.propose_p2p_trade(
+        state["store_id"], sup["store_id"], s["sku"], s["name"], s["need"], price
+    )
+    return {
+        "trade": trade,
+        "trade_id": trade["id"],
+        "outcome": "negotiating",
+        "messages": [
+            (
+                f"{sup['name']}에 직거래를 제안했습니다: {s['name']} {s['need']}개, "
+                f"{price} USDC (본사 공급가 기준), 오늘 픽업."
+            )
+        ],
+    }
+
+
+def respond_trade(state: StoreState) -> dict:
+    """(판매측) 자기 재고와 안전재고를 확인하고 제안에 응답한다."""
+    trade = state["trade"]
+    store_id = state["store_id"]
+    pol = policy_mod.get(store_id)
+    inventory = tools.check_inventory(store_id)["inventory"]
+    sellable = utils.sellable_surplus(inventory, trade["sku"], pol.safety_stock_multiplier)
+    entry = inventory.get(trade["sku"], {})
+
+    if sellable >= trade["qty"]:
+        decision = "accept"
+        reasoning = (
+            f"보유 {entry.get('qty', 0)}개 중 안전재고 {entry.get('safety', 0)}개를 지키고도 "
+            f"{sellable}개 판매 가능 — 폐기 위험 재고를 현금화합니다."
+        )
+    else:
+        decision = "reject"
+        reasoning = f"판매 가능 잉여가 {sellable}개뿐이라 요청 수량 {trade['qty']}개를 내주면 안전재고가 깨집니다."
+
+    result = tools.respond_p2p_trade(store_id, trade["id"], decision, reasoning)
+    if result.get("error"):
+        return {"outcome": "noop", "messages": [result["error"]]}
+    return {
+        "trade": result,
+        "outcome": "negotiating",
+        "messages": [("제안을 수락했습니다. " if decision == "accept" else "제안을 거절했습니다. ") + reasoning],
+        "reasoning": [reasoning],
+    }
+
+
+def pay_trade(state: StoreState) -> dict:
+    """(구매측) 본사 승인이 확인된 직거래 대금을 x402 왕복으로 결제한다."""
+    result = tools.pay_p2p_trade(state["store_id"], state["trade_id"])
+    if result.get("status") == "needs_human_approval":
+        return {"outcome": "needs_human", "messages": [result["reason"]]}
+    if result.get("error"):
+        return {"outcome": "noop", "messages": [result["error"]]}
+    return {
+        "outcome": "paid",
+        "tx_signature": result["signature"],
+        "messages": [
+            (
+                f"직거래 대금 {result['amount']} USDC를 판매 지점에 결제하고 서명을 제출했습니다. "
+                f"판매 지점이 온체인 대조 후 재고 인수를 확정했습니다. tx {result['signature'][:16]}…"
+            )
+        ],
+        "reasoning": ["본사 승인 확인 후 결제 — 승인 없는 직거래는 결제하지 않는다"],
+    }
+
+
 def report(state: StoreState) -> dict:
     """지금까지의 판단을 사람이 읽는 한 문단으로 정리한다 (LLM)."""
     if not state.get("messages"):
@@ -194,15 +318,33 @@ def report(state: StoreState) -> dict:
 
 # ── 분기 조건 ────────────────────────────────────────────────────────
 
+_P2P_ROUTE = {
+    "restock.check": "check_stock",   # 구매측: 재고 점검 → 조달
+    "p2p.respond": "respond_trade",   # 판매측: 제안 응답
+    "p2p.pay": "pay_trade",           # 구매측: 승인된 거래 결제
+}
+
+
 def route_after_context(state: StoreState) -> str:
     """청구서가 없으면 끝, 재발행분·예약 실행분이면 검수를 건너뛰고 바로 정산 요청."""
     if state.get("outcome") == "noop":
         return "end"
-    if state.get("intent") in ("invoice.pay_adjusted", "invoice.pay_scheduled"):
+    intent = state.get("intent", "")
+    if intent in _P2P_ROUTE:
+        return _P2P_ROUTE[intent]
+    if intent in ("invoice.pay_adjusted", "invoice.pay_scheduled"):
         return "request_terms"
     if state.get("payload", {}).get("suspect"):
         return "refuse"
     return "verify"
+
+
+def route_after_stock(state: StoreState) -> str:
+    return "report" if state.get("outcome") == "noop" else "find_supply"
+
+
+def route_after_supply(state: StoreState) -> str:
+    return "report" if state.get("outcome") == "noop" else "propose_trade"
 
 
 def route_after_verify(state: StoreState) -> str:

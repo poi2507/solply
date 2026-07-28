@@ -12,19 +12,27 @@ from app.llm import judge
 
 
 def load_context(state: HQState) -> dict:
-    """본사 정책을 DB에서 읽는다."""
+    """본사 정책을 DB에서 읽고 처리 대상(청구서 또는 직거래 건)을 집는다."""
     pol = policy_mod.get("hq")
-    context: dict = {"policy": pol.as_prompt_values(), "_policy_raw": None}
+    context: dict = {"policy": pol.as_prompt_values()}
     if state.get("invoice_id"):
         invoice = utils.get_invoice(state["invoice_id"])
         if not invoice:
             return {
-                "policy": pol.as_prompt_values(),
+                **context,
                 "outcome": "noop",
                 "messages": [f"청구서를 찾을 수 없습니다: {state['invoice_id']}"],
             }
         context["invoice"] = invoice
-    context.pop("_policy_raw")
+    if state.get("trade_id"):
+        trade = utils.get_trade(state["trade_id"])
+        if not trade:
+            return {
+                **context,
+                "outcome": "noop",
+                "messages": [f"직거래 건을 찾을 수 없습니다: {state['trade_id']}"],
+            }
+        context["trade"] = trade
     return context
 
 
@@ -163,6 +171,63 @@ def verify_settlement(state: HQState) -> dict:
     }
 
 
+def review_p2p(state: HQState) -> dict:
+    """가맹점 간 직거래 심사 — 안전재고·양측 신용·가격을 근거로 LLM이 결정한다.
+
+    본사가 완전히 빠지지 않는 이유: 프랜차이즈의 위생·품질 책임은 본사에 있다.
+    자율성(지점끼리 협상)과 통제(본사 승인)의 경계가 여기다.
+    """
+    trade = state["trade"]
+    from app.agents.store import tools as store_tools  # 잉여 재검증용 조회
+
+    seller_inventory = store_tools.check_inventory(trade["seller_id"])["inventory"]
+    buyer_credit = tools.store_credit(trade["buyer_id"])
+    seller_credit = tools.store_credit(trade["seller_id"])
+    hq_terms = utils.hq_reorder_terms(trade["sku"])
+
+    verdict = judge.review_proposal(
+        "p2p_trade",
+        facts={
+            "trade_id": trade["id"],
+            "sku": trade["sku"],
+            "qty": trade["qty"],
+            "unit_price_usdc": round(trade["price_usdc"] / trade["qty"], 4),
+            "hq_unit_price_usdc": hq_terms.get("unit_price_usdc", 0),
+            "seller_surplus": utils.sellable_surplus(seller_inventory, trade["sku"]),
+            "buyer_credit_score": buyer_credit["credit_score"],
+            "seller_credit_score": seller_credit["credit_score"],
+        },
+        policy_values=policy_mod.get("hq").as_prompt_values()
+        | {"p2p_min_credit_score": policy_mod.get("hq").p2p_min_credit_score},
+    )
+    updated = tools.review_p2p_trade(trade["id"], verdict["decision"], verdict["reasoning"])
+    approved = verdict["decision"] == "accept"
+    return {
+        "trade": updated,
+        "decision": {**verdict, "kind": "p2p_trade"},
+        "outcome": "negotiating" if approved else "refused",
+        "messages": [("직거래를 승인했습니다. " if approved else "직거래를 승인하지 않았습니다. ") + verdict["reasoning"]],
+        "reasoning": [verdict["reasoning"]],
+    }
+
+
+def record_p2p(state: HQState) -> dict:
+    """확정된 직거래를 본사 장부에 기록한다."""
+    result = tools.record_p2p_settlement(state["trade_id"])
+    if result.get("error"):
+        return {"outcome": "noop", "messages": [result["error"]]}
+    return {
+        "outcome": "settled",
+        "messages": [
+            (
+                f"직거래 {result['id']}({result['buyer_id']} → {result['seller_id']}, "
+                f"{result['price_usdc']} USDC)를 본사 장부에 기록했습니다. "
+                "본사를 거치지 않은 거래도 같은 장부에서 투명하게 보입니다."
+            )
+        ],
+    }
+
+
 def report(state: HQState) -> dict:
     if not state.get("messages"):
         return {}
@@ -182,6 +247,8 @@ _INTENT_ROUTE = {
     "proposal.adjustment": "review_adjustment",
     "proposal.deferral": "review_deferral",
     "payment.verify": "verify",
+    "p2p.review": "review_p2p",
+    "p2p.record": "record_p2p",
 }
 
 

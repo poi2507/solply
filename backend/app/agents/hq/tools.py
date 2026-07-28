@@ -110,6 +110,37 @@ def verify_payment(invoice_id: str, tx_signature: str) -> dict:
     }
 
 
+def review_p2p_trade(trade_id: str, decision: str, reasoning: str) -> dict:
+    """가맹점 간 직거래를 심사한다. 위생·품질 책임이 본사에 있으므로 승인이 결제의 전제다."""
+    trade = store.get("p2p_trades", trade_id)
+    if not trade:
+        return utils.error(f"직거래 건 없음: {trade_id}")
+    updated = store.update(
+        "p2p_trades", trade_id, {"status": "approved" if decision == "accept" else "rejected"}
+    )
+    utils.log(
+        ACTOR, "p2p.reviewed", {"trade_id": trade_id, "decision": decision, "reasoning": reasoning}
+    )
+    return updated
+
+
+def record_p2p_settlement(trade_id: str) -> dict:
+    """확정된 직거래를 본사 장부에 기록한다 — 본사·가맹점이 같은 장부를 본다."""
+    trade = store.get("p2p_trades", trade_id)
+    if not trade:
+        return utils.error(f"직거래 건 없음: {trade_id}")
+    if trade["status"] != "confirmed":
+        return utils.error(f"확정 전이라 기록할 수 없음: {trade['status']}")
+    utils.log(
+        ACTOR,
+        "p2p.recorded",
+        {"trade_id": trade_id, "buyer_id": trade["buyer_id"], "seller_id": trade["seller_id"],
+         "sku": trade["sku"], "qty": trade["qty"], "amount_usdc": trade["price_usdc"],
+         "tx": trade.get("tx_sig")},
+    )
+    return trade
+
+
 def store_credit(store_id: str) -> dict:
     """가맹점의 신용 정보 — 유예 심사의 근거.
 
