@@ -73,7 +73,13 @@
         <div class="tablewrap">
           <table class="ledger">
             <thead>
-              <tr><th>청구서</th><th class="col-store">가맹점</th><th class="r">금액</th><th>상태</th><th>트랜잭션</th></tr>
+              <tr>
+                <th>청구서</th>
+                <th class="col-store">가맹점</th>
+                <th class="r">금액</th>
+                <th>상태</th>
+                <th>트랜잭션</th>
+              </tr>
             </thead>
             <tbody id="invoices"></tbody>
           </table>
@@ -136,7 +142,7 @@
       <section class="panel" data-role="hq">
         <div class="panel-head">
           <h2>정산 리포트</h2>
-          <button id="report-btn" class="btn-approve">생성</button>
+          <button id="report-btn" class="btn">생성</button>
         </div>
         <p id="report-text" class="report-text">에이전트의 이번 주기 처리 내역을 Gemini가 한 문단으로 요약합니다.</p>
       </section>
@@ -185,7 +191,7 @@
   </ol>
   <form id="chat-form" class="chat-form">
     <input id="chat-input" type="text" placeholder="메시지 입력…" autocomplete="off">
-    <button type="submit" class="btn-approve">전송</button>
+    <button type="submit" class="btn btn-approve">전송</button>
   </form>
 </div>
 

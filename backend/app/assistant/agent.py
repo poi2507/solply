@@ -10,9 +10,8 @@ LangGraph 에이전트가 정책 안에서 수행하고, 모든 행동이 증빙
 
 from functools import lru_cache
 
-from app import config
-from app.llm import factory
 from app.assistant import tools
+from app.llm import factory
 
 INSTRUCTION = """너는 Solply의 정산 어시스턴트다. 프랜차이즈 본사 정산 담당자와 지점 점주가
 정산 현황을 묻고 사람 권한의 실행을 맡기는 창구다.

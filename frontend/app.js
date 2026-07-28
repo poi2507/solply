@@ -1,25 +1,34 @@
 // Solply 대시보드 — SSE로 에이전트 활동을 실시간 반영한다.
+//
+// 화면의 중심은 청구서 표다. 행을 누르면 그 청구서 한 건이 발행부터 정산까지
+// 어떻게 협상됐는지 펼쳐진다 (/api/invoices/{id}/timeline).
+// 목록을 종류별로 흩어놓으면 "무슨 일이 있었나"가 사라지기 때문이다.
 
 import { mount as mountPolicy } from "./policy.js";
 import * as role from "./role.js";
 
 const $ = (id) => document.getElementById(id);
 const seenInvoices = new Set();
+const expanded = new Set();   // 펼쳐둔 청구서 — 새로고침에도 유지한다
+const timelines = new Map();  // id → 응답 캐시
 
 const ACTION_LABEL = {
   "invoice.created": "청구서 발행",
-  "invoice.adjusted": "청구 금액 조정",
+  "invoice.adjusted": "청구 금액 정정",
+  "invoice.split": "분할 청구서 생성",
   "delivery.verified": "검수 대조",
   "proposal.adjustment": "차감 제안",
   "proposal.deferral": "유예 제안",
-  "proposal.reviewed": "제안 심사",
+  "proposal.installment": "분할 제안",
+  "proposal.reviewed": "본사 심사",
   "payment.executed": "결제 실행",
   "payment.verified": "수금 검증",
   "payment.mismatch": "검증 불일치",
   "payment.refused": "결제 거부",
   "payment.blocked_over_limit": "한도 초과 차단",
   "payment.needs_approval": "사람 승인 요청",
-  "x402.payment_required": "x402 결제 요구",
+  "x402.payment_required": "x402 결제 요구 (402)",
+  "x402.terms_received": "x402 조건 수신",
   "x402.settled": "x402 정산 완료",
   "x402.verification_failed": "x402 검증 실패",
 };
@@ -27,12 +36,22 @@ const ACTION_LABEL = {
 const STATUS_LABEL = {
   issued: "발행", paid: "결제됨", settled: "정산완료",
   disputed: "협의중", scheduled: "예약", refused: "거부",
-  pending_approval: "승인 대기",
+  pending_approval: "승인 대기", split: "분할됨",
 };
+
+const KIND_LABEL = { adjustment: "차감", deferral: "유예", installment: "분할" };
+const VERDICT_LABEL = { accept: "수락", reject: "거절", counter: "역제안" };
 
 const fmt = (n) => Number(n ?? 0).toLocaleString("ko-KR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const short = (s, head = 6, tail = 4) => (!s ? "" : s.length <= head + tail + 1 ? s : `${s.slice(0, head)}…${s.slice(-tail)}`);
-const clock = (iso) => { try { return new Date(iso).toLocaleTimeString("ko-KR", { hour12: false }); } catch { return "--:--:--"; } };
+// 로케일 문자열은 브라우저마다 "22:51:39" / "22시 51분 39초"로 갈려 자릿수를 잘라 쓸 수 없다
+const pad = (n) => String(n).padStart(2, "0");
+const clock = (iso) => {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "--:--:--" : `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+};
+const hhmm = (iso) => clock(iso).slice(0, 5);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 async function getJSON(url) {
   const res = await fetch(url);
@@ -40,17 +59,23 @@ async function getJSON(url) {
   return res.json();
 }
 
+function explorerUrl(sig, network) {
+  const cluster = network === "localnet" ? "custom" : (network ?? "devnet");
+  return `https://explorer.solana.com/tx/${sig}?cluster=${cluster}`;
+}
+
+// ── 가맹점 ────────────────────────────────────────────────────────
 function renderStores(stores, targetId = "stores") {
   const el = $(targetId);
   if (!el) return;
   if (!stores.length) { el.innerHTML = '<div class="empty">가맹점 정보가 없습니다</div>'; return; }
   el.innerHTML = stores.map((s) => `
     <article class="store">
-      <div class="top"><span class="name">${s.name}</span><span class="score">${s.creditScore}</span></div>
-      <div class="id">${s.id}</div>
+      <div class="top"><span class="name">${esc(s.name)}</span><span class="score">${s.creditScore}</span></div>
+      <div class="id">${esc(s.id)}</div>
       <div class="gauge"><i style="width:${Math.min(100, s.creditScore)}%"></i></div>
-      ${s.creditBasis ? `<div class="basis">정시납 ${s.creditBasis.onTime}${s.creditBasis.liveSettled ? ` <em>(+${s.creditBasis.liveSettled} 온체인)</em>` : ""} · 연체 ${s.creditBasis.late} · 분쟁 ${s.creditBasis.disputed}</div>` : ""}
-      ${(s.inventory || []).length ? `<div class="stock">${s.inventory.map((it) => `<span class="chip ${it.qty < it.safety ? "low" : ""}">${it.name} ${it.qty}<i>/안전 ${it.safety}</i></span>`).join("")}</div>` : ""}
+      ${s.creditBasis ? `<div class="basis">정시납 ${s.creditBasis.onTime}${s.creditBasis.liveSettled ? ` <em>+${s.creditBasis.liveSettled} 온체인</em>` : ""} · 연체 ${s.creditBasis.late} · 분쟁 ${s.creditBasis.disputed}</div>` : ""}
+      ${(s.inventory || []).length ? `<div class="stock">${s.inventory.map((it) => `<span class="chip ${it.qty < it.safety ? "low" : ""}">${esc(it.name)} ${it.qty}<i> / 안전 ${it.safety}</i></span>`).join("")}</div>` : ""}
       <dl>
         <dt>미수금</dt><dd>${fmt(s.outstandingUsdc)}</dd>
         <dt>정산 완료</dt><dd>${fmt(s.settledUsdc)}</dd>
@@ -59,74 +84,201 @@ function renderStores(stores, targetId = "stores") {
     </article>`).join("");
 }
 
-function renderInvoices(invoices) {
+// ── 청구서 표 ─────────────────────────────────────────────────────
+/** 분할 자식은 부모 바로 아래로 붙인다 — 같은 이야기가 표에서 흩어지지 않게. */
+function orderInvoices(invoices) {
+  const byParent = new Map();
+  for (const inv of invoices) {
+    if (!inv.parent_id) continue;
+    if (!byParent.has(inv.parent_id)) byParent.set(inv.parent_id, []);
+    byParent.get(inv.parent_id).push(inv);
+  }
+  const out = [];
+  for (const inv of invoices) {
+    if (inv.parent_id && invoices.some((x) => x.id === inv.parent_id)) continue;
+    out.push({ inv, child: false });
+    for (const kid of (byParent.get(inv.id) ?? []).sort((a, b) => a.id.localeCompare(b.id))) {
+      out.push({ inv: kid, child: true });
+    }
+  }
+  return out;
+}
+
+function amountCell(inv) {
+  const now = fmt(inv.amount_usdc);
+  const before = inv.original_amount_usdc;
+  if (before == null || Number(before) === Number(inv.amount_usdc)) return now;
+  return `<span class="dash">${fmt(before)} →</span> ${now}`;
+}
+
+function invoiceRow({ inv, child }, network, firstPaint) {
+  const key = inv.id + inv.status + inv.amount_usdc;
+  const isNew = !firstPaint && !seenInvoices.has(key);
+  seenInvoices.add(key);
+  const open = expanded.has(inv.id);
+  const tx = inv.tx_sig
+    ? `<a class="txlink" href="${inv.explorer || explorerUrl(inv.tx_sig, network)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${short(inv.tx_sig, 8, 6)}</a>`
+    : '<span class="dash">—</span>';
+  const label = STATUS_LABEL[inv.status] ?? inv.status;
+  const round = inv.installment ? ` <span class="dash">${inv.installment}회차</span>` : "";
+
+  return `<tr class="pick ${open ? "open" : ""} ${isNew ? "flash" : ""}" data-inv="${esc(inv.id)}">
+      <td>
+        <span class="caret">${open ? "▾" : "▸"}</span>
+        ${child ? '<span class="child-mark">└</span>' : ""}
+        <span class="inv-id">${esc(inv.id)}</span>${round}
+      </td>
+      <td class="col-store">${esc(inv.store_id)}</td>
+      <td class="r">${amountCell(inv)}</td>
+      <td><span class="state ${inv.status}">${label}</span></td>
+      <td>${tx}</td>
+    </tr>
+    ${open ? `<tr class="detail" data-detail="${esc(inv.id)}"><td colspan="5">${detailBody(inv.id)}</td></tr>` : ""}`;
+}
+
+function renderInvoices(invoices, network) {
   const el = $("invoices");
-  $("invoice-count").textContent = `${invoices.length}건`;
+  $("invoice-count").textContent = `${invoices.length}건 · 행을 누르면 협상 과정이 펼쳐집니다`;
   if (!invoices.length) {
     el.innerHTML = '<tr><td colspan="5" class="empty">아직 청구서가 없습니다. 데모를 실행하면 여기에 나타납니다.</td></tr>';
     return;
   }
-  el.innerHTML = invoices.map((inv) => {
-    const isNew = seenInvoices.size && !seenInvoices.has(inv.id + inv.status);
-    seenInvoices.add(inv.id + inv.status);
-    const tx = inv.tx_sig
-      ? `<a class="txlink" href="${inv.explorer || `https://explorer.solana.com/tx/${inv.tx_sig}?cluster=devnet`}" target="_blank" rel="noopener">${short(inv.tx_sig, 8, 6)}</a>`
-      : '<span class="dash">—</span>';
-    return `<tr class="${isNew ? "flash" : ""}">
-      <td><span class="inv-id">${inv.id}</span></td>
-      <td>${inv.store_id}</td>
-      <td class="r">${fmt(inv.amount_usdc)}</td>
-      <td><span class="tag ${inv.status}">${STATUS_LABEL[inv.status] ?? inv.status}</span></td>
-      <td>${tx}</td>
-    </tr>`;
-  }).join("");
+  // 첫 그림에는 강조를 넣지 않는다 — 전부 새것이라 전부 깜빡이면 아무것도 강조되지 않는다
+  const firstPaint = seenInvoices.size === 0;
+  el.innerHTML = orderInvoices(invoices)
+    .map((entry) => invoiceRow(entry, network, firstPaint)).join("");
+  el.querySelectorAll("tr[data-inv]").forEach((tr) => {
+    tr.addEventListener("click", () => toggle(tr.dataset.inv));
+  });
 }
 
+// ── 펼친 행: 청구서 한 건의 전 과정 ────────────────────────────────
+function toneOf(evt) {
+  const a = evt.action;
+  if (a === "delivery.verified") return evt.payload?.match ? "good" : "warn";
+  if (/refused|failed|mismatch|blocked/.test(a)) return "risk";
+  if (/settled|executed|verified/.test(a)) return "good";
+  if (a.startsWith("proposal.") || a === "invoice.split" || a === "invoice.adjusted"
+      || a === "payment.needs_approval") return "warn";
+  return "info";
+}
+
+/** 분할된 가족 안에서 이 단계가 어느 청구서 것인지 — "원본" 또는 "P2". */
+function familyLabel(payloadId, invoice) {
+  if (!payloadId || payloadId === invoice.id) return null;
+  if (payloadId === invoice.parent_id) return "원본";
+  const base = invoice.parent_id ?? invoice.id;
+  return payloadId.startsWith(`${base}-`) ? payloadId.slice(base.length + 1) : payloadId;
+}
+
+function stepExtra(evt, invoice, network) {
+  const p = evt.payload ?? {};
+  const bits = [];
+  const where = familyLabel(p.invoice_id, invoice);
+  if (where) bits.push(where);
+  if (p.amount != null) bits.push(`${fmt(p.amount)} USDC`);
+  if (p.new_amount != null) bits.push(`→ ${fmt(p.new_amount)} USDC`);
+  if (p.parts) bits.push(`${p.parts}회 분할`);
+  if (evt.action === "delivery.verified") {
+    bits.push(p.match ? "일치" : `불일치 ${p.discrepancies?.length ?? 0}건`);
+  }
+  if (p.tx) {
+    bits.push(`<a class="txlink" href="${explorerUrl(p.tx, network)}" target="_blank" rel="noopener">${short(p.tx, 8, 6)}</a>`);
+  }
+  return bits.length ? `<span class="tl-extra">${bits.join(" · ")}</span>` : "";
+}
+
+function detailBody(id) {
+  const data = timelines.get(id);
+  if (!data) return '<div class="empty">불러오는 중…</div>';
+  if (data.error) return `<div class="empty">과정을 불러오지 못했습니다: ${esc(data.error)}</div>`;
+
+  const { invoice, steps, negotiations, network } = data;
+  const items = (invoice.items ?? []).map((it) =>
+    `<span>${esc(it.name ?? it.sku)} ${it.qty}<i> × ${fmt(it.unit_price_usdc)}</i></span>`).join("");
+
+  // 심사 사유는 이벤트 다음 줄에 붙여, 판단과 근거가 붙어 읽히게 한다
+  const negByTime = [...negotiations];
+  const flow = steps.map((evt) => {
+    const label = ACTION_LABEL[evt.action] ?? evt.action;
+    let why = "";
+    if (evt.action === "proposal.reviewed") {
+      const neg = negByTime.shift();
+      if (neg) {
+        why = `<div class="tl-why ${esc(neg.decision)}">
+          <b>${KIND_LABEL[neg.type] ?? neg.type} ${VERDICT_LABEL[neg.decision] ?? neg.decision}</b> —
+          ${esc(neg.proposal)}<br>${esc(neg.reasoning)}</div>`;
+      }
+    }
+    return `<div class="tl-step ${toneOf(evt)}">
+        <span class="tl-time">${hhmm(evt.ts)}</span>
+        <span class="tl-actor">${esc(evt.actor.replace("-agent", ""))}</span>
+        <span class="tl-body"><span class="tl-what">${esc(label)}</span>${stepExtra(evt, invoice, network)}${why}</span>
+      </div>`;
+  }).join("");
+
+  return `
+    <div class="detail-head">
+      납품 ${esc(invoice.delivery_id ?? "—")} · ${esc(invoice.store_id)}
+      ${invoice.adjusted ? " · 금액 정정됨" : ""}${invoice.installment ? ` · 분할 ${esc(invoice.installment)}회차` : ""}
+    </div>
+    ${items ? `<div class="detail-items">${items}</div>` : ""}
+    <div class="timeline">${flow || '<div class="empty">기록된 단계가 없습니다</div>'}</div>`;
+}
+
+function paintDetail(id) {
+  const cell = document.querySelector(`tr[data-detail="${id}"] td`);
+  if (cell) cell.innerHTML = detailBody(id);
+}
+
+async function loadTimeline(id, network) {
+  try {
+    const data = await getJSON(`/api/invoices/${encodeURIComponent(id)}/timeline`);
+    timelines.set(id, { ...data, network });
+  } catch (err) {
+    timelines.set(id, { error: err.message });
+  }
+  paintDetail(id);
+}
+
+let currentNetwork = "devnet";
+
+function toggle(id) {
+  const tr = document.querySelector(`tr[data-inv="${id}"]`);
+  if (expanded.has(id)) {
+    expanded.delete(id);
+    tr?.classList.remove("open");
+    tr?.querySelector(".caret")?.replaceChildren("▸");
+    document.querySelector(`tr[data-detail="${id}"]`)?.remove();
+    return;
+  }
+  expanded.add(id);
+  tr?.classList.add("open");
+  tr?.querySelector(".caret")?.replaceChildren("▾");
+  const detail = document.createElement("tr");
+  detail.className = "detail";
+  detail.dataset.detail = id;
+  detail.innerHTML = `<td colspan="5">${detailBody(id)}</td>`;
+  tr?.after(detail);
+  loadTimeline(id, currentNetwork);
+}
+
+// ── 목록형 ────────────────────────────────────────────────────────
 function renderNegotiations(negs) {
   const el = $("negotiations");
   if (!negs.length) {
     el.innerHTML = '<div class="empty">협상 기록이 없습니다</div>';
     return;
   }
-  const KIND = { adjustment: "차감", deferral: "유예", installment: "분할" };
-  const VERDICT = { accept: "수락", reject: "거절", counter: "역제안" };
   el.innerHTML = negs.map((n) => `
-    <div class="neg">
-      <span class="kind ${n.type}">${KIND[n.type] ?? n.type}</span>
+    <div class="row">
+      <span class="kind">${KIND_LABEL[n.type] ?? esc(n.type)}</span>
       <div class="body">
-        <div class="prop">${n.proposal ?? ""}</div>
-        <div class="why"><b>본사 판단:</b> ${n.reasoning ?? ""}</div>
+        <div class="head">${esc(n.proposal ?? "")}</div>
+        <div class="why"><b>본사 판단:</b> ${esc(n.reasoning ?? "")}</div>
       </div>
-      <span class="verdict ${n.decision}">${VERDICT[n.decision] ?? n.decision}</span>
+      <span class="verdict ${esc(n.decision)}">${VERDICT_LABEL[n.decision] ?? esc(n.decision)}</span>
     </div>`).join("");
-}
-
-function eventRow(evt, isNew) {
-  const who = evt.actor === "hq-agent" ? "hq" : "store";
-  const label = ACTION_LABEL[evt.action] ?? evt.action;
-  const p = evt.payload ?? {};
-  let meta = "";
-  if (p.invoice_id) meta = p.invoice_id;
-  if (p.tx) meta += ` · ${short(p.tx, 10, 6)}`;
-  if (p.amount != null) meta += ` · ${fmt(p.amount)} USDC`;
-  if (p.new_amount != null) meta += ` → ${fmt(p.new_amount)} USDC`;
-  if (evt.action === "delivery.verified") meta += p.match ? " · 일치" : ` · 불일치 ${p.discrepancies?.length ?? 0}건`;
-  return `<li class="${isNew ? "new" : ""}">
-    <span class="t">${clock(evt.ts)}</span>
-    <span class="what">
-      <span class="who ${who}">${evt.actor.replace("-agent", "")}</span><span class="act">${label}</span>
-      ${meta ? `<span class="meta">${meta}</span>` : ""}
-    </span>
-  </li>`;
-}
-
-function renderWallets(wallets) {
-  $("wallets").innerHTML = wallets.map((w) => w.error
-    ? `<div class="wallet"><div class="row"><span class="who">${w.wallet}</span></div><div class="err">결제 서비스 연결 안 됨</div></div>`
-    : `<div class="wallet">
-         <div class="row"><span class="who">${w.wallet}</span><span class="usdc">${fmt(w.usdc)} <small>USDC</small></span></div>
-         <div class="row"><span class="addr">${short(w.address, 10, 6)}</span><span class="sol">${Number(w.sol).toFixed(3)} SOL</span></div>
-       </div>`).join("");
 }
 
 function renderTrades(trades) {
@@ -139,94 +291,35 @@ function renderTrades(trades) {
   const STATUS = { proposed: "제안됨", accepted: "수락", approved: "본사 승인", paid: "결제됨", confirmed: "확정", rejected: "거절" };
   el.innerHTML = trades.map((t) => {
     const tx = t.tx_sig
-      ? ` · <a class="txlink" href="https://explorer.solana.com/tx/${t.tx_sig}?cluster=devnet" target="_blank" rel="noopener">${short(t.tx_sig, 8, 6)}</a>`
+      ? ` · <a class="txlink" href="${explorerUrl(t.tx_sig, currentNetwork)}" target="_blank" rel="noopener">${short(t.tx_sig, 8, 6)}</a>`
       : "";
+    const tone = t.status === "confirmed" ? "accept" : t.status === "rejected" ? "reject" : "counter";
     return `
-    <div class="neg">
-      <span class="kind p2p">P2P</span>
+    <div class="row">
+      <span class="kind">P2P</span>
       <div class="body">
-        <div class="prop">${t.buyer_id} → ${t.seller_id} · ${t.name ?? t.sku} ×${t.qty} · ${fmt(t.price_usdc)} USDC</div>
-        <div class="why"><b>상태:</b> ${STATUS[t.status] ?? t.status}${tx}</div>
+        <div class="head">${esc(t.buyer_id)} ← ${esc(t.seller_id)} · ${esc(t.name ?? t.sku)} ×${t.qty} · ${fmt(t.price_usdc)} USDC</div>
+        <div class="why">재고 부족분을 본사 청구 대신 옆 지점에서 조달했습니다${tx}</div>
       </div>
-      <span class="verdict ${t.status === "confirmed" ? "accept" : t.status === "rejected" ? "reject" : "counter"}">${STATUS[t.status] ?? t.status}</span>
+      <span class="verdict ${tone}">${STATUS[t.status] ?? esc(t.status)}</span>
     </div>`;
   }).join("");
 }
 
-
-const reportBtn = document.getElementById("report-btn");
-if (reportBtn) {
-  reportBtn.addEventListener("click", async () => {
-    reportBtn.disabled = true;
-    reportBtn.textContent = "생성 중…";
-    try {
-      const r = await getJSON("/api/report");
-      document.getElementById("report-text").textContent = r.report || "아직 요약할 정산 내역이 없습니다.";
-    } catch (err) {
-      document.getElementById("report-text").textContent = "리포트 생성에 실패했습니다.";
-    } finally {
-      reportBtn.disabled = false;
-      reportBtn.textContent = "생성";
-    }
-  });
-}
-
-
-const chatForm = document.getElementById("chat-form");
-if (chatForm) {
-  const log = document.getElementById("chat-log");
-  const input = document.getElementById("chat-input");
-  const append = (text, who) => {
-    const div = document.createElement("li");
-    div.className = `msg ${who}`;
-    div.textContent = text;
-    log.appendChild(div);
-    log.scrollTop = log.scrollHeight;
-    return div;
-  };
-  chatForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const message = input.value.trim();
-    if (!message) return;
-    input.value = "";
-    input.disabled = true;
-    append(message, "user");
-    const waiting = append("…", "bot");
-    try {
-      const res = await fetch("/api/assistant/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message }),
-      });
-      const data = await res.json();
-      waiting.textContent = res.ok ? data.reply : (data.detail ?? "응답 실패");
-    } catch (err) {
-      waiting.textContent = "연결에 실패했습니다.";
-    } finally {
-      input.disabled = false;
-      input.focus();
-      refresh();  // 승인·예약 실행이 있었으면 화면에 바로 반영
-    }
-  });
-}
-
-
 function renderSchedules(invoices) {
-  const panel = document.getElementById("schedules-panel");
+  const panel = $("schedules-panel");
   const el = $("schedules");
   if (!panel || !el) return;
   const scheduled = (invoices || []).filter((inv) => inv.status === "scheduled");
   panel.style.display = scheduled.length ? "" : "none";
   el.innerHTML = scheduled.map((inv) => `
-    <div class="neg">
-      <span class="kind deferral">예약</span>
+    <div class="row">
+      <span class="kind">예약</span>
       <div class="body">
-        <div class="prop">${inv.id} · ${inv.store_id} · ${fmt(inv.amount_usdc)} USDC${inv.installment ? ` · 분할 ${inv.installment}회차` : ""}</div>
+        <div class="head">${esc(inv.id)} · ${esc(inv.store_id)} · ${fmt(inv.amount_usdc)} USDC${inv.installment ? ` · 분할 ${esc(inv.installment)}회차` : ""}</div>
         <div class="why">예약일이 오면 에이전트가 x402 왕복으로 결제합니다</div>
       </div>
-      <span class="approve-actions">
-        <button class="btn-approve" data-run="${inv.id}">지금 실행</button>
-      </span>
+      <span class="actions"><button class="btn btn-approve" data-run="${esc(inv.id)}">지금 실행</button></span>
     </div>`).join("");
   el.querySelectorAll("button[data-run]").forEach((btn) => {
     btn.addEventListener("click", async () => {
@@ -245,23 +338,22 @@ function renderSchedules(invoices) {
   });
 }
 
-
 function renderApprovals(invoices) {
-  const panel = document.getElementById("approvals-panel");
+  const panel = $("approvals-panel");
   const el = $("approvals");
   if (!panel || !el) return;
   const pending = (invoices || []).filter((inv) => inv.status === "pending_approval");
   panel.style.display = pending.length ? "" : "none";
   el.innerHTML = pending.map((inv) => `
-    <div class="neg">
-      <span class="kind adjustment">승인</span>
+    <div class="row">
+      <span class="kind">승인</span>
       <div class="body">
-        <div class="prop">${inv.id} · ${inv.store_id} · ${fmt(inv.amount_usdc)} USDC</div>
-        <div class="why">자동결제 상한 초과 — 에이전트가 결제를 보류했습니다</div>
+        <div class="head">${esc(inv.id)} · ${esc(inv.store_id)} · ${fmt(inv.amount_usdc)} USDC</div>
+        <div class="why">자동결제 상한을 넘어 에이전트가 결제를 보류했습니다 — 사람이 결정할 지점입니다</div>
       </div>
-      <span class="approve-actions">
-        <button class="btn-approve" data-id="${inv.id}" data-decision="approve">승인</button>
-        <button class="btn-reject" data-id="${inv.id}" data-decision="reject">반려</button>
+      <span class="actions">
+        <button class="btn btn-approve" data-id="${esc(inv.id)}" data-decision="approve">승인</button>
+        <button class="btn btn-reject" data-id="${esc(inv.id)}" data-decision="reject">반려</button>
       </span>
     </div>`).join("");
   el.querySelectorAll("button[data-id]").forEach((btn) => {
@@ -280,9 +372,94 @@ function renderApprovals(invoices) {
   });
 }
 
+// ── 실행 로그 · 지갑 ──────────────────────────────────────────────
+function eventRow(evt, isNew) {
+  const label = ACTION_LABEL[evt.action] ?? evt.action;
+  const p = evt.payload ?? {};
+  let meta = "";
+  if (p.invoice_id) meta = p.invoice_id;
+  if (p.tx) meta += ` · ${short(p.tx, 10, 6)}`;
+  if (p.amount != null) meta += ` · ${fmt(p.amount)} USDC`;
+  if (p.new_amount != null) meta += ` → ${fmt(p.new_amount)} USDC`;
+  if (evt.action === "delivery.verified") meta += p.match ? " · 일치" : ` · 불일치 ${p.discrepancies?.length ?? 0}건`;
+  return `<li class="${isNew ? "new" : ""}">
+    <span class="t">${clock(evt.ts)}</span>
+    <span class="what">
+      <span class="who">${esc(evt.actor.replace("-agent", ""))}</span><span class="act">${esc(label)}</span>
+      ${meta ? `<span class="meta">${esc(meta)}</span>` : ""}
+    </span>
+  </li>`;
+}
 
+function renderWallets(wallets) {
+  $("wallets").innerHTML = wallets.map((w) => w.error
+    ? `<div class="wallet"><div class="line"><span class="who2">${esc(w.wallet)}</span></div><div class="err">결제 서비스 연결 안 됨</div></div>`
+    : `<div class="wallet">
+         <div class="line"><span class="who2">${esc(w.wallet)}</span><span class="usdc">${fmt(w.usdc)} <small>USDC</small></span></div>
+         <div class="line"><span class="addr">${short(w.address, 10, 6)}</span><span class="sol">${Number(w.sol).toFixed(3)} SOL</span></div>
+       </div>`).join("");
+}
+
+// ── 리포트 · 어시스턴트 ───────────────────────────────────────────
+const reportBtn = $("report-btn");
+if (reportBtn) {
+  reportBtn.addEventListener("click", async () => {
+    reportBtn.disabled = true;
+    reportBtn.textContent = "생성 중…";
+    try {
+      const r = await getJSON("/api/report");
+      $("report-text").textContent = r.report || "아직 요약할 정산 내역이 없습니다.";
+    } catch {
+      $("report-text").textContent = "리포트 생성에 실패했습니다.";
+    } finally {
+      reportBtn.disabled = false;
+      reportBtn.textContent = "생성";
+    }
+  });
+}
+
+const chatForm = $("chat-form");
+if (chatForm) {
+  const log = $("chat-log");
+  const input = $("chat-input");
+  const append = (text, who) => {
+    const li = document.createElement("li");
+    li.className = `msg ${who}`;
+    li.textContent = text;
+    log.appendChild(li);
+    log.scrollTop = log.scrollHeight;
+    return li;
+  };
+  chatForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const message = input.value.trim();
+    if (!message) return;
+    input.value = "";
+    input.disabled = true;
+    append(message, "user");
+    const waiting = append("…", "bot");
+    try {
+      const res = await fetch("/api/assistant/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message }),
+      });
+      const data = await res.json();
+      waiting.textContent = res.ok ? data.reply : (data.detail ?? "응답 실패");
+    } catch {
+      waiting.textContent = "연결에 실패했습니다.";
+    } finally {
+      input.disabled = false;
+      input.focus();
+      refresh();  // 승인·예약 실행이 있었으면 화면에 바로 반영
+    }
+  });
+}
+
+// ── 지표 · 시스템 ─────────────────────────────────────────────────
 let me = null;          // 현재 역할
 let lastWallets = [];   // 지표에서 재사용
+let lastView = null;    // 지갑이 늦게 도착하면 지표만 다시 그린다
 
 function renderMetrics(cards) {
   $("metrics").innerHTML = cards.map((c) => `
@@ -302,8 +479,9 @@ function renderSysInfo(ov, health) {
     ["저장소", health?.store ?? "postgres"],
     ["청구서", `${ov.totals.invoices}건`],
     ["협상", `${ov.totals.negotiations}건`],
+    ["사람 개입", `${ov.totals.humanActions}회`],
   ];
-  el.innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
+  el.innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("");
 }
 
 async function refresh() {
@@ -315,6 +493,8 @@ async function refresh() {
       getJSON("/api/health").catch(() => null),
     ]);
     const view = role.scope(me, ov);
+    lastView = view;
+    currentNetwork = ov.network;
 
     $("network").textContent = ov.network;
     renderMetrics(role.metricsFor(me, view, lastWallets));
@@ -330,12 +510,15 @@ async function refresh() {
       renderStores(ov.stores, "stores");
     }
 
-    renderInvoices(view.invoices);
+    renderInvoices(view.invoices, ov.network);
     renderNegotiations(view.negotiations);
     renderTrades(view.trades);
     renderSchedules(view.invoices);
     renderApprovals(view.invoices);
     renderSysInfo(ov, health);
+
+    // 펼쳐둔 행은 최신 과정으로 다시 채운다
+    for (const id of expanded) loadTimeline(id, ov.network);
 
     const feedHtml = ev.events.map((e) => eventRow(e, false)).join("")
       || '<li class="empty" style="display:block">아직 활동이 없습니다</li>';
@@ -351,10 +534,12 @@ async function refresh() {
     console.error(err);
   }
 
+  // 지갑 조회는 온체인 왕복이라 느리다 — 화면을 붙잡지 않고 도착하는 대로 채운다
   getJSON("/api/wallets").then((w) => {
     lastWallets = w.wallets;
     const shown = me.kind === "store" ? w.wallets.filter((x) => x.wallet === me.id) : w.wallets;
     renderWallets(shown);
+    if (lastView) renderMetrics(role.metricsFor(me, lastView, lastWallets));
   }).catch(() => {});
 }
 
@@ -393,7 +578,7 @@ function connect() {
   };
 }
 
-// ── 어시스턴트 드로어 ──────────────────────────────────────────────
+// ── 어시스턴트 드로어 ─────────────────────────────────────────────
 const fab = $("chat-fab");
 const drawer = $("chat-drawer");
 fab?.addEventListener("click", () => {
@@ -419,10 +604,10 @@ async function renderGate() {
     { id: "admin", ...role.ROLES.admin },
   ];
   $("gate-list").innerHTML = cards.map((c) => `
-    <button class="gate-btn ${c.kind}" data-id="${c.id}">
-      <span class="gate-name">${c.label}</span>
-      <span class="gate-caption">${c.caption}</span>
-      <span class="gate-desc">${c.desc}</span>
+    <button class="gate-btn ${c.kind}" data-id="${esc(c.id)}">
+      <span class="gate-name">${esc(c.label)}</span>
+      <span class="gate-caption">${esc(c.caption)}</span>
+      <span class="gate-desc">${esc(c.desc)}</span>
     </button>`).join("");
   $("gate-list").querySelectorAll(".gate-btn").forEach((btn) =>
     btn.addEventListener("click", () => {
@@ -457,6 +642,8 @@ function start() {
   const policyHost = $("policy");
   if (policyHost && me.kind !== "admin") mountPolicy(policyHost, me.id);
 
+  expanded.clear();
+  timelines.clear();
   refresh();
   if (!streaming) { connect(); streaming = true; }
 }

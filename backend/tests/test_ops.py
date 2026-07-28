@@ -194,8 +194,12 @@ def test_schedule_run_can_simulate_inflow(monkeypatch):
     resp = client.post(f"/api/schedules/{invoice['id']}/run", json={"simulate_inflow": True})
     assert resp.status_code == 200
     assert inflows and inflows[0][0] == "hq" and inflows[0][3] == "CARD-SETTLEMENT"
-    # 청구액 35 + 하한 10 − 잔액 5 = 40만 채운다 (반복해도 잔액이 불어나지 않는 양)
-    assert inflows[0][2] == 40.0
+    # 청구액 + 하한 − 잔액 만 채운다 (반복해도 잔액이 불어나지 않는 양).
+    # 하한은 데모 금액 규모에 따라 바뀌므로 정책에서 읽는다 — 숫자를 박으면 같이 깨진다.
+    from app.core import policy as policy_mod
+
+    reserve = policy_mod.get("store-c").min_reserve_usdc
+    assert inflows[0][2] == 35.0 + reserve - 5.0
 
 
 def test_overview_exposes_store_inventory():

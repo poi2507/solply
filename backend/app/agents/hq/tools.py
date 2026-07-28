@@ -72,6 +72,9 @@ def adjust_invoice(invoice_id: str, new_amount_usdc: float, reason: str) -> dict
             "items": utils.correct_items(invoice["items"], received),
             "status": "issued",
             "adjusted": True,
+            # 처음 청구한 금액 — 화면이 "7.00 → 6.50"으로 합의 결과를 보여줄 근거.
+            # 여러 번 조정돼도 최초값을 지킨다.
+            "original_amount_usdc": invoice.get("original_amount_usdc", invoice["amount_usdc"]),
         },
     )
     utils.log(

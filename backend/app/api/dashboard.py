@@ -3,7 +3,7 @@
 import asyncio
 import json
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
 from app import config
@@ -92,6 +92,41 @@ def report() -> dict:
     stats = report_mod.collect()
     text = judge.weekly_report(stats, policy_mod.get("hq").as_prompt_values())
     return {"stats": stats, "report": text}
+
+
+@router.get("/invoices/{invoice_id}/timeline")
+def timeline(invoice_id: str) -> dict:
+    """청구서 한 건의 전 과정 — 발행부터 정산까지 한 흐름으로.
+
+    표를 종류별로 흩어놓으면 "이 청구서가 어떻게 협상되고 정산됐나"가 보이지 않는다.
+    화면에서 행을 펼칠 때 쓴다.
+    """
+    invoice = store.get("invoices", invoice_id)
+    if not invoice:
+        raise HTTPException(404, f"청구서 없음: {invoice_id}")
+
+    # 분할된 경우 자식 청구서까지 한 이야기로 묶는다
+    family = {invoice_id}
+    children = [d for d in store.list_docs("invoices") if d.get("parent_id") == invoice_id]
+    family.update(c["id"] for c in children)
+    if invoice.get("parent_id"):
+        family.add(invoice["parent_id"])
+
+    steps = [
+        event
+        for event in store.list_events()
+        if (event.get("payload") or {}).get("invoice_id") in family
+    ]
+    negotiations = [
+        n for n in store.list_docs("negotiations") if n.get("invoice_id") in family
+    ]
+
+    return {
+        "invoice": invoice,
+        "children": sorted(children, key=lambda c: c["id"]),
+        "negotiations": sorted(negotiations, key=lambda n: n.get("updated_at", "")),
+        "steps": steps,
+    }
 
 
 @router.get("/events")
