@@ -17,6 +17,8 @@ FRONTEND_DIR = Path(os.getenv("SOLPLY_FRONTEND_DIR", BASE_DIR.parent / "frontend
 # ── 체인 ──
 NETWORK = os.getenv("SOLANA_NETWORK", "localnet")
 PAYMENTS_API_URL = os.getenv("PAYMENTS_API_URL", "http://localhost:3000")
+# 본사 x402 엔드포인트 (가맹점 에이전트가 정산 왕복에 사용) — 우리 API 서버 자신이다
+SOLPLY_API_URL = os.getenv("SOLPLY_API_URL", "http://localhost:8080")
 
 # ── LLM ──
 # gemini(AI Studio 무료) | vertex(GCP 크레딧·한도 여유) | mock(LLM 없이 규칙)

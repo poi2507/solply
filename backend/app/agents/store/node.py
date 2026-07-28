@@ -57,6 +57,22 @@ def propose_adjustment(state: StoreState) -> dict:
     }
 
 
+def request_terms(state: StoreState) -> dict:
+    """본사에 정산을 요청한다 — 402 챌린지의 accepts[]가 협상 테이블이다."""
+    result = tools.request_settlement_terms(state["store_id"], state["invoice_id"])
+    if result.get("error"):
+        return {"outcome": "noop", "messages": [result["error"]]}
+    if result.get("already_settled"):
+        return {"outcome": "noop", "messages": ["이미 정산이 끝난 청구서입니다."]}
+
+    accepts = result["accepts"]
+    labels = " · ".join(a.get("extra", {}).get("label", "?") for a in accepts)
+    return {
+        "x402_terms": accepts,
+        "messages": [f"본사에 정산을 요청하니 402(Payment Required)와 결제 조건 {len(accepts)}개를 받았습니다: {labels}"],
+    }
+
+
 def assess_cashflow(state: StoreState) -> dict:
     """잔액·정책 한도·예상 입금으로 지불 여력을 본다."""
     cash = tools.assess_cashflow(state["store_id"], state["invoice_id"])
@@ -64,8 +80,9 @@ def assess_cashflow(state: StoreState) -> dict:
 
 
 def execute_payment(state: StoreState) -> dict:
-    """결제를 실행한다."""
-    result = tools.execute_payment(state["store_id"], state["invoice_id"])
+    """402 조건 중 즉시 납부를 선택해 결제하고, 서명 제출로 정산 확정까지 받는다."""
+    term = utils.pick_term(state.get("x402_terms", []), "immediate")
+    result = tools.execute_payment(state["store_id"], state["invoice_id"], term=term)
     if result.get("status") == "needs_human_approval":
         return {
             "outcome": "needs_human",
@@ -73,8 +90,20 @@ def execute_payment(state: StoreState) -> dict:
             "reasoning": ["정책 상한 초과로 자동 결제를 중단했습니다."],
         }
     if result.get("error"):
-        return {"outcome": "noop", "messages": [result["error"]]}
+        return {"outcome": "noop", "messages": [result["error"]], "tx_signature": result.get("signature", "")}
 
+    if result.get("settled"):
+        return {
+            "outcome": "paid",
+            "tx_signature": result["signature"],
+            "messages": [
+                (
+                    f"즉시 납부 조건으로 {result['amount']} USDC를 결제하고 서명을 제출했습니다. "
+                    f"본사가 온체인 대조 후 정산을 확정했습니다. tx {result['signature'][:16]}…"
+                )
+            ],
+            "reasoning": ["402 조건 중 즉시 납부 선택 — 잔액·상한·하한 모두 충족"],
+        }
     return {
         "outcome": "paid",
         "tx_signature": result["signature"],
@@ -98,7 +127,7 @@ def escalate(state: StoreState) -> dict:
 
 
 def propose_deferral(state: StoreState) -> dict:
-    """잔액이 모자라면 예상 입금 일정을 근거로 유예를 제안한다."""
+    """잔액이 모자라면 402 조건 중 유예를 선택하고, 예상 입금 일정을 근거로 제안한다."""
     cash = state["cashflow"]
     forecast = cash.get("pos_forecast", {})
     when = forecast.get("inflow_date", "다음 정산일")
@@ -107,10 +136,13 @@ def propose_deferral(state: StoreState) -> dict:
         f"{forecast.get('note', '')}"
     ).strip()
     proposal = tools.propose_deferral(state["store_id"], state["invoice_id"], when, reason)
+
+    deferred = utils.pick_term(state.get("x402_terms", []), "deferred")
+    picked = "402 조건 중 '납부 유예(본사 심사 필요)'를 선택했습니다. " if deferred else ""
     return {
         "proposal": proposal,
         "outcome": "negotiating",
-        "messages": [f"{when}에 납부하겠다고 유예를 제안했습니다. 사유: {reason}"],
+        "messages": [f"{picked}{when}에 납부하겠다고 유예를 제안했습니다. 사유: {reason}"],
         "reasoning": [reason],
     }
 
@@ -142,18 +174,23 @@ def report(state: StoreState) -> dict:
 # ── 분기 조건 ────────────────────────────────────────────────────────
 
 def route_after_context(state: StoreState) -> str:
-    """청구서가 없으면 끝, 재발행분이면 검수를 건너뛴다."""
+    """청구서가 없으면 끝, 재발행분이면 검수를 건너뛰고 바로 정산 요청."""
     if state.get("outcome") == "noop":
         return "end"
     if state.get("intent") == "invoice.pay_adjusted":
-        return "cashflow"
+        return "request_terms"
     if state.get("payload", {}).get("suspect"):
         return "refuse"
     return "verify"
 
 
 def route_after_verify(state: StoreState) -> str:
-    return "pay" if state["verification"]["match"] else "propose_adjustment"
+    """검수가 일치할 때만 본사에 정산을 요청한다 — 분쟁 중에는 결제 테이블에 앉지 않는다."""
+    return "request_terms" if state["verification"]["match"] else "propose_adjustment"
+
+
+def route_after_terms(state: StoreState) -> str:
+    return "report" if state.get("outcome") == "noop" else "cashflow"
 
 
 def route_after_cashflow(state: StoreState) -> str:

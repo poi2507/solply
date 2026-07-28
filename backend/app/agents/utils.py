@@ -98,6 +98,14 @@ def amounts_match(actual: float, expected: float) -> bool:
     return abs(actual - expected) < 1e-6
 
 
+def pick_term(accepts: list[dict], term: str) -> dict | None:
+    """402 응답의 accepts[]에서 원하는 결제 조건(immediate/deferred/installment)을 고른다."""
+    for option in accepts or []:
+        if option.get("extra", {}).get("term") == term:
+            return option
+    return None
+
+
 # ── 기록 ──────────────────────────────────────────────────────────────
 
 def log(actor: str, action: str, payload: dict[str, Any]) -> None:

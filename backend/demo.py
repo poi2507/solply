@@ -57,11 +57,22 @@ async def act(agent: str, intent: str, tag: str, color: str, **kwargs) -> dict:
 
 def newest_open_invoice(store_id: str) -> dict | None:
     docs = [d for d in db.list_docs("invoices", store_id=store_id) if d["status"] != "settled"]
-    return sorted(docs, key=lambda d: d["updated_at"])[-1] if docs else None
+    return max(docs, key=lambda d: d["updated_at"]) if docs else None
+
+
+def confirm_settlement(invoice_id: str) -> bool:
+    """x402 왕복이 정산까지 끝냈는지 확인하고, 본사 쪽 확정 로그를 보여준다."""
+    invoice = db.get("invoices", invoice_id)
+    receipt = latest_event(db.list_events(), "x402.settled")
+    if invoice and invoice["status"] == "settled" and receipt:
+        print(f"  {C['hq']}[본사]{C['0']} x402 서명 검증 → 온체인 3중 대조 일치 — 정산 확정 "
+              f"{C['dim']}(tx {receipt['tx'][:16]}…){C['0']}")
+        return True
+    return False
 
 
 async def scenario_a() -> None:
-    banner("A지점 (강남) — 검수 일치, 즉시 자율 결제", "a")
+    banner("A지점 (강남) — 검수 일치, x402 왕복으로 즉시 자율 결제", "a")
     issued = await act("hq", "invoice.issue", "본사", "hq", delivery_id="DEL-001")
     invoice_id = issued.get("invoice_id")
     if not invoice_id:
@@ -70,7 +81,8 @@ async def scenario_a() -> None:
     paid = await act(
         "store", "invoice.handle", "A지점", "a", store_id="store-a", invoice_id=invoice_id
     )
-    if paid.get("outcome") == "paid":
+    if paid.get("outcome") == "paid" and not confirm_settlement(invoice_id):
+        # x402 영수증이 없으면 예전 경로(본사 사후 검증)로 확정한다
         await act(
             "hq", "payment.verify", "본사", "hq",
             invoice_id=invoice_id, payload={"tx_signature": paid["tx_signature"]},
@@ -97,7 +109,7 @@ async def scenario_b() -> None:
         "store", "invoice.pay_adjusted", "B지점", "b",
         store_id="store-b", invoice_id=invoice_id,
     )
-    if paid.get("outcome") == "paid":
+    if paid.get("outcome") == "paid" and not confirm_settlement(invoice_id):
         await act(
             "hq", "payment.verify", "본사", "hq",
             invoice_id=invoice_id, payload={"tx_signature": paid["tx_signature"]},
@@ -148,6 +160,9 @@ async def main() -> None:
     banner("SOLPLY — 프랜차이즈 식자재 대금 자율 정산", "hq")
     mode = "규칙 기반(mock)" if config.LLM_PROVIDER == "mock" else f"{config.LLM_PROVIDER} · {config.HQ_MODEL}"
     print(f"  판단 주체: {mode} · 네트워크: {config.NETWORK} · 저장소: {config.STORE_BACKEND}")
+    print(f"  정산 경로: x402 (HTTP 402) — {config.SOLPLY_API_URL}")
+    if config.STORE_BACKEND == "local":
+        print("  ⚠ SOLPLY_STORE=local이면 API 서버와 상태가 분리돼 x402 왕복이 어긋난다 — postgres 권장")
     print(f"  {C['dim']}대시보드를 띄워두면 활동이 실시간으로 표시됩니다 → http://localhost:8080{C['0']}")
 
     scenarios = {"a": scenario_a, "b": scenario_b, "c": scenario_c}

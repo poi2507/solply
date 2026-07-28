@@ -6,6 +6,7 @@
 
 from app.agents import utils
 from app.core import policy as policy_mod
+from app.core import protocol, x402_client
 from app.db import store as db
 from app.solana import payments
 
@@ -56,14 +57,41 @@ def assess_cashflow(store_id: str, invoice_id: str) -> dict:
     }
 
 
-def execute_payment(store_id: str, invoice_id: str) -> dict:
-    """청구서를 USDC로 결제한다. 정책 상한을 넘으면 사람 승인을 요구한다."""
+def request_settlement_terms(store_id: str, invoice_id: str) -> dict:
+    """본사 x402 엔드포인트에 정산을 요청한다. 402 응답의 accepts[]가 협상 조건 목록이다."""
+    invoice = utils.get_invoice(invoice_id, store_id=store_id)
+    if not invoice:
+        return utils.error(f"이 지점의 청구서가 아님: {invoice_id}")
+
+    try:
+        challenge = x402_client.fetch_terms(invoice_id)
+    except Exception as exc:  # noqa: BLE001 — API 서버가 없으면 도구가 원인을 알려준다
+        return utils.error(f"x402 정산 요청 실패 (API 서버 :8080 확인): {exc}")
+
+    if challenge.get("status") == "already_settled":
+        return {"invoice_id": invoice_id, "already_settled": True, "accepts": []}
+
+    accepts = challenge.get("accepts", [])
+    utils.log(
+        utils.actor_name(store_id),
+        "x402.terms_received",
+        {"invoice_id": invoice_id, "terms": [a.get("extra", {}).get("term") for a in accepts]},
+    )
+    return {"invoice_id": invoice_id, "already_settled": False, "accepts": accepts}
+
+
+def execute_payment(store_id: str, invoice_id: str, term: dict | None = None) -> dict:
+    """청구서를 USDC로 결제한다. 정책 상한을 넘으면 사람 승인을 요구한다.
+
+    x402 조건(term)이 있으면 그 조건의 수취 주소·금액대로 지불하고, 서명을
+    PAYMENT-SIGNATURE로 제출해 본사의 온체인 검증·정산 확정까지 한 왕복으로 끝낸다.
+    """
     invoice = utils.get_invoice(invoice_id, store_id=store_id)
     if not invoice:
         return utils.error(f"이 지점의 청구서가 아님: {invoice_id}")
 
     pol = policy_mod.get(store_id)
-    amount = invoice["amount_usdc"]
+    amount = protocol.from_atomic(term["amount"]) if term else invoice["amount_usdc"]
     actor = utils.actor_name(store_id)
 
     if amount > pol.auto_pay_limit_usdc:
@@ -73,8 +101,24 @@ def execute_payment(store_id: str, invoice_id: str) -> dict:
             "reason": f"자동결제 상한 초과: {amount} > {pol.auto_pay_limit_usdc} USDC",
         }
 
-    hq_address = payments.balance("hq")["address"]
-    result = payments.pay(store_id, hq_address, amount, invoice_id)
+    pay_to = term["payTo"] if term else payments.balance("hq")["address"]
+    memo = (term or {}).get("extra", {}).get("memo") or invoice_id
+    result = payments.pay(store_id, pay_to, amount, memo)
+
+    if term:
+        receipt = x402_client.submit_payment(invoice_id, result["signature"]).get("receipt", {})
+        utils.log(
+            actor,
+            "payment.executed",
+            {"invoice_id": invoice_id, "tx": result["signature"], "via": "x402",
+             "explorer": receipt.get("explorer", "")},
+        )
+        if not receipt.get("settled"):
+            return {**result, "amount": amount, "settled": False,
+                    "error": "본사 x402 검증에 실패해 정산이 확정되지 않았습니다."}
+        return {**result, "amount": amount, "settled": True, "explorer": receipt.get("explorer", "")}
+
+    # x402 조건 없이 부른 직접 결제 경로 — 정산 확정은 본사 검증(payment.verify)이 맡는다
     db.update("invoices", invoice_id, {"status": "paid", "tx_sig": result["signature"]})
     utils.log(actor, "payment.executed", {"invoice_id": invoice_id, "tx": result["signature"]})
     return {**result, "amount": amount}

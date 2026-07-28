@@ -12,5 +12,6 @@ from app.agents.state import BaseState
 class StoreState(BaseState, total=False):
     store_id: str
     verification: dict[str, Any]    # 검수 대조 결과 {match, discrepancies}
+    x402_terms: list[dict]          # 402 챌린지의 accepts[] — 본사가 제시한 결제 조건들
     cashflow: dict[str, Any]        # 지불 여력 {sufficient, keeps_reserve, within_auto_limit, …}
     proposal: dict[str, Any]        # 본사에 낸 협상 제안

@@ -3,13 +3,16 @@
     load_context
         ├─(청구서 없음)──────────────────────────► END
         ├─(이상 징후)────────► refuse ───────────► report ► END
-        ├─(조정분 재청구)────► assess_cashflow ─┐
+        ├─(조정분 재청구)────► request_terms ───┐
         └─► verify_delivery                     │
               ├─(불일치)─► propose_adjustment ──┼─► report ► END
-              └─(일치)───► assess_cashflow ─────┤
+              └─(일치)───► request_terms ───────┤
+                              │ x402: GET → 402 + 조건(즉시/유예/분할)
+                              ▼
+                          assess_cashflow ──────┤
                               ├─(상한 초과)─► escalate ────────┤
-                              ├─(여력 있음)─► execute_payment ─┤
-                              └─(부족·하한)─► propose_deferral ┘
+                              ├─(여력 있음)─► execute_payment ─┤  x402: 결제 → PAYMENT-SIGNATURE
+                              └─(부족·하한)─► propose_deferral ┘        제출 → 정산 확정
 
 한 번의 호출이 한 단계까지만 간다(제안을 내면 거기서 끝). 상대 에이전트의 응답은
 오케스트레이터가 다음 호출로 넣어준다 — 협상은 그래프 안의 루프가 아니라
@@ -32,6 +35,7 @@ def build():
     g.add_node("load_context", node.load_context)
     g.add_node("verify", node.verify_delivery)
     g.add_node("propose_adjustment", node.propose_adjustment)
+    g.add_node("request_terms", node.request_terms)
     g.add_node("cashflow", node.assess_cashflow)
     g.add_node("pay", node.execute_payment)
     g.add_node("escalate", node.escalate)
@@ -43,12 +47,17 @@ def build():
     g.add_conditional_edges(
         "load_context",
         node.route_after_context,
-        {"verify": "verify", "cashflow": "cashflow", "refuse": "refuse", "end": END},
+        {"verify": "verify", "request_terms": "request_terms", "refuse": "refuse", "end": END},
     )
     g.add_conditional_edges(
         "verify",
         node.route_after_verify,
-        {"pay": "cashflow", "propose_adjustment": "propose_adjustment"},
+        {"request_terms": "request_terms", "propose_adjustment": "propose_adjustment"},
+    )
+    g.add_conditional_edges(
+        "request_terms",
+        node.route_after_terms,
+        {"cashflow": "cashflow", "report": "report"},
     )
     g.add_conditional_edges(
         "cashflow",

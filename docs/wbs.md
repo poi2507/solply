@@ -53,16 +53,16 @@ Phase 2.5(P2P)의 여유가 사라졌다.**
 
 ---
 
-## Phase 1 — 심사 핵심 완성 (7/28 월)
+## Phase 1 — 심사 핵심 완성 ✅ 완료 (7/27, 회사 맥)
 
 | ID | 작업 | 담당 | 산출물 | 의존 |
 |---|---|---|---|---|
-| 1.1 | 가맹점 에이전트가 x402 챌린지를 받아 조건 선택 | 🤖 | `agents/store/agent.py`에 `request_settlement_terms` 도구 | — |
-| 1.2 | 선택한 조건으로 결제 후 `PAYMENT-SIGNATURE` 재요청 | 🤖 | `execute_payment`가 x402 경로 사용 | 1.1 |
-| 1.3 | 데모 플로우를 x402 경유로 교체 | 🤖 | `demo.py` 갱신 | 1.2 |
-| 1.4 | x402 왕복 테스트 | 🤖 | `tests/test_x402_flow.py` | 1.2 |
+| 1.1 | ✅ 가맹점 에이전트가 x402 챌린지를 받아 조건 선택 | 🤖 | `store/tools.py`의 `request_settlement_terms` + 그래프 `request_terms` 노드 | — |
+| 1.2 | ✅ 선택한 조건으로 결제 후 `PAYMENT-SIGNATURE` 재요청 | 🤖 | `execute_payment`가 x402 경로 사용 (클라이언트: `core/x402_client.py`) | 1.1 |
+| 1.3 | ✅ 데모 플로우를 x402 경유로 교체 | 🤖 | `demo.py` — 본사 사후 검증은 x402 영수증이 대체 | 1.2 |
+| 1.4 | ✅ x402 왕복 테스트 | 🤖 | `tests/test_x402_flow.py` (9개) | 1.2 |
 
-**완료 기준**: `make demo-mock` 실행 시 이벤트 로그에 `x402.payment_required` → `x402.settled`가 찍힌다.
+**완료 기준 충족 확인**: `make demo-mock` 이벤트 로그에 `x402.payment_required → x402.terms_received → x402.settled`가 찍힌다 (7/27 검증).
 
 ## Phase 2 — 차별화 기능 (7/28 월 저녁 – 7/29 화)
 
