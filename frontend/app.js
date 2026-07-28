@@ -1,6 +1,7 @@
 // Solply 대시보드 — SSE로 에이전트 활동을 실시간 반영한다.
 
 import { mount as mountPolicy } from "./policy.js";
+import * as role from "./role.js";
 
 const $ = (id) => document.getElementById(id);
 const seenInvoices = new Set();
@@ -39,8 +40,9 @@ async function getJSON(url) {
   return res.json();
 }
 
-function renderStores(stores) {
-  const el = $("stores");
+function renderStores(stores, targetId = "stores") {
+  const el = $(targetId);
+  if (!el) return;
   if (!stores.length) { el.innerHTML = '<div class="empty">가맹점 정보가 없습니다</div>'; return; }
   el.innerHTML = stores.map((s) => `
     <article class="store">
@@ -175,7 +177,7 @@ if (chatForm) {
   const log = document.getElementById("chat-log");
   const input = document.getElementById("chat-input");
   const append = (text, who) => {
-    const div = document.createElement("div");
+    const div = document.createElement("li");
     div.className = `msg ${who}`;
     div.textContent = text;
     log.appendChild(div);
@@ -279,29 +281,81 @@ function renderApprovals(invoices) {
 }
 
 
+let me = null;          // 현재 역할
+let lastWallets = [];   // 지표에서 재사용
+
+function renderMetrics(cards) {
+  $("metrics").innerHTML = cards.map((c) => `
+    <div class="metric ${c.accent ? "accent" : ""} ${c.warn ? "warn" : ""}">
+      <span class="label">${c.label}</span>
+      <strong class="value"><span>${c.plain ? c.value : fmt(c.value)}</span><em>${c.unit}</em></strong>
+      <span class="foot">${typeof c.foot === "object" ? "" : c.foot}</span>
+    </div>`).join("");
+}
+
+function renderSysInfo(ov, health) {
+  const el = $("sysinfo");
+  if (!el) return;
+  const rows = [
+    ["네트워크", ov.network],
+    ["LLM", health?.llm ?? "—"],
+    ["저장소", health?.store ?? "postgres"],
+    ["청구서", `${ov.totals.invoices}건`],
+    ["협상", `${ov.totals.negotiations}건`],
+  ];
+  el.innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
+}
+
 async function refresh() {
+  if (!me) return;
   try {
-    const [ov, ev] = await Promise.all([getJSON("/api/overview"), getJSON("/api/events?limit=60")]);
+    const [ov, ev, health] = await Promise.all([
+      getJSON("/api/overview"),
+      getJSON("/api/events?limit=60"),
+      getJSON("/api/health").catch(() => null),
+    ]);
+    const view = role.scope(me, ov);
+
     $("network").textContent = ov.network;
-    $("m-settled").textContent = fmt(ov.totals.settledUsdc);
-    $("m-settled-count").textContent = `${ov.totals.settledCount}건`;
-    $("m-outstanding").textContent = fmt(ov.totals.outstandingUsdc);
-    $("m-outstanding-count").textContent = `${ov.totals.outstandingCount ?? ov.totals.invoices - ov.totals.settledCount}건`;
-    $("m-negotiations").textContent = ov.totals.negotiations;
-    $("m-human").textContent = ov.totals.humanActions;
-    renderStores(ov.stores);
-    renderInvoices(ov.invoices);
-    renderNegotiations(ov.negotiations);
-    renderTrades(ov.trades);
-    renderSchedules(ov.invoices);
-    renderApprovals(ov.invoices);
-    $("event-total").textContent = `${ev.total}건 기록됨`;
-    $("feed").innerHTML = ev.events.map((e) => eventRow(e, false)).join("")
+    renderMetrics(role.metricsFor(me, view, lastWallets));
+
+    if (me.kind === "store") {
+      renderStores(view.stores, "my-store");
+      $("invoices-title").textContent = "내 청구서";
+      $("negotiations-title").textContent = "내 협상 기록";
+      $("policy-title").textContent = "내 거래 정책";
+      const w = $("wallets-title");
+      if (w) w.textContent = "내 지갑";
+    } else {
+      renderStores(ov.stores, "stores");
+    }
+
+    renderInvoices(view.invoices);
+    renderNegotiations(view.negotiations);
+    renderTrades(view.trades);
+    renderSchedules(view.invoices);
+    renderApprovals(view.invoices);
+    renderSysInfo(ov, health);
+
+    const feedHtml = ev.events.map((e) => eventRow(e, false)).join("")
       || '<li class="empty" style="display:block">아직 활동이 없습니다</li>';
+    for (const id of ["feed", "feed-side"]) {
+      const el = $(id);
+      if (el) el.innerHTML = feedHtml;
+    }
+    for (const id of ["event-total", "event-total-side"]) {
+      const el = $(id);
+      if (el) el.textContent = `${ev.total}건 기록됨`;
+    }
   } catch (err) {
     console.error(err);
   }
-  getJSON("/api/wallets").then((w) => renderWallets(w.wallets)).catch(() => {});
+
+  getJSON("/api/wallets").then((w) => {
+    lastWallets = w.wallets;
+    const shown = me.kind === "store" ? w.wallets.filter((x) => x.wallet === me.id) : w.wallets;
+    renderWallets(shown);
+  }).catch(() => {});
 }
 
 function connect() {
@@ -316,12 +370,13 @@ function connect() {
 
   src.addEventListener("activity", (e) => {
     const evt = JSON.parse(e.data);
-    const feed = $("feed");
-    const empty = feed.querySelector(".empty");
-    if (empty) empty.remove();
-    feed.insertAdjacentHTML("afterbegin", eventRow(evt, true));
-    while (feed.children.length > 80) feed.lastElementChild.remove();
-
+    for (const id of ["feed", "feed-side"]) {
+      const feed = $(id);
+      if (!feed || feed.hidden) continue;
+      feed.querySelector(".empty")?.remove();
+      feed.insertAdjacentHTML("afterbegin", eventRow(evt, true));
+      while (feed.children.length > 80) feed.lastElementChild.remove();
+    }
     beacon.className = "beacon hot";
     beacon.innerHTML = "<i></i>에이전트 작동 중";
     clearTimeout(hotTimer);
@@ -332,14 +387,84 @@ function connect() {
   });
 
   src.addEventListener("refresh", () => refresh());
-
   src.onerror = () => {
     beacon.className = "beacon";
     beacon.innerHTML = "<i></i>재연결 중";
   };
 }
 
-refresh();
-connect();
-mountPolicy(document.getElementById("policy"));
+// ── 어시스턴트 드로어 ──────────────────────────────────────────────
+const fab = $("chat-fab");
+const drawer = $("chat-drawer");
+fab?.addEventListener("click", () => {
+  drawer.hidden = false;
+  fab.hidden = true;
+  $("chat-input")?.focus();
+});
+$("chat-close")?.addEventListener("click", () => {
+  drawer.hidden = true;
+  fab.hidden = false;
+});
+
+// ── 로그인 게이트 ─────────────────────────────────────────────────
+async function renderGate() {
+  const { owners } = await getJSON("/api/policy/owners");
+  const cards = [
+    { id: "hq", ...role.ROLES.hq },
+    ...owners.filter((o) => o.kind === "store").map((o) => ({
+      id: o.id, kind: "store", label: o.name,
+      caption: "내 청구서·잔액·정책",
+      desc: "본사가 보낸 청구서를 검증하고, 여력이 될 때 결제합니다. 다른 지점의 내역은 보이지 않습니다.",
+    })),
+    { id: "admin", ...role.ROLES.admin },
+  ];
+  $("gate-list").innerHTML = cards.map((c) => `
+    <button class="gate-btn ${c.kind}" data-id="${c.id}">
+      <span class="gate-name">${c.label}</span>
+      <span class="gate-caption">${c.caption}</span>
+      <span class="gate-desc">${c.desc}</span>
+    </button>`).join("");
+  $("gate-list").querySelectorAll(".gate-btn").forEach((btn) =>
+    btn.addEventListener("click", () => {
+      role.set(btn.dataset.id);
+      start();
+    }),
+  );
+}
+
+let streaming = false;
+
+function start() {
+  me = role.current();
+  if (!me) {
+    $("gate").hidden = false;
+    $("app").hidden = true;
+    if (fab) fab.hidden = true;
+    renderGate().catch((e) => console.error(e));
+    return;
+  }
+
+  $("gate").hidden = true;
+  $("app").hidden = false;
+  if (fab) fab.hidden = !drawer || !drawer.hidden;
+
+  $("who-chip").textContent = me.label;
+  $("who-chip").className = `who-chip ${me.kind}`;
+  $("role-caption").textContent = me.caption;
+  role.applyVisibility(me.kind);
+
+  // 정책은 본사·가맹점만, 자기 것만 편집한다
+  const policyHost = $("policy");
+  if (policyHost && me.kind !== "admin") mountPolicy(policyHost, me.id);
+
+  refresh();
+  if (!streaming) { connect(); streaming = true; }
+}
+
+$("switch-role")?.addEventListener("click", () => {
+  role.clear();
+  start();
+});
+
+start();
 setInterval(refresh, 15000);

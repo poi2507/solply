@@ -42,7 +42,15 @@ CREATE TABLE IF NOT EXISTS events (
 
 class PostgresStore:
     def __init__(self, dsn: str, *, min_size: int = 1, max_size: int = 8) -> None:
-        self.pool = ConnectionPool(dsn, min_size=min_size, max_size=max_size, open=True)
+        # check: 대여 직전에 연결을 확인한다 — DB를 재시작하면 풀이 죽은 커넥션을 들고 있고,
+        # 그러면 AdminShutdown이 뜨면서 서비스가 재시작 없이는 복구되지 않는다.
+        self.pool = ConnectionPool(
+            dsn,
+            min_size=min_size,
+            max_size=max_size,
+            open=True,
+            check=ConnectionPool.check_connection,
+        )
         self._ensure_schema()
         atexit.register(self.close)  # 프로세스 종료 시 풀 경고를 남기지 않는다
 

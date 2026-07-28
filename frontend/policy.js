@@ -1,16 +1,7 @@
-// 거래 정책 설정 — 로그인한 주체가 자기 에이전트의 판단 경계를 정한다.
+// 거래 정책 — 로그인한 주체가 자기 에이전트의 판단 경계를 정한다.
 // 저장된 값은 백엔드에서 프롬프트의 POLICY 섹션으로 주입된다.
-
-const OWNER_KEY = "solply.owner";
-
-export function currentOwner() {
-  return localStorage.getItem(OWNER_KEY);
-}
-
-export function signOut() {
-  localStorage.removeItem(OWNER_KEY);
-  location.reload();
-}
+//
+// 주체 선택(로그인)은 role.js가 전역으로 관리한다. 여기서는 넘겨받은 owner의 폼만 그린다.
 
 async function api(path, options) {
   const res = await fetch(path, options);
@@ -18,44 +9,12 @@ async function api(path, options) {
   return res.json();
 }
 
-/** 로그인 — 지점을 고르면 그 주체로 설정 화면이 열린다. */
-async function renderSignIn(host) {
-  const { owners } = await api("/api/policy/owners");
-  host.innerHTML = `
-    <div class="gate">
-      <h3>누구로 접속할까요</h3>
-      <p>선택한 주체의 에이전트 정책을 설정합니다.</p>
-      <div class="gate-list">
-        ${owners.map((o) => `
-          <button class="gate-btn ${o.kind}" data-id="${o.id}">
-            <span class="gate-name">${o.name}</span>
-            <span class="gate-id">${o.id}</span>
-          </button>`).join("")}
-      </div>
-    </div>`;
-  host.querySelectorAll(".gate-btn").forEach((btn) =>
-    btn.addEventListener("click", () => {
-      localStorage.setItem(OWNER_KEY, btn.dataset.id);
-      mount(host);
-    }),
-  );
-}
-
-/** 정책 설정 폼 */
 async function renderForm(host, ownerId) {
   const { fields } = await api(`/api/policy/${ownerId}`);
-  const { owners } = await api("/api/policy/owners");
-  const me = owners.find((o) => o.id === ownerId);
 
   host.innerHTML = `
     <div class="policy">
-      <div class="policy-head">
-        <div>
-          <span class="who">${me?.name ?? ownerId}</span>
-          <span class="sub">에이전트가 이 범위 안에서만 스스로 판단합니다</span>
-        </div>
-        <button class="linkish" id="signout">전환</button>
-      </div>
+      <p class="policy-note">에이전트는 이 범위 안에서만 스스로 판단합니다. 넘으면 사람에게 넘깁니다.</p>
       <form id="policy-form">
         ${fields.map((f) => `
           <label class="field">
@@ -73,11 +32,6 @@ async function renderForm(host, ownerId) {
         </div>
       </form>
     </div>`;
-
-  host.querySelector("#signout").addEventListener("click", () => {
-    localStorage.removeItem(OWNER_KEY);
-    mount(host);
-  });
 
   host.querySelector("#policy-form").addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -100,9 +54,13 @@ async function renderForm(host, ownerId) {
   });
 }
 
-export function mount(host) {
-  const owner = currentOwner();
-  (owner ? renderForm(host, owner) : renderSignIn(host)).catch((err) => {
+/** @param ownerId 정책을 편집할 주체 (hq | store-a …) */
+export function mount(host, ownerId) {
+  if (!ownerId) {
+    host.innerHTML = '<div class="empty">주체가 지정되지 않았습니다</div>';
+    return;
+  }
+  renderForm(host, ownerId).catch((err) => {
     host.innerHTML = `<div class="empty">정책을 불러오지 못했습니다: ${err.message}</div>`;
   });
 }
