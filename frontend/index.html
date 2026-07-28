@@ -125,6 +125,20 @@
 
       <section class="panel">
         <div class="panel-head">
+          <h2>정산 어시스턴트</h2>
+          <span class="hint">ADK + Gemini — 조회와 승인을 대화로</span>
+        </div>
+        <div id="chat-log" class="chat-log">
+          <div class="msg bot">정산 현황을 물어보거나 승인·예약 실행을 맡겨 주세요.<br>예: "승인 대기 있어?" · "이번 주 정산 요약해줘"</div>
+        </div>
+        <form id="chat-form" class="chat-form">
+          <input id="chat-input" type="text" placeholder="메시지 입력…" autocomplete="off">
+          <button type="submit" class="btn-approve">전송</button>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
           <h2>거래 정책</h2>
           <span class="hint">에이전트의 판단 경계</span>
         </div>

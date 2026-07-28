@@ -43,8 +43,9 @@ demo-mock:         ## 데모 3종 — 규칙 기반 (리허설용, 빠름 / 온�
 vertex-check:      ## Vertex AI 전환 준비 상태 점검 (GCP 결제 해결 후)
 	bash scripts/vertex-check.sh
 
-test:              ## 백엔드 테스트
-	cd backend && uv run pytest -q
+test:              ## 백엔드 테스트 (임시 JSON 저장소로 격리 — 라이브 DB를 더럽히지 않는다)
+	cd backend && SOLPLY_STORE=local SOLPLY_STATE_PATH=/tmp/solply-test-state.json uv run pytest -q
+	rm -f /tmp/solply-test-state.json
 
 lint:              ## 포맷·린트
 	cd backend && uv run ruff check app demo.py

@@ -193,6 +193,16 @@ td.r { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 #report-btn { font: inherit; font-size: 11.5px; padding: 4px 12px; border-radius: 6px; border: 1px solid transparent; cursor: pointer; }
 #report-btn:disabled { opacity: .5; cursor: wait; }
 .report-text { margin: 0; font-size: 12.5px; line-height: 1.65; color: var(--text-2); }
+.chat-log { display: flex; flex-direction: column; gap: 8px; max-height: 260px; overflow-y: auto; margin-bottom: 10px; }
+.chat-log .msg { font-size: 12.5px; line-height: 1.55; padding: 7px 11px; border-radius: 9px; max-width: 88%; white-space: pre-wrap; }
+.chat-log .msg.bot { background: var(--surface-2); color: var(--text-2); align-self: flex-start; }
+.chat-log .msg.user { background: var(--mint-dim, rgba(46,204,143,.12)); color: var(--text); align-self: flex-end; }
+.chat-form { display: flex; gap: 6px; }
+.chat-form input {
+  flex: 1; font: inherit; font-size: 12.5px; padding: 6px 10px; border-radius: 7px;
+  border: 1px solid var(--line, var(--surface-2)); background: var(--surface-2); color: var(--text);
+}
+.chat-form input:disabled { opacity: .55; }
 .neg .body { min-width: 0; flex: 1; }
 .neg .prop { font-size: 13.5px; margin-bottom: 5px; }
 .neg .why { font-size: 12.5px; color: var(--text-2); }

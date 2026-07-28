@@ -11,7 +11,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app import config
-from app.api import approvals, dashboard, policy, schedules, x402
+from app.api import approvals, assistant, dashboard, policy, schedules, x402
 
 app = FastAPI(
     title="Solply",
@@ -20,6 +20,7 @@ app = FastAPI(
 )
 
 app.include_router(approvals.router)
+app.include_router(assistant.router)
 app.include_router(dashboard.router)
 app.include_router(policy.router)
 app.include_router(schedules.router)

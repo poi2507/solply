@@ -170,6 +170,45 @@ if (reportBtn) {
 }
 
 
+const chatForm = document.getElementById("chat-form");
+if (chatForm) {
+  const log = document.getElementById("chat-log");
+  const input = document.getElementById("chat-input");
+  const append = (text, who) => {
+    const div = document.createElement("div");
+    div.className = `msg ${who}`;
+    div.textContent = text;
+    log.appendChild(div);
+    log.scrollTop = log.scrollHeight;
+    return div;
+  };
+  chatForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const message = input.value.trim();
+    if (!message) return;
+    input.value = "";
+    input.disabled = true;
+    append(message, "user");
+    const waiting = append("…", "bot");
+    try {
+      const res = await fetch("/api/assistant/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message }),
+      });
+      const data = await res.json();
+      waiting.textContent = res.ok ? data.reply : (data.detail ?? "응답 실패");
+    } catch (err) {
+      waiting.textContent = "연결에 실패했습니다.";
+    } finally {
+      input.disabled = false;
+      input.focus();
+      refresh();  // 승인·예약 실행이 있었으면 화면에 바로 반영
+    }
+  });
+}
+
+
 function renderSchedules(invoices) {
   const panel = document.getElementById("schedules-panel");
   const el = $("schedules");
