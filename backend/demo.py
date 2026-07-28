@@ -137,6 +137,26 @@ def simulate_card_settlement(store_id: str, invoice_amount: float) -> None:
     print(f"  {C['dim']}💳 카드정산금 {needed} USDC 입금 확인 (지점 지갑){C['0']}")
 
 
+def align_balance(store_id: str, operating_need: float) -> None:
+    """시나리오 전제가 되는 잔액으로 맞춘다 — 부족하면 채우고, 넘치면 덜어낸다.
+
+    채우기만 해서는 데모를 이어 돌릴 때 '잔액 부족' 전제가 깨진다. 앞 시나리오에서
+    남은 돈이 그대로 남아 전액을 내버리기 때문이다. 넘치는 분은 본사로 보내
+    '다른 운영비 지출'로 처리한다 — 실제 온체인 이동이라 장부도 어긋나지 않는다.
+    """
+    balance = payments.balance(store_id)
+    target = round(operating_need + policy_mod.get(store_id).min_reserve_usdc, 2)
+    diff = round(target - balance["usdc"], 2)
+    if abs(diff) < 0.01:
+        return
+    if diff > 0:
+        payments.pay("hq", balance["address"], diff, "CARD-SETTLEMENT")
+        print(f"  {C['dim']}💳 카드정산금 {diff} USDC 입금 확인 (지점 지갑){C['0']}")
+    else:
+        payments.pay(store_id, payments.balance("hq")["address"], -diff, "OPEX")
+        print(f"  {C['dim']}🧾 운영비 {-diff} USDC 지출 반영 (잔액 {target} USDC){C['0']}")
+
+
 async def scenario_c() -> None:
     banner("C지점 (부산) — 잔액 부족, 유예 협상 → 예약 실행", "c")
     issued = await act("hq", "invoice.issue", "본사", "hq", delivery_id="DEL-003")
@@ -177,7 +197,7 @@ async def scenario_d() -> None:
 
 async def scenario_f() -> None:
     banner("B지점 (홍대) — 전액 유예 불가 → 분할 역제안 → 합의 (멀티턴 협상)", "b")
-    simulate_card_settlement("store-b", 25.0)  # 잔액을 '전액은 부족, 1회차는 가능' 구간으로
+    align_balance("store-b", 25.0)  # 전액(42.5)은 부족, 1회차(21.25)는 가능한 구간으로
     issued = await act("hq", "invoice.issue", "본사", "hq", delivery_id="DEL-005")
     invoice_id = issued.get("invoice_id")
     if not invoice_id:

@@ -40,9 +40,22 @@ done
 # HQ도 수취용 토큰 계정을 미리 만들어 둔다
 spl-token create-account "$MINT" --owner "$(solana-keygen pubkey "$HQ_KEY")" --url "$RPC" --fee-payer "$HQ_KEY" >/dev/null 2>&1 || true
 
+# 민트는 validator를 새로 띄울 때마다 바뀐다. 손으로 옮기게 두면 반드시 잊고,
+# 결제 서비스가 없는 민트를 붙들어 500을 낸다. 그래서 여기서 직접 갱신한다.
+ENV_FILE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/payments/.env"
+if [ -f "$ENV_FILE" ]; then
+  tmp=$(mktemp)
+  sed -e "s|^SOLANA_RPC_URL=.*|SOLANA_RPC_URL=$RPC|" \
+      -e "s|^SOLANA_NETWORK=.*|SOLANA_NETWORK=localnet|" \
+      -e "s|^USDC_MINT=.*|USDC_MINT=$MINT|" "$ENV_FILE" > "$tmp" && mv "$tmp" "$ENV_FILE"
+  echo "▶ payments/.env 갱신 (USDC_MINT=$MINT)"
+else
+  echo "⚠ payments/.env 가 없습니다. .env.example을 복사한 뒤 USDC_MINT=$MINT 를 넣으세요."
+fi
+
 cat <<EOF
 
-✅ 로컬넷 준비 완료. payments/.env 를 아래로 설정하세요:
+✅ 로컬넷 준비 완료 — payments/.env 는 자동 갱신됐습니다.
 
   SOLANA_RPC_URL=$RPC
   SOLANA_NETWORK=localnet

@@ -31,6 +31,7 @@ else
   echo "▶ validator 기동 (memo 프로그램 복제)"
   # gossip 기본 포트 8000이 Docker 등과 충돌할 수 있어 8010으로 고정
   solana-test-validator --reset --quiet --ledger "$LOG/ledger" --gossip-port 8010 \
+    --limit-ledger-size 50000000 \
     --clone "$MEMO" --url https://api.mainnet-beta.solana.com > "$LOG/validator.log" 2>&1 &
   VAL_PID=$!
   for _ in $(seq 1 40); do

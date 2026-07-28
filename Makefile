@@ -24,7 +24,7 @@ dev:               ## 전체 스택 기동 (블록체인 + 결제 + API/대시�
 	bash scripts/dev.sh
 
 chain:             ## 로컬 블록체인만 기동
-	solana-test-validator --reset --gossip-port 8010 \
+	solana-test-validator --reset --gossip-port 8010 --limit-ledger-size 50000000 \
 		--clone MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr \
 		--url https://api.mainnet-beta.solana.com
 
@@ -53,5 +53,5 @@ lint:              ## 포맷·린트
 
 clean:             ## 로컬 상태·로그 정리 (JSON 저장소 + DB 비우기)
 	rm -f backend/data/state.json
-	rm -rf .dev-logs
+	rm -rf .dev-logs   # validator ledger 포함
 	-cd backend && uv run python -c "from app.db import store; store.reset()" 
