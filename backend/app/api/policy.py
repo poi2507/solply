@@ -7,8 +7,8 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from app import config
-from app.core import fixtures, policy as policy_mod
+from app.core import fixtures
+from app.core import policy as policy_mod
 
 router = APIRouter(prefix="/api/policy", tags=["policy"])
 

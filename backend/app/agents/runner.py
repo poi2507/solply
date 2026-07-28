@@ -4,7 +4,8 @@
 LLM 재시도·provider 분기는 `app/llm/judge.py`가 처리하므로 여기는 흐름만 본다.
 """
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from app.agents import hq, store
 from app.agents.state import initial_state

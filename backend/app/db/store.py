@@ -6,6 +6,7 @@
 컬렉션: stores / invoices / negotiations / schedules / events
 """
 
+from datetime import UTC
 from typing import Protocol
 
 from app import config
@@ -72,6 +73,6 @@ def new_id(prefix: str) -> str:
 
 
 def now() -> str:
-    from datetime import datetime, timezone
+    from datetime import datetime
 
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()

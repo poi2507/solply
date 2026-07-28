@@ -6,7 +6,7 @@
 컬렉션: `policies` — 문서 ID는 소유자 ID (store-a, store-b, hq …)
 """
 
-from dataclasses import asdict, dataclass, field, fields
+from dataclasses import asdict, dataclass, fields
 from typing import Any
 
 from app.db import store

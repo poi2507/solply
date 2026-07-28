@@ -38,8 +38,10 @@ def issue_invoice(state: HQState) -> dict:
         "invoice_id": invoice["id"],
         "outcome": "negotiating",
         "messages": [
-            f"{invoice['store_id']} 앞으로 청구서 {invoice['id']}를 "
-            f"{invoice['amount_usdc']} USDC로 발행했습니다."
+            (
+                f"{invoice['store_id']} 앞으로 청구서 {invoice['id']}를 "
+                f"{invoice['amount_usdc']} USDC로 발행했습니다."
+            )
         ],
     }
 
@@ -150,8 +152,10 @@ def verify_settlement(state: HQState) -> dict:
     return {
         "outcome": "noop",
         "messages": [
-            "온체인 검증에 실패해 정산을 확정하지 않았습니다 "
-            f"(금액 일치 {result['amount_ok']}, 메모 일치 {result['memo_ok']})."
+            (
+                "온체인 검증에 실패해 정산을 확정하지 않았습니다 "
+                f"(금액 일치 {result['amount_ok']}, 메모 일치 {result['memo_ok']})."
+            )
         ],
     }
 

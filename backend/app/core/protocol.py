@@ -13,7 +13,7 @@ Solply에서의 매핑:
 
 import base64
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 X402_VERSION = 2
@@ -29,7 +29,7 @@ USDC_DECIMALS = 6
 
 def to_atomic(amount_usdc: float) -> str:
     """USDC 금액을 atomic units 문자열로 (스펙 요구사항)."""
-    return str(int(round(amount_usdc * 10**USDC_DECIMALS)))
+    return str(round(amount_usdc * 10**USDC_DECIMALS))
 
 
 def from_atomic(amount: str) -> float:
@@ -55,7 +55,7 @@ def build_payment_requirements(
     """
     amount = invoice["amount_usdc"]
     caip2 = NETWORKS.get(network, NETWORKS["localnet"])
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     policy = (store_profile or {}).get("policy", {})
     defer_max_pct = policy.get("defer_max_pct", 20)
     installment_max = policy.get("installment_max", 2)

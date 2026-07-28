@@ -6,7 +6,7 @@
 
 import json
 import threading
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 _EMPTY: dict = {"events": []}
@@ -39,7 +39,7 @@ class LocalStore:
 
     @staticmethod
     def _now() -> str:
-        return datetime.now(timezone.utc).isoformat()
+        return datetime.now(UTC).isoformat()
 
     # ── 인터페이스 ──
     def get(self, collection: str, doc_id: str) -> dict | None:

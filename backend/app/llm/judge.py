@@ -50,7 +50,7 @@ def _invoke(agent: str, system_prompt: str, user_prompt: str, schema=None, attem
             )
             _last_call_at = time.monotonic()
             return result
-        except Exception as exc:  # noqa: BLE001 — 한도 외 오류도 한 번은 더 시도할 가치가 있다
+        except Exception as exc:
             _last_call_at = time.monotonic()
             text = str(exc)
             if attempt == attempts or not ("429" in text or "RESOURCE_EXHAUSTED" in text):
