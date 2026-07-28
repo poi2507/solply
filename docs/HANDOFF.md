@@ -1,6 +1,6 @@
 # 인수인계 — 다른 세션에서 이어받을 때 먼저 읽는 문서
 
-> 마지막 갱신: **2026-07-28** · 저장소 `github.com/poi2507/solply` (private)
+> 마지막 갱신: **2026-07-28 밤** · 저장소 `github.com/poi2507/solply` (private)
 > 프로젝트 배경은 [README](../README.md), 작업 규칙은 [CLAUDE.md](../CLAUDE.md),
 > 작업 계획은 [wbs.md](wbs.md).
 
@@ -10,61 +10,101 @@
 
 **제출 마감 8/3 23:59 KST.** 파이널리스트 발표 8/7, 데모데이 8/21.
 
-지금 상태: **데모 6종(정상·차감 협상·P2P 직거래·거부·유예→예약 실행·분할 역제안)이 x402 왕복으로 처음부터 끝까지 돌아간다.** 실제 온체인 USDC 결제가 발생하고(가맹점→본사, 가맹점→가맹점 모두), 신용점수가 이력에서 계산되어 데모 중에 오르고, ADK 어시스턴트가 대화로 조회·승인을 대신 누른다. **개발·수익모델·소개서 초안까지 전부 끝났다.** 남은 건 GCP 결제(👤) → Vertex·배포, devnet 코인(👤) → 전환 리허설, 영상·제출.
+지금 상태: **데모 6종(정상·차감 협상·P2P 직거래·거부·유예→예약 실행·분할 역제안)이 devnet에서 x402 왕복으로 처음부터 끝까지 돌아간다.** 실제 온체인 USDC 결제가 발생하고(가맹점→본사, 가맹점→가맹점 모두), explorer 링크가 살아 있고, 신용점수가 이력에서 계산되어 데모 중에 오르고, ADK 어시스턴트가 대화로 조회·승인을 대신 누른다. GCP 결제도 풀려 **Vertex AI + $300 크레딧**으로 돌고 있다. 대시보드는 역할(본사·가맹점·관리자)이 분리되고, 청구서 행을 펼치면 협상 전 과정이 한 흐름으로 보인다. **막힌 항목이 없다.** 남은 건 **Cloud Run 배포(라이브 URL)**, 영상, 제출물 마감.
 
 ---
 
-## 🔴 다음 세션(집 맥)에서 바로 할 일 — 2026-07-28 저녁 기준
+## 🔴 내일(7/29 수) 회사 맥에서 할 일 — 2026-07-28 밤 기준
 
-> **7/28 밤: 데모 금액을 1/5로 낮췄다.** devnet USDC faucet이 한 번에 20씩만 주는데
-> 기존 규모(청구 35 USDC)로는 한 바퀴도 못 돈다. 청구서는 7 USDC, 자동결제 상한 10,
-> 최소 잔액 2로 스케일했다. 심사에서 보는 건 금액이 아니라 플로우라 손해가 없다.
-> **devnet 전환 완료 (7/28 밤).** 지갑 4개에 SOL·USDC 수령, 토큰 계정 사전 생성,
-> **6종 데모가 devnet에서 완주하고 explorer 링크가 살아난다.** 심사 기준 4번 충족.
+> **막힌 것이 없다.** GCP 결제가 풀려 **$300 크레딧이 전액 재지급**됐고 `LLM_PROVIDER=vertex`로
+> 돌고 있다(무료 티어 분당 5회 제약에서 벗어났다). devnet 전환도 끝나 **6종 데모가
+> explorer 링크와 함께 완주한다.** 남은 큰 덩어리는 **Cloud Run 배포 하나**다 — 라이브 URL은
+> 심사 가산점이고, 지금이 유일하게 시간이 남는 날이다(8/1부터는 촬영·제출).
 >
 > 네트워크 전환은 `make devnet` / `make localnet`. **devnet 상태에서 `make dev`를 돌리면
 > 로컬넷으로 되돌아간다** — 시연 중에는 `make pay`로 결제 서비스만 재시작할 것.
 
-### 0. 동기화 ⏱️2분
+### 0. 동기화 ⏱️3분
 
 ```bash
-cd ~/workspace/gcp-solana-agentic-hackathon && git pull
-
-# 개발·리허설 (로컬넷)
-make localnet && make db && make dev
-make demo-mock     # 6종(A→B→E→D→C→F) 완주 + 정산 리포트가 나오면 정상
-
-# 시연·촬영 (devnet — explorer 링크가 살아난다)
-make devnet && make pay        # validator 없이 결제 서비스만
-make demo-mock                 # 또는 make demo (Gemini)
+cd ~/workplace/solply && git pull      # 회사 맥 경로 (집 맥은 ~/workspace/gcp-solana-agentic-hackathon)
+cd backend && uv sync && cd ..         # import 에러가 나면. 의존성 추가는 없다
+make db && make localnet && make dev
+make demo-mock                         # 6종(A→B→E→D→C→F) 완주 + 정산 리포트가 나오면 정상
 ```
 
-7/28 회사 맥에서 커밋 13개가 올라갔다(개발 마무리 + 어시스턴트 + 문서). **의존성 추가 없음**
-— pull이면 되고, 혹시 import 에러가 나면 `cd backend && uv sync` 한 번. 집 맥의 `.env`·지갑은
-그대로 유효하다. 특정 장면만 보려면 `--only f`(분할 역제안), `--only e`(P2P) 식으로.
+### 1. 새 대시보드를 눈으로 확인 ⏱️15분 — **먼저 이것부터**
 
-### 1. 사용자 — 오늘 밤에 걸어둘 것 (크리티컬 패스, 전부 사람 손)
+7/28 밤에 화면을 다시 만들었다(커밋 `720cb4b`). 브라우저 없이 렌더 결과만 검증했으니
+**실제 눈으로는 아직 아무도 안 봤다.** http://localhost:8080 에서 세 역할로 각각 로그인해 확인:
 
-1. **Discord devnet SOL 요청** ⏱️10분 — 유일하게 "대기 시간"이 있는 항목이라 최우선.
-   discord.gg/bYrJCUAsj → 운영 채널에 devnet SOL 추가 수령 요청.
-2. **devnet USDC** ⏱️5분 — https://faucet.circle.com — **store-a·b만, store-c는 제외**
-   (잔액 부족이 유예 시나리오). 주소는 §1 아래 "집 맥 지갑" 참고.
-3. **GCP 결제 카드 교체** ⏱️10분 (기한 7/30) — Mastercard 체크카드 → 신용카드.
-   ₩16,000 배너는 입금해도 크레딧으로 적립된다. 풀리면 집 맥에서:
-   ```bash
-   gcloud auth login && gcloud auth application-default login
-   gcloud config set project <PROJECT_ID>
-   gcloud services enable aiplatform.googleapis.com
-   make vertex-check        # 통과하면 .env에 넣을 두 줄을 알려준다
-   ```
+| 확인할 것 | 기대 |
+|---|---|
+| 청구서 행 클릭 | 그 청구서의 전 과정이 표 안에서 펼쳐진다 (발행→검수→402→제안→심사 근거→정산 서명) |
+| `INV-…-P1 / P2` | 부모 행 아래 `└`로 붙어 한 이야기로 읽힌다 |
+| 금액 열 | 차감 합의된 건은 `7.00 → 6.50`으로 보인다 (7/28 이후 새로 만든 청구서만) |
+| 상태 | 채운 배지가 아니라 색 점 + 글자. 표가 색 블록으로 덮이지 않는다 |
+| 창 좁히기 | 1040px 아래에서 한 단으로 접히고 표만 가로 스크롤 |
 
-### 2. Claude — 결제가 풀리는 즉시
+어긋나면 `frontend/style.css`의 `--line`(구분선)·`--raise`(펼친 배경) 대비만 만지면 된다.
+색은 `--accent`(강조) 하나 + `--good/--warn/--risk`(의미) 셋이라는 규칙을 깨지 말 것.
 
-1. **Vertex 전환 마무리** — `.env` 두 줄 + **어시스턴트 호환 수정**: `app/assistant/agent.py`가
-   `config.HQ_MODEL`을 직접 읽는다 → `factory.model_for("hq")`로 바꾸고
-   `GOOGLE_GENAI_USE_VERTEXAI` 환경을 따라가게 (몇 줄, 회사 맥 세션이 남긴 숙제).
-2. **Phase 3 배포** (wbs 3.2~3.7) — 결제서비스·백엔드 Cloud Run, Secret Manager, 스모크.
-3. 결제가 안 풀린 동안 할 수 있는 것: **영상 대본 초안(4.5)**, README 정비(4.9).
+### 2. Cloud Run 배포 (wbs 3.2~3.7) ⏱️반나절 — **오늘의 본체**
+
+지금 **Dockerfile이 둘 다 없다.** 순서대로:
+
+**① `payments/Dockerfile`** — `node:24-slim`, `npm ci`, `npm start`(tsx).
+Cloud Run이 주는 `PORT`는 `src/index.ts:53`이 이미 읽는다.
+
+**② `backend/Dockerfile`** — `python:3.13-slim` + uv, `uv sync --frozen`, uvicorn `--port $PORT`.
+대시보드 정적 파일이 `/assets`로 서빙되므로 **`frontend/`도 이미지에 들어가야 한다** →
+빌드 컨텍스트를 레포 루트로 잡을 것 (`gcloud run deploy --source .` 대신 루트 기준 Dockerfile).
+
+**③ 지갑 키 → Secret Manager**
+```bash
+for w in hq store-a store-b store-c; do
+  gcloud secrets create solply-wallet-$w --data-file="$HOME/.config/solana/solply/$w.json"
+done
+```
+결제 서비스에 볼륨으로 마운트하고 `SOLPLY_WALLET_DIR=/secrets/wallets`.
+**파일명이 `<지갑>.json`으로 떨어지게** 마운트해야 한다 — `payments/src/solana.ts:39`가 그 이름으로 읽는다.
+
+**④ 저장소** — Cloud SQL Postgres(db-f1-micro) + `SOLPLY_STORE=postgres` + `DATABASE_URL`.
+시간이 없으면 `SOLPLY_STORE=local`로 먼저 띄워도 데모는 돈다(컨테이너 재시작 시 초기화).
+심사자가 직접 눌러볼 URL이라면 데이터가 남는 게 설명이 되므로 Cloud SQL 권장.
+
+**⑤ 배포 순서** — 결제 서비스 먼저, URL을 받아 백엔드 `PAYMENTS_API_URL`에 넣는다.
+**결제 서비스는 공개하지 않는다** (`--no-allow-unauthenticated`): 지갑 키를 쥔 서비스다.
+백엔드 서비스 계정에만 `roles/run.invoker`를 준다. **이 분리 자체가 발표 재료다** —
+"에이전트가 돈을 만지는 경로는 인터넷에 열려 있지 않다".
+
+**⑥ 스모크(3.7)** — 라이브 `/api/health`가 `network: devnet`·`llm: vertex`를 답하는지,
+그 URL에서 데모 한 바퀴, explorer 링크 클릭까지.
+
+### 3. 영상 대본 (4.5) ⏱️1시간
+
+3분 컷. wbs가 정한 배분: **A 15초 압축 → B 45초 → E 60초 → C 40초**, D(거부)는 로그로 스치듯.
+`--only b` 식으로 장면별 실행. 어시스턴트 장면은 Vertex 전환 후라 데모와 같이 찍어도 된다.
+
+### 4. README 정비 (4.9) ⏱️40분
+
+심사자가 clone → 실행까지 따라올 수 있게. brew 없는 맥 우회 설치는 넣지 말고(우리 사정),
+`make db && make dev && make demo-mock` 한 줄기만 남긴다.
+
+### 5. public 전환 전 점검 ⏱️30분 (4.10 + DB 백로그 3)
+
+- `.env` 커밋 이력 재확인 — 실제 키 값으로 그렙할 것. `AIza`로 찾으면 안 걸린다(키가 `AQ.`로 시작).
+- `db/postgres_store.py`의 `list_docs` 필터 **키** f-string 삽입 → 화이트리스트 한 줄.
+  내부 호출뿐이라 실제 위험은 없지만 public 레포에서 인젝션 모양으로 읽힌다.
+
+### 시간 배분 제안
+
+| 시간 | 할 일 | 실패해도 되는가 |
+|---|---|---|
+| 오전 | §1 화면 확인 → §2 Dockerfile 두 개 + 결제 서비스 배포 | — |
+| 오후 | §2 백엔드 배포·Secret·스모크 | **여기까지가 가산점.** 막히면 로컬 데모로 대체 가능 |
+| 저녁 | §3 대본 → §4 README | 아니오 — 영상은 8/1에 찍는다 |
+| 여유 시 | §5 점검 | 8/3 전까지만 하면 된다 |
 
 ### 3. 사용자 — 제출물 (8/1~)
 
@@ -75,6 +115,23 @@ make demo-mock                 # 또는 make demo (Gemini)
   데모와 **따로** 찍을 것 (Vertex 전환 후엔 무관).
 - 수익모델은 ✅ 확정 — [revenue-model.md](revenue-model.md) (3층: 구독 → P2P 중개료 → 온체인 여신).
   가맹점 수 통계(약 35만)만 제출 전 재확인.
+
+### 7/28 밤(집 맥)에 끝난 것
+
+- **GCP 결제 해결** — 미납 ₩16,000 때문에 결제 계정이 닫혀 콘솔 목록·드롭다운에서 아예
+  숨겨져 있었다(그래서 "표시할 항목이 없음"). 입금 → 계정 재개 → **$300 크레딧 전액 재지급**.
+  `LLM_PROVIDER=vertex`로 전환 완료, 어시스턴트도 `factory.model_for("hq")`를 쓰게 고쳤다.
+- **devnet 전환** — 지갑 4개 SOL·USDC 수령, **USDC 토큰 계정(ATA) 사전 생성**
+  (첫 전송 때 만들면 devnet에서 수 초가 더 걸려 데모가 타임아웃된다), 6종 완주 확인.
+  데모 금액을 1/5로 낮췄다(청구 7 USDC, 자동결제 상한 10, 최소 잔액 2) — faucet이 한 번에
+  20씩만 주기 때문이다. 심사에서 보는 건 금액이 아니라 플로우다.
+- **PostgreSQL 이관** — conda Postgres에 zoneinfo가 없어 JDBC 클라이언트(DBeaver)가
+  `Asia/Seoul` 요청을 **거부**당했다(경고가 아니라 연결 실패) → 시스템 zoneinfo 심볼릭 링크.
+  풀에 `check=ConnectionPool.check_connection`을 달아 DB 재시작 후 죽은 커넥션을 걸러낸다.
+- **역할 분리 대시보드** — 본사/가맹점/관리자가 서로 다른 화면과 권한을 본다(`frontend/role.js`).
+- **화면 재설계** — 같은 무게의 카드 아홉 개를 걷어내고 청구서 표를 화면의 중심으로.
+  행을 누르면 그 청구서의 협상 전 과정이 펼쳐진다(`GET /api/invoices/{id}/timeline`).
+  **아직 브라우저로 눈으로 본 적이 없다** → §1이 내일 첫 할 일.
 
 ### 7/28 회사 맥에서 끝난 것 (요약)
 
