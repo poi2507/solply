@@ -10,84 +10,71 @@
 
 **제출 마감 8/3 23:59 KST.** 파이널리스트 발표 8/7, 데모데이 8/21.
 
-지금 상태: **데모 5종(정상·차감 협상·P2P 직거래·거부·유예→예약 실행)이 x402 왕복으로 처음부터 끝까지 돌아간다.** 실제 온체인 USDC 결제가 발생하고(가맹점→본사, 가맹점→가맹점 모두), 신용점수가 납부 이력에서 계산되어 데모 중에 오르고, 대시보드에 근거까지 실시간으로 찍힌다. **개발 항목은 전부 끝났다.** 남은 건 배포(GCP 결제 대기), devnet 전환, 그리고 제출물(영상·PPT).
+지금 상태: **데모 6종(정상·차감 협상·P2P 직거래·거부·유예→예약 실행·분할 역제안)이 x402 왕복으로 처음부터 끝까지 돌아간다.** 실제 온체인 USDC 결제가 발생하고(가맹점→본사, 가맹점→가맹점 모두), 신용점수가 이력에서 계산되어 데모 중에 오르고, ADK 어시스턴트가 대화로 조회·승인을 대신 누른다. **개발·수익모델·소개서 초안까지 전부 끝났다.** 남은 건 GCP 결제(👤) → Vertex·배포, devnet 코인(👤) → 전환 리허설, 영상·제출.
 
 ---
 
-## 🔴 다음 세션에서 바로 할 일 (2026-07-28 기준)
+## 🔴 다음 세션(집 맥)에서 바로 할 일 — 2026-07-28 저녁 기준
 
-### 회사 맥에서 이어받을 때 — 먼저 동기화 ⏱️5분
-
-7/27 저녁에 **에이전트 프레임워크를 LangGraph로 갈아엎었다.** 의존성과 `.env` 항목이 늘었으니
-`git pull`만으로는 안 돌아간다.
+### 0. 동기화 ⏱️2분
 
 ```bash
-cd ~/workplace/solply && git pull
-cd backend && uv sync                    # langgraph · langchain-google-* · psycopg 추가됨
+cd ~/workspace/gcp-solana-agentic-hackathon && git pull
+make db && make dev
+make demo-mock     # 6종(A→B→E→D→C→F) 완주 + 마무리 정산 리포트가 나오면 정상
 ```
 
-`backend/.env`에 아래 세 줄이 없으면 추가한다:
+7/28 회사 맥에서 커밋 13개가 올라갔다(개발 마무리 + 어시스턴트 + 문서). **의존성 추가 없음**
+— pull이면 되고, 혹시 import 에러가 나면 `cd backend && uv sync` 한 번. 집 맥의 `.env`·지갑은
+그대로 유효하다. 특정 장면만 보려면 `--only f`(분할 역제안), `--only e`(P2P) 식으로.
 
-```bash
-LLM_PROVIDER=mock
-SOLPLY_STORE=postgres
-DATABASE_URL=postgresql://$USER@localhost:5432/solply
-```
+### 1. 사용자 — 오늘 밤에 걸어둘 것 (크리티컬 패스, 전부 사람 손)
 
-그다음 `make db && make dev`, 확인은 `make demo-mock`.
-
-> **(7/27 갱신)** 사용자가 집 폴더를 zip으로 직접 가져오면서 회사 맥 `.env`에도
-> `GOOGLE_API_KEY`가 설정됐다(유효성 확인됨, `LLM_PROVIDER=gemini`). 원래 권고는
-> "회사용 키를 따로 발급"이었으니, 키를 분리하고 싶어지면 AI Studio에서 새로 발급해
-> 교체하면 된다. 지갑 키는 여전히 집 맥에만 있고, devnet 코인과 시연은 집 맥에서만 한다.
-
-### 사용자 작업 — 오늘 안에 두 개
-
-1. **devnet 코인 확보 착수** ⏱️20분 — 막히면 explorer 링크 없는 데모가 되어 심사 기준 4에서 크게 잃는다.
-   - Discord 가입 → discord.gg/bYrJCUAsj → **devnet SOL 추가 수령 요청** (답변에 시간이 걸리니 미리)
-   - https://faucet.circle.com 에서 **devnet USDC** — store-a·store-b만. **store-c는 받지 말 것** (잔액 부족이 유예 협상 시나리오)
-   - 받는 주소는 **집 맥 지갑**: hq `HzQ9FXdXTPmLVs1Q4J89FGqq6zKUFdXbje5EBfX3gdDJ` / store-a `6hWEQwgw7qtC4ducWLbfbVL7JrqMnzzDUsfj82EXwjmk` / store-b `NEcdWbM14tmkwX1ctS2fwcL3Min2vgsebfD4CwfYLu8` / store-c `Fjfd2FjKPDBYtBonZh69AfCVLv3bkwtkbGuwSydy33JD`
-
-2. **GCP 결제 해결** ⏱️10분 — 등록된 Mastercard가 체크카드일 가능성이 높으니 **신용카드로 교체**. ₩16,000 배너가 남으면 입금해도 된다(크레딧으로 적립되며 사라지지 않는다).
-   **라이브 URL만의 문제가 아니다** — 여기에 세 가지가 걸려 있다.
-   ① Vertex 전환 시 Gemini 무료 티어 분당 한도에서 벗어나 데모가 빨라진다
-   ② $300 크레딧이 쓰인다 ③ ADK를 안 쓰는 대신 "Google Cloud AI 스택 활용"을 모델 층에서 증명한다
-
-   결제가 풀리면 (집 맥에서):
+1. **Discord devnet SOL 요청** ⏱️10분 — 유일하게 "대기 시간"이 있는 항목이라 최우선.
+   discord.gg/bYrJCUAsj → 운영 채널에 devnet SOL 추가 수령 요청.
+2. **devnet USDC** ⏱️5분 — https://faucet.circle.com — **store-a·b만, store-c는 제외**
+   (잔액 부족이 유예 시나리오). 주소는 §1 아래 "집 맥 지갑" 참고.
+3. **GCP 결제 카드 교체** ⏱️10분 (기한 7/30) — Mastercard 체크카드 → 신용카드.
+   ₩16,000 배너는 입금해도 크레딧으로 적립된다. 풀리면 집 맥에서:
    ```bash
    gcloud auth login && gcloud auth application-default login
    gcloud config set project <PROJECT_ID>
    gcloud services enable aiplatform.googleapis.com
-   make vertex-check        # 6단계 점검 + 실제 호출까지
+   make vertex-check        # 통과하면 .env에 넣을 두 줄을 알려준다
    ```
-   통과하면 스크립트가 `.env`에 넣을 값을 알려준다.
 
-### Claude가 이어서 — Phase 3 (배포) 또는 데모 폴리싱
+### 2. Claude — 결제가 풀리는 즉시
 
-**Phase 1·2·2.5가 전부 7/27~28 회사 맥에서 완료됐다.** 개발 항목은 끝났다.
-- 결제는 전부 x402 왕복 — 본사↔가맹점(세로)과 가맹점↔가맹점(가로)을 한 프로토콜로 관통
-- 신용점수는 `core/credit.py`가 이력에서 계산 — 데모 중 정산이 되면 점수가 실제로 오른다
-- **데모 6종 (A→B→E→D→C→F 순)**: 정상 → 차감 협상 → **P2P 직거래** → 거부 → 유예·예약 실행
-  → **분할 역제안(멀티턴)**. 마무리에 정산 리포트 한 문단이 붙는다
-- 데모가 자기 유지된다: 카드정산 입금 시뮬레이션 + db.reset이 P2P 재고도 시드로 되돌린다
-  (반복 리허설 안전)
-- **심사 Q&A용 라이브 카드**: 대시보드 정책 UI에서 자동결제 상한을 30으로 낮추고
-  `--only a`를 돌리면 에이전트가 멈추고 "사람 승인 대기" 패널이 뜬다 → 승인 버튼 →
-  에이전트가 이어서 결제. "폭주하면 어떡하냐"에 대한 시각적 답
-- **대시보드 운영 3종 (7/28 추가)**: ① 정책 변경이 `policy.updated` 이벤트(actor=human,
-  변경 전→후)로 실행 로그에 남는다 — 규칙 변경도 증빙. ② "예약 납부" 패널의 **지금 실행**
-  버튼 — 입금 시뮬 포함 시간 당김(운영은 Cloud Scheduler가 본문 없이 호출 → 실제 잔액으로
-  실행). ③ 가맹점 카드에 재고 칩 — 확정된 직거래가 재고 수치에 반영돼 보인다 (안전재고
-  미달은 주황색)
+1. **Vertex 전환 마무리** — `.env` 두 줄 + **어시스턴트 호환 수정**: `app/assistant/agent.py`가
+   `config.HQ_MODEL`을 직접 읽는다 → `factory.model_for("hq")`로 바꾸고
+   `GOOGLE_GENAI_USE_VERTEXAI` 환경을 따라가게 (몇 줄, 회사 맥 세션이 남긴 숙제).
+2. **Phase 3 배포** (wbs 3.2~3.7) — 결제서비스·백엔드 Cloud Run, Secret Manager, 스모크.
+3. 결제가 안 풀린 동안 할 수 있는 것: **영상 대본 초안(4.5)**, README 정비(4.9).
 
-남은 것은 **Phase 3(배포)** — GCP 결제 해결(👤)이 선행 조건. 그동안 할 수 있는 것:
-대시보드 폴리싱, 데모 영상 대본 초안(4.5), README 정비(4.9), 도메인 리서치.
+### 3. 사용자 — 제출물 (8/1~)
 
-### 수익모델 — ✅ 확정 (7/28, 3층 구조)
+- **소개서 다듬기(4.8)**: [pitch.html](pitch.html) 12장 초안 완성돼 있음 — 표지·마지막 장의
+  **팀명·라이브 URL·영상 URL만 비어 있다**. `open docs/pitch.html` → Chrome 인쇄 →
+  PDF 저장(여백 없음 + 배경 그래픽 체크) = 벡터 PDF.
+- **영상 촬영(8/1~2)**: 장면별 `--only`로. 어시스턴트 장면은 무료 티어 한도 때문에
+  데모와 **따로** 찍을 것 (Vertex 전환 후엔 무관).
+- 수익모델은 ✅ 확정 — [revenue-model.md](revenue-model.md) (3층: 구독 → P2P 중개료 → 온체인 여신).
+  가맹점 수 통계(약 35만)만 제출 전 재확인.
 
-**구독(지점당 월정액) → P2P 직거래 중개료 1% → 온체인 신용 여신.**
-상세·가격 셈법·Q&A 방어는 [revenue-model.md](revenue-model.md) — 소개서(4.7)에 그대로 옮기면 된다.
-셈법의 가맹점 수(약 35만)는 제출 전 최신 통계로 재확인할 것.
+### 7/28 회사 맥에서 끝난 것 (요약)
+
+- **Phase 1** x402 에이전트 연결 · **Phase 2** 신용 실계산·거부·예약 실행 · **Phase 2.5** P2P 직거래
+  · **Phase 2.7** 이중결제 가드·사람 승인·멀티턴 분할·정산 리포트
+- **대시보드 운영 3종**: 정책 변경 증빙(`policy.updated`, actor=human) · 예약 "지금 실행" 버튼
+  (입금 시뮬 포함, Cloud Scheduler는 본문 없이 호출 시 실잔액 실행) · 가맹점 카드 재고 칩
+- **ADK 어시스턴트**: 대시보드 채팅 — 조회·승인·예약 실행을 대화로. 역할 분담이 설계 결정:
+  **LangGraph=거래 두뇌(감사 가능한 그래프), ADK=사람 창구(도구 호출)**. mock 모드에선 503.
+- 촬영 전 수정 3건(미수금 이중계산·mock 중복 출력·분할 회차 402), 낡은 HTML 문서 3개 삭제,
+  `make test` 임시 저장소 격리(라이브 DB 안 더럽힘), 테스트 **99개**
+- **심사 Q&A 라이브 카드**: 정책 UI에서 상한을 30으로 낮추고 `--only a` → 에이전트 멈춤 →
+  승인 패널 → 버튼 → 이어서 결제. 어시스턴트에게 "승인 대기 있어? 승인해줘"로도 같은 흐름.
+- 데모는 자기 유지된다(카드정산 입금 시뮬 + db.reset이 재고도 시드로 복귀) — 리허설 무제한.
+- 주의: Gemini 무료 티어에서 `make demo`와 어시스턴트를 **동시에** 쓰면 429 가능 (경로가 둘).
 
 ---
 
