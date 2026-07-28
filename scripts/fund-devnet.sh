@@ -38,6 +38,22 @@ for name in store-a store-b store-c; do
   echo "  $name ← $PER SOL (기존 $BEFORE)"
 done
 
+# USDC 토큰 계정(ATA)을 미리 만들어 둔다.
+# 첫 전송 때 만들면 devnet에서 수 초가 더 걸려 데모가 타임아웃될 수 있다 —
+# 촬영 도중 겪을 일이 아니므로 준비 단계에서 해치운다.
+echo ""
+echo "▶ USDC 토큰 계정 준비"
+USDC="4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU"
+for name in hq store-a store-b store-c; do
+  ADDR=$(solana-keygen pubkey "$DIR/$name.json")
+  if spl-token accounts --owner "$ADDR" --url "$RPC" 2>/dev/null | grep -q "$USDC"; then
+    echo "  $name 이미 있음"
+  else
+    spl-token create-account "$USDC" --owner "$ADDR" --url "$RPC" \
+      --fee-payer "$HQ_KEY" >/dev/null 2>&1 && echo "  $name 생성" || echo "  $name 생성 실패"
+  fi
+done
+
 sleep 8
 echo ""
 echo "▶ 최종 잔액"

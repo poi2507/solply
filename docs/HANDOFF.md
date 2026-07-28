@@ -19,14 +19,24 @@
 > **7/28 밤: 데모 금액을 1/5로 낮췄다.** devnet USDC faucet이 한 번에 20씩만 주는데
 > 기존 규모(청구 35 USDC)로는 한 바퀴도 못 돈다. 청구서는 7 USDC, 자동결제 상한 10,
 > 최소 잔액 2로 스케일했다. 심사에서 보는 건 금액이 아니라 플로우라 손해가 없다.
-> **devnet 지갑에 SOL·USDC 수령 완료** (hq 1.0 SOL / 지점 각 1.5 SOL, store-a·b 각 40 USDC).
+> **devnet 전환 완료 (7/28 밤).** 지갑 4개에 SOL·USDC 수령, 토큰 계정 사전 생성,
+> **6종 데모가 devnet에서 완주하고 explorer 링크가 살아난다.** 심사 기준 4번 충족.
+>
+> 네트워크 전환은 `make devnet` / `make localnet`. **devnet 상태에서 `make dev`를 돌리면
+> 로컬넷으로 되돌아간다** — 시연 중에는 `make pay`로 결제 서비스만 재시작할 것.
 
 ### 0. 동기화 ⏱️2분
 
 ```bash
 cd ~/workspace/gcp-solana-agentic-hackathon && git pull
-make db && make dev
-make demo-mock     # 6종(A→B→E→D→C→F) 완주 + 마무리 정산 리포트가 나오면 정상
+
+# 개발·리허설 (로컬넷)
+make localnet && make db && make dev
+make demo-mock     # 6종(A→B→E→D→C→F) 완주 + 정산 리포트가 나오면 정상
+
+# 시연·촬영 (devnet — explorer 링크가 살아난다)
+make devnet && make pay        # validator 없이 결제 서비스만
+make demo-mock                 # 또는 make demo (Gemini)
 ```
 
 7/28 회사 맥에서 커밋 13개가 올라갔다(개발 마무리 + 어시스턴트 + 문서). **의존성 추가 없음**
