@@ -77,7 +77,7 @@ def confirm_settlement(invoice_id: str) -> bool:
 
 async def scenario_a() -> None:
     banner("A지점 (강남) — 검수 일치, x402 왕복으로 즉시 자율 결제", "a")
-    simulate_card_settlement("store-a", 35.0)  # 주간 매출 입금 — 리허설을 반복해도 잔액이 유지된다
+    simulate_card_settlement("store-a", 7.0)  # 주간 매출 입금 — 리허설을 반복해도 잔액이 유지된다
     issued = await act("hq", "invoice.issue", "본사", "hq", delivery_id="DEL-001")
     invoice_id = issued.get("invoice_id")
     if not invoice_id:
@@ -96,7 +96,7 @@ async def scenario_a() -> None:
 
 async def scenario_b() -> None:
     banner("B지점 (홍대) — 검수 불일치 발견, 차감 협상", "b")
-    simulate_card_settlement("store-b", 35.0)
+    simulate_card_settlement("store-b", 7.0)
     issued = await act("hq", "invoice.issue", "본사", "hq", delivery_id="DEL-002")
     invoice_id = issued.get("invoice_id")
     if not invoice_id:
@@ -197,7 +197,7 @@ async def scenario_d() -> None:
 
 async def scenario_f() -> None:
     banner("B지점 (홍대) — 전액 유예 불가 → 분할 역제안 → 합의 (멀티턴 협상)", "b")
-    align_balance("store-b", 25.0)  # 전액(42.5)은 부족, 1회차(21.25)는 가능한 구간으로
+    align_balance("store-b", 5.0)  # 전액(8.5)은 부족, 1회차(4.25)는 가능한 구간으로
     issued = await act("hq", "invoice.issue", "본사", "hq", delivery_id="DEL-005")
     invoice_id = issued.get("invoice_id")
     if not invoice_id:
@@ -228,7 +228,7 @@ async def scenario_f() -> None:
 
 async def scenario_e() -> None:
     banner("B지점 ⇄ A지점 — 가맹점 간 재고 직거래, 본사는 심판", "b")
-    simulate_card_settlement("store-b", 10.0)
+    simulate_card_settlement("store-b", 2.0)
 
     # 1) 구매측(B): 재고 점검 → 조달 경로 비교 → 직거래 제안
     proposed = await act("store", "restock.check", "B지점", "b", store_id="store-b")

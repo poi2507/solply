@@ -16,14 +16,14 @@ from app.main import app
 client = TestClient(app)
 
 
-def make_invoice(amount: float = 35.0, store_id: str = "store-a") -> dict:
+def make_invoice(amount: float = 7.0, store_id: str = "store-a") -> dict:
     return db.put(
         "invoices",
         db.new_id("INV"),
         {
             "delivery_id": "DEL-001",
             "store_id": store_id,
-            "items": [{"sku": "CHK-10", "name": "냉장 닭 10kg", "qty": 10, "unit_price_usdc": 2.5}],
+            "items": [{"sku": "CHK-10", "name": "냉장 닭 10kg", "qty": 10, "unit_price_usdc": 0.5}],
             "amount_usdc": amount,
             "status": "issued",
             "tx_sig": None,

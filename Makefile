@@ -40,6 +40,9 @@ demo:              ## 데모 3종 — Gemini 판단 (심사용, 느림)
 demo-mock:         ## 데모 3종 — 규칙 기반 (리허설용, 빠름 / 온체인 결제는 동일)
 	cd backend && LLM_PROVIDER=mock uv run python demo.py
 
+fund-devnet:       ## devnet SOL을 hq에서 지점 지갑으로 분배 (운영진 수령 후)
+	bash scripts/fund-devnet.sh
+
 vertex-check:      ## Vertex AI 전환 준비 상태 점검 (GCP 결제 해결 후)
 	bash scripts/vertex-check.sh
 

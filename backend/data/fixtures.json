@@ -3,91 +3,229 @@
     "store-a": {
       "name": "A지점 (강남)",
       "wallet_name": "store-a",
-      "credit_limit_usdc": 200,
-      "policy": { "auto_pay_limit_usdc": 50, "defer_max_pct": 20, "installment_max": 2 }
+      "credit_limit_usdc": 40,
+      "policy": {
+        "auto_pay_limit_usdc": 10,
+        "defer_max_pct": 20,
+        "installment_max": 2
+      }
     },
     "store-b": {
       "name": "B지점 (홍대)",
       "wallet_name": "store-b",
-      "credit_limit_usdc": 150,
-      "policy": { "auto_pay_limit_usdc": 50, "defer_max_pct": 20, "installment_max": 2 }
+      "credit_limit_usdc": 30,
+      "policy": {
+        "auto_pay_limit_usdc": 10,
+        "defer_max_pct": 20,
+        "installment_max": 2
+      }
     },
     "store-c": {
       "name": "C지점 (부산)",
       "wallet_name": "store-c",
-      "credit_limit_usdc": 250,
-      "policy": { "auto_pay_limit_usdc": 50, "defer_max_pct": 20, "installment_max": 2 }
+      "credit_limit_usdc": 50,
+      "policy": {
+        "auto_pay_limit_usdc": 10,
+        "defer_max_pct": 20,
+        "installment_max": 2
+      }
     }
   },
   "payment_history": {
-    "store-a": { "on_time": 20, "late": 0, "disputed": 1, "note": "개점 후 물대 21건 — 정시납 20, 검수 분쟁 1" },
-    "store-b": { "on_time": 19, "late": 1, "disputed": 0, "note": "개점 후 물대 20건 — 정시납 19, 연체 1 (3일)" },
-    "store-c": { "on_time": 21, "late": 0, "disputed": 0, "note": "개점 후 물대 21건 전건 정시납" }
+    "store-a": {
+      "on_time": 20,
+      "late": 0,
+      "disputed": 1,
+      "note": "개점 후 물대 21건 — 정시납 20, 검수 분쟁 1"
+    },
+    "store-b": {
+      "on_time": 19,
+      "late": 1,
+      "disputed": 0,
+      "note": "개점 후 물대 20건 — 정시납 19, 연체 1 (3일)"
+    },
+    "store-c": {
+      "on_time": 21,
+      "late": 0,
+      "disputed": 0,
+      "note": "개점 후 물대 21건 전건 정시납"
+    }
   },
   "orders": {
-    "store-a": ["CHK-10", "VEG-05"],
-    "store-b": ["CHK-10", "SAU-01"],
-    "store-c": ["CHK-10", "VEG-05"]
+    "store-a": [
+      "CHK-10",
+      "VEG-05"
+    ],
+    "store-b": [
+      "CHK-10",
+      "SAU-01"
+    ],
+    "store-c": [
+      "CHK-10",
+      "VEG-05"
+    ]
   },
   "inventory": {
-    "store-a": { "CHK-10": { "name": "냉장 닭 10kg", "qty": 10, "safety": 4, "note": "지난주 과발주로 잉여" } },
-    "store-b": { "CHK-10": { "name": "냉장 닭 10kg", "qty": 0, "safety": 4, "note": "주말 피크 임박, 재고 소진" } },
-    "store-c": { "CHK-10": { "name": "냉장 닭 10kg", "qty": 5, "safety": 4 } }
+    "store-a": {
+      "CHK-10": {
+        "name": "냉장 닭 10kg",
+        "qty": 10,
+        "safety": 4,
+        "note": "지난주 과발주로 잉여"
+      }
+    },
+    "store-b": {
+      "CHK-10": {
+        "name": "냉장 닭 10kg",
+        "qty": 0,
+        "safety": 4,
+        "note": "주말 피크 임박, 재고 소진"
+      }
+    },
+    "store-c": {
+      "CHK-10": {
+        "name": "냉장 닭 10kg",
+        "qty": 5,
+        "safety": 4
+      }
+    }
   },
   "hq_reorder": {
-    "CHK-10": { "unit_price_usdc": 2.5, "lead_time": "D+2", "min_qty": 10 }
+    "CHK-10": {
+      "unit_price_usdc": 0.5,
+      "lead_time": "D+2",
+      "min_qty": 10
+    }
   },
   "deliveries": {
     "DEL-001": {
       "store_id": "store-a",
       "items": [
-        { "sku": "CHK-10", "name": "냉장 닭 10kg", "qty": 10, "unit_price_usdc": 2.5 },
-        { "sku": "VEG-05", "name": "모둠 야채 5kg", "qty": 8, "unit_price_usdc": 1.25 }
+        {
+          "sku": "CHK-10",
+          "name": "냉장 닭 10kg",
+          "qty": 10,
+          "unit_price_usdc": 0.5
+        },
+        {
+          "sku": "VEG-05",
+          "name": "모둠 야채 5kg",
+          "qty": 8,
+          "unit_price_usdc": 0.25
+        }
       ]
     },
     "DEL-002": {
       "store_id": "store-b",
       "items": [
-        { "sku": "CHK-10", "name": "냉장 닭 10kg", "qty": 10, "unit_price_usdc": 2.5 },
-        { "sku": "SAU-01", "name": "시그니처 소스 1box", "qty": 4, "unit_price_usdc": 2.5 }
+        {
+          "sku": "CHK-10",
+          "name": "냉장 닭 10kg",
+          "qty": 10,
+          "unit_price_usdc": 0.5
+        },
+        {
+          "sku": "SAU-01",
+          "name": "시그니처 소스 1box",
+          "qty": 4,
+          "unit_price_usdc": 0.5
+        }
       ]
     },
     "DEL-003": {
       "store_id": "store-c",
       "items": [
-        { "sku": "CHK-10", "name": "냉장 닭 10kg", "qty": 12, "unit_price_usdc": 2.5 },
-        { "sku": "VEG-05", "name": "모둠 야채 5kg", "qty": 4, "unit_price_usdc": 1.25 }
+        {
+          "sku": "CHK-10",
+          "name": "냉장 닭 10kg",
+          "qty": 12,
+          "unit_price_usdc": 0.5
+        },
+        {
+          "sku": "VEG-05",
+          "name": "모둠 야채 5kg",
+          "qty": 4,
+          "unit_price_usdc": 0.25
+        }
       ]
     },
     "DEL-004": {
       "store_id": "store-a",
       "items": [
-        { "sku": "CHK-10", "name": "냉장 닭 10kg", "qty": 10, "unit_price_usdc": 2.5 },
-        { "sku": "LOB-01", "name": "활 랍스터 3kg", "qty": 4, "unit_price_usdc": 12.5 }
+        {
+          "sku": "CHK-10",
+          "name": "냉장 닭 10kg",
+          "qty": 10,
+          "unit_price_usdc": 0.5
+        },
+        {
+          "sku": "LOB-01",
+          "name": "활 랍스터 3kg",
+          "qty": 4,
+          "unit_price_usdc": 2.5
+        }
       ]
     },
     "DEL-005": {
       "store_id": "store-b",
       "items": [
-        { "sku": "CHK-10", "name": "냉장 닭 10kg", "qty": 12, "unit_price_usdc": 2.5 },
-        { "sku": "SAU-01", "name": "시그니처 소스 1box", "qty": 5, "unit_price_usdc": 2.5 }
+        {
+          "sku": "CHK-10",
+          "name": "냉장 닭 10kg",
+          "qty": 12,
+          "unit_price_usdc": 0.5
+        },
+        {
+          "sku": "SAU-01",
+          "name": "시그니처 소스 1box",
+          "qty": 5,
+          "unit_price_usdc": 0.5
+        }
       ]
     }
   },
   "receiving_logs": {
     "store-a": {
-      "DEL-001": { "CHK-10": 10, "VEG-05": 8 },
-      "DEL-004": { "CHK-10": 10 }
+      "DEL-001": {
+        "CHK-10": 10,
+        "VEG-05": 8
+      },
+      "DEL-004": {
+        "CHK-10": 10
+      }
     },
     "store-b": {
-      "DEL-002": { "CHK-10": 9, "SAU-01": 4 },
-      "DEL-005": { "CHK-10": 12, "SAU-01": 5 }
+      "DEL-002": {
+        "CHK-10": 9,
+        "SAU-01": 4
+      },
+      "DEL-005": {
+        "CHK-10": 12,
+        "SAU-01": 5
+      }
     },
-    "store-c": { "DEL-003": { "CHK-10": 12, "VEG-05": 4 } }
+    "store-c": {
+      "DEL-003": {
+        "CHK-10": 12,
+        "VEG-05": 4
+      }
+    }
   },
   "pos_forecast": {
-    "store-a": { "note": "매출 안정", "expected_inflow_usdc": 120, "inflow_date": "이번 주 금요일" },
-    "store-b": { "note": "매출 안정", "expected_inflow_usdc": 90, "inflow_date": "이번 주 금요일" },
-    "store-c": { "note": "이번 주 매출 부진, 금요일 카드정산금 입금 예정", "expected_inflow_usdc": 60, "inflow_date": "이번 주 금요일" }
+    "store-a": {
+      "note": "매출 안정",
+      "expected_inflow_usdc": 24,
+      "inflow_date": "이번 주 금요일"
+    },
+    "store-b": {
+      "note": "매출 안정",
+      "expected_inflow_usdc": 18,
+      "inflow_date": "이번 주 금요일"
+    },
+    "store-c": {
+      "note": "이번 주 매출 부진, 금요일 카드정산금 입금 예정",
+      "expected_inflow_usdc": 12,
+      "inflow_date": "이번 주 금요일"
+    }
   }
 }

@@ -21,9 +21,9 @@ class StorePolicy:
     owner_id: str
 
     # 상한: 이 금액까지는 사람 승인 없이 결제한다
-    auto_pay_limit_usdc: float = 50.0
+    auto_pay_limit_usdc: float = 10.0
     # 하한: 결제 후 이 잔액 아래로 내려가면 결제하지 않는다 (운영 자금 보호)
-    min_reserve_usdc: float = 10.0
+    min_reserve_usdc: float = 2.0
     # 협상: 이 비율까지는 유예를 먼저 제안해본다
     defer_request_threshold_pct: float = 100.0
     # P2P: 판매 시 남겨둘 안전재고 배수 (1.0 = 안전재고 그대로)
@@ -54,7 +54,7 @@ class HQPolicy:
     # 분할 최대 회차
     installment_max: int = 2
     # 이 금액을 넘는 차감 요청은 사람이 본다
-    auto_adjust_limit_usdc: float = 20.0
+    auto_adjust_limit_usdc: float = 4.0
 
     kind: str = "hq"
 
