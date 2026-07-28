@@ -150,6 +150,61 @@ def test_installment_challenge_offers_immediate_only():
     assert "1/2" in req["accepts"][0]["extra"]["label"]
 
 
+# ── 프론트 운영 기능: 정책 감사·예약 실행·재고 노출 ──────────────────
+
+def test_policy_change_leaves_audit_trail():
+    """규칙 변경도 결제와 같은 무게 — 무엇이 얼마에서 얼마로 바뀌었는지 남는다."""
+    current = {f["key"]: f["value"] for f in client.get("/api/policy/store-c").json()["fields"]}
+    changed = current["auto_pay_limit_usdc"] + 1
+
+    client.put("/api/policy/store-c", json={"values": {"auto_pay_limit_usdc": changed}})
+    event = [e for e in db.list_events() if e["action"] == "policy.updated"][-1]
+    assert event["actor"] == "human"
+    assert event["payload"]["changes"]["auto_pay_limit_usdc"] == {
+        "from": current["auto_pay_limit_usdc"], "to": changed,
+    }
+
+    before_count = len([e for e in db.list_events() if e["action"] == "policy.updated"])
+    client.put("/api/policy/store-c", json={"values": {"auto_pay_limit_usdc": changed}})
+    after_count = len([e for e in db.list_events() if e["action"] == "policy.updated"])
+    assert after_count == before_count, "값이 그대로면 이벤트를 남기지 않는다"
+
+    client.put("/api/policy/store-c", json={"values": current})  # 원상 복구
+
+
+def test_schedule_run_can_simulate_inflow(monkeypatch):
+    """대시보드 '지금 실행'은 예약일의 카드정산 입금까지 시간을 당긴다."""
+    invoice = make_invoice(status="scheduled", amount=35.0, store_id="store-c")
+    inflows = []
+
+    monkeypatch.setattr(
+        "app.api.schedules.payments.balance",
+        lambda w: {"address": f"{w}-ADDR", "usdc": 5.0, "sol": 1},
+    )
+    monkeypatch.setattr(
+        "app.api.schedules.payments.pay",
+        lambda src, to, amount, memo: inflows.append((src, to, amount, memo)) or {"signature": "S"},
+    )
+
+    async def fake_run(agent, intent, **kwargs):
+        return {"outcome": "paid", "tx_signature": "SIG", "messages": []}
+
+    monkeypatch.setattr("app.api.schedules.runner.run", fake_run)
+
+    resp = client.post(f"/api/schedules/{invoice['id']}/run", json={"simulate_inflow": True})
+    assert resp.status_code == 200
+    assert inflows and inflows[0][0] == "hq" and inflows[0][3] == "CARD-SETTLEMENT"
+    # 청구액 35 + 하한 10 − 잔액 5 = 40만 채운다 (반복해도 잔액이 불어나지 않는 양)
+    assert inflows[0][2] == 40.0
+
+
+def test_overview_exposes_store_inventory():
+    ov = client.get("/api/overview").json()
+    store_a = next(s for s in ov["stores"] if s["id"] == "store-a")
+    chick = next(i for i in store_a["inventory"] if i["sku"] == "CHK-10")
+    assert {"sku", "name", "qty", "safety"} <= set(chick)
+
+
 # ── 정산 리포트 ──────────────────────────────────────────────────────
 
 def test_report_stats_and_mock_narration(monkeypatch):

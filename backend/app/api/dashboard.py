@@ -7,6 +7,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 
 from app import config
+from app.agents import utils as agent_utils
 from app.core import credit, fixtures
 from app.db import store
 from app.solana import payments
@@ -49,6 +50,11 @@ def overview() -> dict:
                 },
                 "creditLimit": profile["credit_limit_usdc"],
                 "autoPayLimit": profile["policy"]["auto_pay_limit_usdc"],
+                "inventory": [
+                    {"sku": sku, "name": entry.get("name", sku),
+                     "qty": entry["qty"], "safety": entry["safety"]}
+                    for sku, entry in agent_utils.effective_inventory(sid).items()
+                ],
                 "invoiceCount": len(mine),
                 "outstandingUsdc": round(
                     sum(i["amount_usdc"] for i in mine if i["status"] not in not_receivable), 2

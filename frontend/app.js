@@ -48,6 +48,7 @@ function renderStores(stores) {
       <div class="id">${s.id}</div>
       <div class="gauge"><i style="width:${Math.min(100, s.creditScore)}%"></i></div>
       ${s.creditBasis ? `<div class="basis">정시납 ${s.creditBasis.onTime}${s.creditBasis.liveSettled ? ` <em>(+${s.creditBasis.liveSettled} 온체인)</em>` : ""} · 연체 ${s.creditBasis.late} · 분쟁 ${s.creditBasis.disputed}</div>` : ""}
+      ${(s.inventory || []).length ? `<div class="stock">${s.inventory.map((it) => `<span class="chip ${it.qty < it.safety ? "low" : ""}">${it.name} ${it.qty}<i>/안전 ${it.safety}</i></span>`).join("")}</div>` : ""}
       <dl>
         <dt>미수금</dt><dd>${fmt(s.outstandingUsdc)}</dd>
         <dt>정산 완료</dt><dd>${fmt(s.settledUsdc)}</dd>
@@ -169,6 +170,41 @@ if (reportBtn) {
 }
 
 
+function renderSchedules(invoices) {
+  const panel = document.getElementById("schedules-panel");
+  const el = $("schedules");
+  if (!panel || !el) return;
+  const scheduled = (invoices || []).filter((inv) => inv.status === "scheduled");
+  panel.style.display = scheduled.length ? "" : "none";
+  el.innerHTML = scheduled.map((inv) => `
+    <div class="neg">
+      <span class="kind deferral">예약</span>
+      <div class="body">
+        <div class="prop">${inv.id} · ${inv.store_id} · ${fmt(inv.amount_usdc)} USDC${inv.installment ? ` · 분할 ${inv.installment}회차` : ""}</div>
+        <div class="why">예약일이 오면 에이전트가 x402 왕복으로 결제합니다</div>
+      </div>
+      <span class="approve-actions">
+        <button class="btn-approve" data-run="${inv.id}">지금 실행</button>
+      </span>
+    </div>`).join("");
+  el.querySelectorAll("button[data-run]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      btn.disabled = true;
+      btn.textContent = "실행 중…";
+      try {
+        await fetch(`/api/schedules/${btn.dataset.run}/run`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ simulate_inflow: true }),  // 데모: 예약일의 입금까지 시간을 당긴다
+        });
+      } finally {
+        refresh();
+      }
+    });
+  });
+}
+
+
 function renderApprovals(invoices) {
   const panel = document.getElementById("approvals-panel");
   const el = $("approvals");
@@ -218,6 +254,7 @@ async function refresh() {
     renderInvoices(ov.invoices);
     renderNegotiations(ov.negotiations);
     renderTrades(ov.trades);
+    renderSchedules(ov.invoices);
     renderApprovals(ov.invoices);
     $("event-total").textContent = `${ev.total}건 기록됨`;
     $("feed").innerHTML = ev.events.map((e) => eventRow(e, false)).join("")

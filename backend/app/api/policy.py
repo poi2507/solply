@@ -9,6 +9,7 @@ from pydantic import BaseModel
 
 from app.core import fixtures
 from app.core import policy as policy_mod
+from app.db import store
 
 router = APIRouter(prefix="/api/policy", tags=["policy"])
 
@@ -42,11 +43,25 @@ def get_policy(owner_id: str) -> dict:
 
 @router.put("/{owner_id}")
 def update_policy(owner_id: str, patch: PolicyPatch) -> dict:
-    """설정 저장. 다음 에이전트 실행부터 즉시 적용된다."""
+    """설정 저장. 다음 에이전트 실행부터 즉시 적용된다.
+
+    규칙 변경도 결제와 같은 무게의 사건이다 — 무엇이 얼마에서 얼마로 바뀌었는지
+    actor=human 이벤트로 남겨, 에이전트의 판단 경계가 언제 왜 움직였는지 추적된다.
+    """
     if owner_id not in ("hq", *fixtures.load()["stores"]):
         raise HTTPException(404, f"알 수 없는 주체: {owner_id}")
+
+    before = {f["key"]: f["value"] for f in policy_mod.describe(owner_id)}
     try:
         policy_mod.save(owner_id, dict(patch.values))
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
+
+    changes = {
+        key: {"from": before[key], "to": value}
+        for key, value in patch.values.items()
+        if key in before and before[key] != value
+    }
+    if changes:
+        store.log_event("human", "policy.updated", {"owner_id": owner_id, "changes": changes})
     return {"ownerId": owner_id, "fields": policy_mod.describe(owner_id), "saved": True}
