@@ -211,7 +211,7 @@ async function refresh() {
     $("m-settled").textContent = fmt(ov.totals.settledUsdc);
     $("m-settled-count").textContent = `${ov.totals.settledCount}건`;
     $("m-outstanding").textContent = fmt(ov.totals.outstandingUsdc);
-    $("m-outstanding-count").textContent = `${ov.totals.invoices - ov.totals.settledCount}건`;
+    $("m-outstanding-count").textContent = `${ov.totals.outstandingCount ?? ov.totals.invoices - ov.totals.settledCount}건`;
     $("m-negotiations").textContent = ov.totals.negotiations;
     $("m-human").textContent = ov.totals.humanActions;
     renderStores(ov.stores);

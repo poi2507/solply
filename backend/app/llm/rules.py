@@ -111,8 +111,12 @@ def review_p2p(facts: dict[str, Any], policy: dict[str, Any]) -> dict[str, str]:
 
 
 def narrate(facts: list[str], reasoning: list[str]) -> str:
-    """보고문 — mock에서는 사실을 그대로 이어 붙인다."""
-    return " ".join(facts[-2:]) if facts else ""
+    """보고문 — mock에서는 침묵한다.
+
+    각 단계가 이미 자기 메시지를 냈으므로, 이어 붙여 재출력하면 리허설 화면에
+    같은 문장이 두 번 찍힌다. 요약다운 요약은 Gemini 모드에서만 만든다.
+    """
+    return ""
 
 
 def weekly_report(stats: dict[str, Any]) -> str:

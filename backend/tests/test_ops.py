@@ -119,6 +119,37 @@ def test_approval_guards_status_and_existence():
     assert client.post("/api/approvals/INV-ghost/decide", json={"decision": "approve"}).status_code == 404
 
 
+# ── 대시보드 정합성 ──────────────────────────────────────────────────
+
+def test_outstanding_excludes_split_and_refused():
+    """미수금은 받을 돈만 — 분할 원본은 자식과 이중 계산, 거부 건은 채권이 아니다."""
+    make_invoice(status="split", amount=42.5)
+    make_invoice(status="refused", amount=75.0)
+    ov = client.get("/api/overview").json()
+
+    expected = round(
+        sum(i["amount_usdc"] for i in ov["invoices"]
+            if i["status"] not in ("settled", "split", "refused")), 2,
+    )
+    assert ov["totals"]["outstandingUsdc"] == expected
+    assert ov["totals"]["outstandingCount"] == sum(
+        1 for i in ov["invoices"] if i["status"] not in ("settled", "split", "refused")
+    )
+
+
+def test_installment_challenge_offers_immediate_only():
+    """합의된 분할 회차의 402에는 유예·재분할을 다시 제시하지 않는다."""
+    from app.core import protocol
+
+    child = {
+        "id": "INV-x-P1", "store_id": "store-b", "delivery_id": "DEL-005",
+        "items": [], "amount_usdc": 21.25, "installment": "1/2",
+    }
+    req = protocol.build_payment_requirements(child, "HQWALLET", "localnet", None)
+    assert [a["extra"]["term"] for a in req["accepts"]] == ["immediate"]
+    assert "1/2" in req["accepts"][0]["extra"]["label"]
+
+
 # ── 정산 리포트 ──────────────────────────────────────────────────────
 
 def test_report_stats_and_mock_narration(monkeypatch):

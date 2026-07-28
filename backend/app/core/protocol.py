@@ -76,6 +76,12 @@ def build_payment_requirements(
         }
     ]
 
+    # 분할 합의의 회차 청구서에는 유예·재분할을 다시 제시하지 않는다 —
+    # 이미 협상이 끝난 조건이라, 재협상 여지를 남기면 합의가 무한 후퇴한다.
+    if invoice.get("installment"):
+        accepts[0]["extra"]["label"] = f"분할 {invoice['installment']}회차 납부"
+        return _wrap_requirements(invoice, accepts)
+
     # 유예: 청구액이 정책 한도(신용 기반) 안일 때만 제시
     accepts.append(
         {
@@ -117,6 +123,10 @@ def build_payment_requirements(
         }
     )
 
+    return _wrap_requirements(invoice, accepts)
+
+
+def _wrap_requirements(invoice: dict, accepts: list[dict]) -> dict:
     return {
         "x402Version": X402_VERSION,
         "accepts": accepts,
@@ -132,7 +142,7 @@ def build_payment_requirements(
                 "storeId": invoice["store_id"],
                 "deliveryId": invoice["delivery_id"],
                 "items": invoice["items"],
-                "amountUsdc": amount,
+                "amountUsdc": invoice["amount_usdc"],
             }
         },
     }

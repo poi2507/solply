@@ -27,7 +27,10 @@ def overview() -> dict:
     profiles = fixtures.load()["stores"]
 
     settled = [i for i in invoices if i["status"] == "settled"]
-    outstanding = [i for i in invoices if i["status"] != "settled"]
+    # 미수금 = 아직 받을 돈. 분할 원본(split)은 자식이 대신하므로 빼고(이중 계산),
+    # 거부(refused)는 분쟁 확인 대기지 수취 채권이 아니다.
+    not_receivable = ("settled", "split", "refused")
+    outstanding = [i for i in invoices if i["status"] not in not_receivable]
 
     stores = []
     for sid, profile in profiles.items():
@@ -47,7 +50,9 @@ def overview() -> dict:
                 "creditLimit": profile["credit_limit_usdc"],
                 "autoPayLimit": profile["policy"]["auto_pay_limit_usdc"],
                 "invoiceCount": len(mine),
-                "outstandingUsdc": round(sum(i["amount_usdc"] for i in mine if i["status"] != "settled"), 2),
+                "outstandingUsdc": round(
+                    sum(i["amount_usdc"] for i in mine if i["status"] not in not_receivable), 2
+                ),
                 "settledUsdc": round(sum(i["amount_usdc"] for i in mine if i["status"] == "settled"), 2),
             }
         )
@@ -59,6 +64,7 @@ def overview() -> dict:
             "invoices": len(invoices),
             "settledCount": len(settled),
             "settledUsdc": round(sum(i["amount_usdc"] for i in settled), 2),
+            "outstandingCount": len(outstanding),
             "outstandingUsdc": round(sum(i["amount_usdc"] for i in outstanding), 2),
             "negotiations": len(negotiations),
             "humanActions": sum(1 for e in store.list_events() if e["actor"] == "human"),
