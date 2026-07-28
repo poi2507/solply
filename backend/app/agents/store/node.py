@@ -106,7 +106,10 @@ def assess_cashflow(state: StoreState) -> dict:
 def execute_payment(state: StoreState) -> dict:
     """402 조건 중 즉시 납부를 선택해 결제하고, 서명 제출로 정산 확정까지 받는다."""
     term = utils.pick_term(state.get("x402_terms", []), "immediate")
-    result = tools.execute_payment(state["store_id"], state["invoice_id"], term=term)
+    result = tools.execute_payment(
+        state["store_id"], state["invoice_id"], term=term,
+        human_approved=state.get("intent") == "invoice.pay_approved",
+    )
     if result.get("status") == "needs_human_approval":
         return {
             "outcome": "needs_human",
@@ -332,7 +335,12 @@ def route_after_context(state: StoreState) -> str:
     intent = state.get("intent", "")
     if intent in _P2P_ROUTE:
         return _P2P_ROUTE[intent]
-    if intent in ("invoice.pay_adjusted", "invoice.pay_scheduled"):
+    if intent in (
+        "invoice.pay_adjusted",     # 차감 합의로 재발행된 청구서
+        "invoice.pay_scheduled",    # 예약일이 온 청구서
+        "invoice.pay_installment",  # 분할 합의의 1회차
+        "invoice.pay_approved",     # 사람이 승인한 한도 초과 건
+    ):
         return "request_terms"
     if state.get("payload", {}).get("suspect"):
         return "refuse"
@@ -363,7 +371,10 @@ def route_after_cashflow(state: StoreState) -> str:
 
     순서가 중요하다. 상한 초과는 "이 금액은 애초에 에이전트가 정할 문제가 아니다"라는
     권한의 문제라, 잔액이 넉넉하든 아니든 사람에게 간다.
+    사람이 이미 승인한 건(pay_approved)은 권한 문제가 해소된 상태라 바로 결제로 간다.
     """
+    if state.get("intent") == "invoice.pay_approved":
+        return "pay"
     cash = state["cashflow"]
     if not cash.get("within_auto_limit", True):
         return "escalate"

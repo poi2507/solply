@@ -113,3 +113,30 @@ def review_p2p(facts: dict[str, Any], policy: dict[str, Any]) -> dict[str, str]:
 def narrate(facts: list[str], reasoning: list[str]) -> str:
     """보고문 — mock에서는 사실을 그대로 이어 붙인다."""
     return " ".join(facts[-2:]) if facts else ""
+
+
+def weekly_report(stats: dict[str, Any]) -> str:
+    """정산 리포트 — mock에서는 통계를 정형 문장으로 조립한다."""
+    if not stats.get("settled_count") and not stats.get("p2p_count"):
+        return ""
+    neg = stats.get("negotiations", {})
+    credit_line = " · ".join(
+        f"{sid} {c['score']}점" + (f"(+{c['delta']})" if c.get("delta") else "")
+        for sid, c in stats.get("credit", {}).items()
+    )
+    parts = [
+        f"이번 주기 정산 {stats['settled_count']}건, {stats['settled_usdc']} USDC를 온체인으로 완결했습니다.",
+        (
+            f"협상은 수락 {neg.get('accept', 0)}건 · 역제안 {neg.get('counter', 0)}건 · "
+            f"거절 {neg.get('reject', 0)}건이었고, 이상 청구 {stats['refused_count']}건을 거부해 "
+            "사람에게 넘겼습니다."
+        ),
+    ]
+    if stats.get("p2p_count"):
+        parts.append(
+            f"지점 간 직거래 {stats['p2p_count']}건({stats['p2p_usdc']} USDC)이 본사 승인 아래 체결됐습니다."
+        )
+    if stats.get("scheduled_count"):
+        parts.append(f"예약 대기 {stats['scheduled_count']}건은 예약 실행기가 처리합니다.")
+    parts.append(f"납부 이력 반영 신용점수: {credit_line}. 사람 개입은 {stats['human_actions']}회였습니다.")
+    return " ".join(parts)

@@ -23,10 +23,10 @@ def no_live_history(monkeypatch):
 
 @pytest.mark.parametrize(
     ("store_id", "expected"),
-    [("store-a", 88), ("store-b", 81), ("store-c", 92)],
+    [("store-a", 88), ("store-b", 85), ("store-c", 92)],
 )
 def test_seeded_history_reproduces_known_scores(no_live_history, store_id, expected):
-    """예전에 fixtures에 박혀 있던 88/81/92가 이제 이력 계산으로 재현된다."""
+    """점수는 상수가 아니라 이력 계산이다 (B는 F 시나리오를 위해 85로 시드됨)."""
     assert credit.evaluate(store_id)["credit_score"] == expected
 
 

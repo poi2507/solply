@@ -21,7 +21,7 @@
   },
   "payment_history": {
     "store-a": { "on_time": 20, "late": 0, "disputed": 1, "note": "개점 후 물대 21건 — 정시납 20, 검수 분쟁 1" },
-    "store-b": { "on_time": 17, "late": 1, "disputed": 0, "note": "개점 후 물대 18건 — 정시납 17, 연체 1 (3일)" },
+    "store-b": { "on_time": 19, "late": 1, "disputed": 0, "note": "개점 후 물대 20건 — 정시납 19, 연체 1 (3일)" },
     "store-c": { "on_time": 21, "late": 0, "disputed": 0, "note": "개점 후 물대 21건 전건 정시납" }
   },
   "orders": {
@@ -65,6 +65,13 @@
         { "sku": "CHK-10", "name": "냉장 닭 10kg", "qty": 10, "unit_price_usdc": 2.5 },
         { "sku": "LOB-01", "name": "활 랍스터 3kg", "qty": 4, "unit_price_usdc": 12.5 }
       ]
+    },
+    "DEL-005": {
+      "store_id": "store-b",
+      "items": [
+        { "sku": "CHK-10", "name": "냉장 닭 10kg", "qty": 12, "unit_price_usdc": 2.5 },
+        { "sku": "SAU-01", "name": "시그니처 소스 1box", "qty": 5, "unit_price_usdc": 2.5 }
+      ]
     }
   },
   "receiving_logs": {
@@ -72,7 +79,10 @@
       "DEL-001": { "CHK-10": 10, "VEG-05": 8 },
       "DEL-004": { "CHK-10": 10 }
     },
-    "store-b": { "DEL-002": { "CHK-10": 9, "SAU-01": 4 } },
+    "store-b": {
+      "DEL-002": { "CHK-10": 9, "SAU-01": 4 },
+      "DEL-005": { "CHK-10": 12, "SAU-01": 5 }
+    },
     "store-c": { "DEL-003": { "CHK-10": 12, "VEG-05": 4 } }
   },
   "pos_forecast": {

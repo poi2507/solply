@@ -151,6 +151,59 @@ function renderTrades(trades) {
 }
 
 
+const reportBtn = document.getElementById("report-btn");
+if (reportBtn) {
+  reportBtn.addEventListener("click", async () => {
+    reportBtn.disabled = true;
+    reportBtn.textContent = "생성 중…";
+    try {
+      const r = await getJSON("/api/report");
+      document.getElementById("report-text").textContent = r.report || "아직 요약할 정산 내역이 없습니다.";
+    } catch (err) {
+      document.getElementById("report-text").textContent = "리포트 생성에 실패했습니다.";
+    } finally {
+      reportBtn.disabled = false;
+      reportBtn.textContent = "생성";
+    }
+  });
+}
+
+
+function renderApprovals(invoices) {
+  const panel = document.getElementById("approvals-panel");
+  const el = $("approvals");
+  if (!panel || !el) return;
+  const pending = (invoices || []).filter((inv) => inv.status === "pending_approval");
+  panel.style.display = pending.length ? "" : "none";
+  el.innerHTML = pending.map((inv) => `
+    <div class="neg">
+      <span class="kind adjustment">승인</span>
+      <div class="body">
+        <div class="prop">${inv.id} · ${inv.store_id} · ${fmt(inv.amount_usdc)} USDC</div>
+        <div class="why">자동결제 상한 초과 — 에이전트가 결제를 보류했습니다</div>
+      </div>
+      <span class="approve-actions">
+        <button class="btn-approve" data-id="${inv.id}" data-decision="approve">승인</button>
+        <button class="btn-reject" data-id="${inv.id}" data-decision="reject">반려</button>
+      </span>
+    </div>`).join("");
+  el.querySelectorAll("button[data-id]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      btn.disabled = true;
+      try {
+        await fetch(`/api/approvals/${btn.dataset.id}/decide`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ decision: btn.dataset.decision }),
+        });
+      } finally {
+        refresh();
+      }
+    });
+  });
+}
+
+
 async function refresh() {
   try {
     const [ov, ev] = await Promise.all([getJSON("/api/overview"), getJSON("/api/events?limit=60")]);
@@ -165,6 +218,7 @@ async function refresh() {
     renderInvoices(ov.invoices);
     renderNegotiations(ov.negotiations);
     renderTrades(ov.trades);
+    renderApprovals(ov.invoices);
     $("event-total").textContent = `${ev.total}건 기록됨`;
     $("feed").innerHTML = ev.events.map((e) => eventRow(e, false)).join("")
       || '<li class="empty" style="display:block">아직 활동이 없습니다</li>';

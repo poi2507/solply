@@ -61,13 +61,25 @@ def overview() -> dict:
             "settledUsdc": round(sum(i["amount_usdc"] for i in settled), 2),
             "outstandingUsdc": round(sum(i["amount_usdc"] for i in outstanding), 2),
             "negotiations": len(negotiations),
-            "humanActions": 0,
+            "humanActions": sum(1 for e in store.list_events() if e["actor"] == "human"),
         },
         "stores": stores,
         "invoices": sorted(invoices, key=lambda i: i.get("updated_at", ""), reverse=True),
         "negotiations": sorted(negotiations, key=lambda n: n.get("updated_at", ""), reverse=True),
         "trades": sorted(trades, key=lambda t: t.get("updated_at", ""), reverse=True),
     }
+
+
+@router.get("/report")
+def report() -> dict:
+    """정산 리포트 — 통계는 core/report, 문장은 Gemini(또는 mock 규칙)가 쓴다."""
+    from app.core import policy as policy_mod
+    from app.core import report as report_mod
+    from app.llm import judge
+
+    stats = report_mod.collect()
+    text = judge.weekly_report(stats, policy_mod.get("hq").as_prompt_values())
+    return {"stats": stats, "report": text}
 
 
 @router.get("/events")

@@ -80,6 +80,48 @@ def adjust_invoice(invoice_id: str, new_amount_usdc: float, reason: str) -> dict
     return invoice
 
 
+def split_invoice(invoice_id: str, parts: int = 2) -> dict:
+    """분할 역제안이 합의 경로가 되도록 청구서를 회차별 자식 청구서로 쪼갠다.
+
+    1회차는 즉시 결제 대상(issued), 나머지는 예약(scheduled) — 기존 x402 왕복과
+    예약 실행기를 그대로 태우기 위한 구조다. 원본은 split으로 남아 이력이 이어진다.
+    """
+    invoice = utils.get_invoice(invoice_id)
+    if not invoice:
+        return utils.error(f"청구서 없음: {invoice_id}")
+    if invoice["status"] in ("paid", "settled", "split"):
+        return utils.error(f"분할할 수 없는 상태: {invoice['status']}")
+
+    per = round(invoice["amount_usdc"] / parts, 2)
+    amounts = [per] * (parts - 1) + [round(invoice["amount_usdc"] - per * (parts - 1), 2)]
+    children = []
+    for i, amount in enumerate(amounts, start=1):
+        children.append(
+            store.put(
+                "invoices",
+                f"{invoice_id}-P{i}",
+                {
+                    "delivery_id": invoice["delivery_id"],
+                    "store_id": invoice["store_id"],
+                    "items": invoice["items"] if i == 1 else [],
+                    "amount_usdc": amount,
+                    "status": "issued" if i == 1 else "scheduled",
+                    "tx_sig": None,
+                    "parent_id": invoice_id,
+                    "installment": f"{i}/{parts}",
+                },
+            )
+        )
+    store.update("invoices", invoice_id, {"status": "split"})
+    utils.log(
+        ACTOR,
+        "invoice.split",
+        {"invoice_id": invoice_id, "parts": parts, "amounts": amounts,
+         "children": [c["id"] for c in children]},
+    )
+    return {"invoice_id": invoice_id, "children": children, "per_usdc": amounts[0]}
+
+
 def verify_payment(invoice_id: str, tx_signature: str) -> dict:
     """제출된 트랜잭션을 온체인에서 대조하고, 일치하면 정산을 확정한다."""
     invoice = utils.get_invoice(invoice_id)

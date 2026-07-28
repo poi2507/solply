@@ -175,6 +175,37 @@ async def scenario_d() -> None:
     await act("store", "invoice.handle", "A지점", "a", store_id="store-a", invoice_id=invoice_id)
 
 
+async def scenario_f() -> None:
+    banner("B지점 (홍대) — 전액 유예 불가 → 분할 역제안 → 합의 (멀티턴 협상)", "b")
+    simulate_card_settlement("store-b", 25.0)  # 잔액을 '전액은 부족, 1회차는 가능' 구간으로
+    issued = await act("hq", "invoice.issue", "본사", "hq", delivery_id="DEL-005")
+    invoice_id = issued.get("invoice_id")
+    if not invoice_id:
+        return print("  청구서 발행 실패")
+
+    await act("store", "invoice.handle", "B지점", "b", store_id="store-b", invoice_id=invoice_id)
+    proposal = latest_event(db.list_events(), "proposal.deferral")
+    if not proposal or proposal.get("invoice_id") != invoice_id:
+        return print(f"  {C['dim']}유예 제안이 나오지 않았습니다{C['0']}")
+
+    countered = await act(
+        "hq", "proposal.deferral", "본사", "hq", invoice_id=invoice_id, payload=proposal
+    )
+    split = (countered.get("decision") or {}).get("split")
+    if not split:
+        return print(f"  {C['dim']}역제안(분할)이 나오지 않았습니다{C['0']}")
+
+    # 가맹점이 역제안을 재평가 — 1회차는 지금, 2회차는 예약
+    part1, part2 = split["children"][0]["id"], split["children"][1]["id"]
+    paid = await act(
+        "store", "invoice.pay_installment", "B지점", "b",
+        store_id="store-b", invoice_id=part1,
+    )
+    if paid.get("outcome") == "paid":
+        confirm_settlement(part1)
+        print(f"  {C['dim']}🕐 2회차 {part2}는 예약 상태 — 예약 실행기(Cloud Scheduler 자리)가 처리한다{C['0']}")
+
+
 async def scenario_e() -> None:
     banner("B지점 ⇄ A지점 — 가맹점 간 재고 직거래, 본사는 심판", "b")
     simulate_card_settlement("store-b", 10.0)
@@ -206,7 +237,7 @@ async def scenario_e() -> None:
 
 def summary() -> None:
     banner("정산 결과", "hq")
-    icons = {"settled": "✅", "scheduled": "🕐", "paid": "💸", "issued": "📄", "disputed": "⚖️", "refused": "🚫", "pending_approval": "🙋"}
+    icons = {"settled": "✅", "scheduled": "🕐", "paid": "💸", "issued": "📄", "disputed": "⚖️", "refused": "🚫", "pending_approval": "🙋", "split": "➗"}
     for inv in sorted(db.list_docs("invoices"), key=lambda d: d["updated_at"]):
         print(f"  {icons.get(inv['status'], '•')} {inv['id']}  {inv['store_id']:9} "
               f"{inv['amount_usdc']:>7.2f} USDC  {inv['status']}")
@@ -227,13 +258,22 @@ def summary() -> None:
     print(f"\n  협상 {len(negotiations)}건 · 실행 증빙 이벤트 {len(db.list_events())}건")
     for neg in negotiations:
         print(f"    {C['dim']}· [{neg['type']}] {neg['decision']} — {neg['reasoning'][:64]}{C['0']}")
-    print(f"\n  {C['bold']}사람이 누른 버튼: 0회{C['0']}")
-    print(f"  {C['dim']}대시보드: http://localhost:8080{C['0']}\n")
+    human = sum(1 for e in db.list_events() if e["actor"] == "human")
+    print(f"\n  {C['bold']}사람이 누른 버튼: {human}회{C['0']}")
+
+    from app.core import report as report_mod
+    from app.llm import judge
+    text = judge.weekly_report(report_mod.collect(), policy_mod.get("hq").as_prompt_values())
+    if text:
+        print(f"\n  {C['bold']}📋 정산 리포트{C['0']}")
+        for line in text.splitlines():
+            print(f"  {line.strip()}")
+    print(f"\n  {C['dim']}대시보드: http://localhost:8080{C['0']}\n")
 
 
 async def main() -> None:
     parser = argparse.ArgumentParser(description="Solply 데모")
-    parser.add_argument("--only", choices=["a", "b", "c", "d", "e"], help="한 시나리오만 실행")
+    parser.add_argument("--only", choices=["a", "b", "c", "d", "e", "f"], help="한 시나리오만 실행")
     parser.add_argument("--keep", action="store_true", help="기존 상태를 유지")
     args = parser.parse_args()
 
@@ -248,8 +288,11 @@ async def main() -> None:
         print("  ⚠ SOLPLY_STORE=local이면 API 서버와 상태가 분리돼 x402 왕복이 어긋난다 — postgres 권장")
     print(f"  {C['dim']}대시보드를 띄워두면 활동이 실시간으로 표시됩니다 → http://localhost:8080{C['0']}")
 
-    scenarios = {"a": scenario_a, "b": scenario_b, "c": scenario_c, "d": scenario_d, "e": scenario_e}
-    for key in [args.only] if args.only else ["a", "b", "e", "d", "c"]:
+    scenarios = {
+        "a": scenario_a, "b": scenario_b, "c": scenario_c,
+        "d": scenario_d, "e": scenario_e, "f": scenario_f,
+    }
+    for key in [args.only] if args.only else ["a", "b", "e", "d", "c", "f"]:
         try:
             await scenarios[key]()
         except Exception as exc:  # noqa: BLE001 — 하나가 죽어도 나머지는 계속

@@ -95,6 +95,26 @@ def review_proposal(kind: str, facts: dict, policy_values: dict) -> dict[str, st
     return {"decision": decision, "reasoning": verdict.reasoning.strip()}
 
 
+def weekly_report(stats: dict, prompt_values: dict) -> str:
+    """정산 통계를 경영진 보고용 한 문단으로 쓴다 (대시보드·데모 마무리용)."""
+    if factory.is_mock():
+        return rules.weekly_report(stats)
+
+    import json
+
+    system = prompts.system("hq", **prompt_values)
+    user = (
+        "아래 정산 통계로 경영진 보고용 정산 리포트를 한국어 3~4문장 한 문단으로 써라. "
+        "수치를 반드시 포함하고, 에이전트가 자율 처리한 범위와 사람 개입 횟수를 대비시켜라.\n\n"
+        + json.dumps(stats, ensure_ascii=False)
+    )
+    try:
+        response = _invoke("hq", system, user)
+        return getattr(response, "content", str(response)).strip()
+    except Exception:  # noqa: BLE001 — 리포트 실패가 대시보드를 막아서는 안 된다
+        return rules.weekly_report(stats)
+
+
 def narrate(agent: str, prompt_values: dict, facts: list[str], reasoning: list[str]) -> str:
     """진행 상황을 사람이 읽는 한 문단으로 정리한다."""
     if not facts:

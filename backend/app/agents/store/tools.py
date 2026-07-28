@@ -80,21 +80,27 @@ def request_settlement_terms(store_id: str, invoice_id: str) -> dict:
     return {"invoice_id": invoice_id, "already_settled": False, "accepts": accepts}
 
 
-def execute_payment(store_id: str, invoice_id: str, term: dict | None = None) -> dict:
+def execute_payment(
+    store_id: str, invoice_id: str, term: dict | None = None, human_approved: bool = False
+) -> dict:
     """청구서를 USDC로 결제한다. 정책 상한을 넘으면 사람 승인을 요구한다.
 
     x402 조건(term)이 있으면 그 조건의 수취 주소·금액대로 지불하고, 서명을
     PAYMENT-SIGNATURE로 제출해 본사의 온체인 검증·정산 확정까지 한 왕복으로 끝낸다.
+    human_approved는 사람이 대시보드에서 승인한 건 — 상한 검사만 면제되고 나머지는 같다.
     """
     invoice = utils.get_invoice(invoice_id, store_id=store_id)
     if not invoice:
         return utils.error(f"이 지점의 청구서가 아님: {invoice_id}")
+    if invoice["status"] in ("paid", "settled"):
+        # 이중 결제 방지 — 재시도·중복 호출이 와도 돈은 한 번만 나간다
+        return utils.error(f"이미 결제된 청구서: {invoice_id} (상태 {invoice['status']})")
 
     pol = policy_mod.get(store_id)
     amount = protocol.from_atomic(term["amount"]) if term else invoice["amount_usdc"]
     actor = utils.actor_name(store_id)
 
-    if amount > pol.auto_pay_limit_usdc:
+    if amount > pol.auto_pay_limit_usdc and not human_approved:
         utils.log(actor, "payment.blocked_over_limit", {"invoice_id": invoice_id, "amount": amount})
         return {
             "status": "needs_human_approval",
@@ -111,7 +117,8 @@ def execute_payment(store_id: str, invoice_id: str, term: dict | None = None) ->
             actor,
             "payment.executed",
             {"invoice_id": invoice_id, "tx": result["signature"], "via": "x402",
-             "explorer": receipt.get("explorer", "")},
+             "explorer": receipt.get("explorer", ""),
+             **({"human_approved": True} if human_approved else {})},
         )
         if not receipt.get("settled"):
             return {**result, "amount": amount, "settled": False,

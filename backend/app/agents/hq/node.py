@@ -130,6 +130,26 @@ def review_deferral(state: HQState) -> dict:
         f"납부 유예 요청 ({proposal.get('pay_when', '시점 미지정')})",
         verdict["decision"], verdict["reasoning"],
     )
+
+    if verdict["decision"] == "counter":
+        # 역제안은 말로 끝나지 않는다 — 분할 청구서를 실제로 만들어 협상 테이블에 올린다
+        split = tools.split_invoice(invoice["id"], parts=pol.installment_max)
+        if split.get("error"):
+            return {"outcome": "noop", "messages": [split["error"]]}
+        return {
+            "decision": {**verdict, "kind": "deferral", "split": split},
+            "outcome": "negotiating",
+            "messages": [
+                (
+                    f"전액 유예 대신 {pol.installment_max}회 분할을 역제안했습니다 "
+                    f"(회당 {split['per_usdc']} USDC, 1회차 즉시·나머지 예약). "
+                )
+                + verdict["reasoning"]
+            ],
+            "reasoning": [verdict["reasoning"]],
+            "proposal": negotiation,
+        }
+
     accepted = verdict["decision"] == "accept"
     return {
         "decision": {**verdict, "kind": "deferral"},
