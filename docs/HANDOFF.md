@@ -14,49 +14,90 @@
 
 ---
 
-## 🔴 오늘 밤(7/29) 집 맥에서 할 일 — 2026-07-29 저녁 갱신
+## 🔴 내일(7/30) 회사 맥에서 — 환경 재현 + 남은 일
 
-> **7/29 회사 맥에서 끝난 것**: §1 화면 확인을 사용자가 직접 진행하며 대폭 개선 —
-> **라이트 전환**(회색 캔버스+흰 카드, Stripe 문법 — 프로젝터 대비), 그레인·비비드
-> 액센트, 채팅 마크다운 렌더, **읽히는 번호**(INV-0729-B01·P2P-01·MOV-001),
-> **재고 원장 ERP**(inventory_moves — 입고·출고·판매·직거래, 본사는 자기 창고만,
-> 수준 막대+명세서식 이력). 테스트 102개. 상세는 커밋 `33a525a` 메시지.
->
-> **남은 것 = 아래 §2 배포가 전부** (집 맥에 gcloud·인증 있음). 그다음 §3 대본, §4 README.
-> 학습 자료: 사용자용 심화 노트가 아티팩트로 있음 (claude.ai/code/artifacts — "Solply 심화 학습 노트").
+> **7/29 밤(집 맥)에 배포까지 끝났다.** 라이브 URL·클라우드 자원은 §2 표 참고.
+> 남은 일은 §3 영상 대본, §4 README, §5 public 전 점검 — 코드 작업은 사실상 끝.
 
-> **막힌 것이 없다.** GCP 결제가 풀려 **$300 크레딧이 전액 재지급**됐고 `LLM_PROVIDER=vertex`로
-> 돌고 있다(무료 티어 분당 5회 제약에서 벗어났다). devnet 전환도 끝나 **6종 데모가
-> explorer 링크와 함께 완주한다.** 남은 큰 덩어리는 **Cloud Run 배포 하나**다 — 라이브 URL은
-> 심사 가산점이고, 지금이 유일하게 시간이 남는 날이다(8/1부터는 촬영·제출).
->
-> 네트워크 전환은 `make devnet` / `make localnet`. **devnet 상태에서 `make dev`를 돌리면
-> 로컬넷으로 되돌아간다** — 시연 중에는 `make pay`로 결제 서비스만 재시작할 것.
+### 0. 환경 재현 — 전부 git과 gcloud에서 내려받는다 ⏱️15분
 
-### 0. 동기화 ⏱️3분
+비밀값은 이제 **git(코드·문서) 아니면 Secret Manager(지갑 키·DB 비번)** 둘 중 하나에 있다.
+집 맥에서 뭘 복사해 갈 필요가 없다.
 
+**① 코드**
 ```bash
-cd ~/workplace/solply && git pull      # 회사 맥 경로 (집 맥은 ~/workspace/gcp-solana-agentic-hackathon)
-cd backend && uv sync && cd ..         # import 에러가 나면. 의존성 추가는 없다
-make db && make localnet && make dev
-make demo-mock                         # 6종(A→B→E→D→C→F) 완주 + 정산 리포트가 나오면 정상
+cd ~/workplace/solply && git pull        # 회사 맥 경로
+cd backend && uv sync && cd ..           # 의존성 추가 없음 — import 에러 날 때만
 ```
 
-### 1. 새 대시보드를 눈으로 확인 ⏱️15분 — **먼저 이것부터**
+**② gcloud 로그인** (Vertex·배포·Job 실행·시크릿 전부 이걸로)
+```bash
+gcloud auth login                        # poi2507.dev@gmail.com
+gcloud config set project gen-lang-client-0014864033
+gcloud auth application-default login    # 로컬에서 Vertex 호출할 때 쓰는 ADC
+```
 
-7/28 밤에 화면을 다시 만들었다(커밋 `720cb4b`). 브라우저 없이 렌더 결과만 검증했으니
-**실제 눈으로는 아직 아무도 안 봤다.** http://localhost:8080 에서 세 역할로 각각 로그인해 확인:
+**③ 지갑 키 — devnet 자금이 든 키인지 먼저 확인**
+```bash
+for w in hq store-a store-b store-c; do
+  printf "%-8s %s\n" $w "$(solana-keygen pubkey ~/.config/solana/solply/$w.json)"
+done
+```
+기대값 (이 주소들에 devnet SOL·USDC가 있다):
+```
+hq       HzQ9FXdXTPmLVs1Q4J89FGqq6zKUFdXbje5EBfX3gdDJ
+store-a  6hWEQwgw7qtC4ducWLbfbVL7JrqMnzzDUsfj82EXwjmk
+store-b  NEcdWbM14tmkwX1ctS2fwcL3Min2vgsebfD4CwfYLu8
+store-c  Fjfd2FjKPDBYtBonZh69AfCVLv3bkwtkbGuwSydy33JD
+```
+다르거나 없으면 Secret Manager에서 내려받는다:
+```bash
+mkdir -p ~/.config/solana/solply && chmod 700 ~/.config/solana/solply
+for w in hq store-a store-b store-c; do
+  gcloud secrets versions access latest --secret=solply-wallet-$w > ~/.config/solana/solply/$w.json
+done
+chmod 600 ~/.config/solana/solply/*.json
+```
 
-| 확인할 것 | 기대 |
-|---|---|
-| 청구서 행 클릭 | 그 청구서의 전 과정이 표 안에서 펼쳐진다 (발행→검수→402→제안→심사 근거→정산 서명) |
-| `INV-…-P1 / P2` | 부모 행 아래 `└`로 붙어 한 이야기로 읽힌다 |
-| 금액 열 | 차감 합의된 건은 `7.00 → 6.50`으로 보인다 (7/28 이후 새로 만든 청구서만) |
-| 상태 | 채운 배지가 아니라 색 점 + 글자. 표가 색 블록으로 덮이지 않는다 |
-| 창 좁히기 | 1040px 아래에서 한 단으로 접히고 표만 가로 스크롤 |
+**④ backend/.env** — 아래 값들은 비밀이 아니라서 여기 그대로 적는다. 회사 맥의 기존
+.env와 대조해서 다른 줄만 맞추면 된다 (`GOOGLE_API_KEY`는 vertex 경로에선 안 쓴다 —
+있으면 그대로 둔다):
+```
+LLM_PROVIDER=vertex
+GOOGLE_GENAI_USE_VERTEXAI=TRUE
+GOOGLE_CLOUD_PROJECT=gen-lang-client-0014864033
+GOOGLE_CLOUD_LOCATION=us-central1
+HQ_MODEL=gemini-3.6-flash
+STORE_MODEL=gemini-3.5-flash-lite
+SOLANA_NETWORK=devnet
+SOLPLY_STORE=postgres
+AGENT_SPEND_LIMIT_USDC=50
+```
 
-어긋나면 `frontend/style.css`의 `--line`(구분선)·`--raise`(펼친 배경) 대비만 만지면 된다.
-색은 `--accent`(강조) 하나 + `--good/--warn/--risk`(의미) 셋이라는 규칙을 깨지 말 것.
+**⑤ payments/.env** — `make devnet`/`make localnet`이 관리한다. 파일 자체가 없으면:
+```
+SOLANA_RPC_URL=https://api.devnet.solana.com
+SOLANA_NETWORK=devnet
+USDC_MINT=4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU
+PORT=3000
+```
+
+**⑥ 확인**
+```bash
+make db && make dev            # ⚠️ 이건 localnet으로 되돌린다 — devnet이면 make devnet && make pay
+make demo-mock                 # 6종 완주하면 환경 동일
+```
+
+**클라우드는 재현할 게 없다** — 라이브 URL은 어디서나 열리고, 데모 재생성도 gcloud만 있으면 된다:
+```bash
+gcloud run jobs execute solply-demo --region us-central1
+```
+DB 비밀번호가 필요한 건 백엔드 재배포(env의 DATABASE_URL) 때뿐이다:
+```bash
+gcloud secrets versions access latest --secret=solply-db-pass
+```
+
+### 1. 새 대시보드 화면 확인 ✅ (7/29 회사 맥에서 완료 — 라이트 전환까지)
 
 ### 2. Cloud Run 배포 ✅ 완료 (7/29 밤, 집 맥)
 
@@ -107,14 +148,13 @@ gcloud run deploy solply-api --source /절대/경로/레포루트 --clear-base-i
 - `db/postgres_store.py`의 `list_docs` 필터 **키** f-string 삽입 → 화이트리스트 한 줄.
   내부 호출뿐이라 실제 위험은 없지만 public 레포에서 인젝션 모양으로 읽힌다.
 
-### 시간 배분 제안
+### 7/30 시간 배분 제안
 
-| 시간 | 할 일 | 실패해도 되는가 |
+| 시간 | 할 일 | 비고 |
 |---|---|---|
-| 오전 | §1 화면 확인 → §2 Dockerfile 두 개 + 결제 서비스 배포 | — |
-| 오후 | §2 백엔드 배포·Secret·스모크 | **여기까지가 가산점.** 막히면 로컬 데모로 대체 가능 |
-| 저녁 | §3 대본 → §4 README | 아니오 — 영상은 8/1에 찍는다 |
-| 여유 시 | §5 점검 | 8/3 전까지만 하면 된다 |
+| 오전 | §0 환경 재현 → §3 영상 대본 | 대본이 나와야 8/1 촬영이 된다 |
+| 오후 | §4 README → §5 public 전 점검 | README는 심사 기준 "재현 가능한 코드" |
+| 저녁 | devnet 리허설 (장면별 `--only`) + 라이브 대시보드 최종 훑기 | 촬영 전 마지막 코드 수정 기회 |
 
 ### 3. 사용자 — 제출물 (8/1~)
 
