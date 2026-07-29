@@ -105,3 +105,37 @@ def test_restock_refills_hq_below_safety():
 def test_tick_endpoint_respects_toggle(monkeypatch):
     monkeypatch.setattr("app.config.TICK_ENABLED", False)
     assert client.post("/api/ticks/run").status_code == 409
+
+
+# ── 손님 구매 (/shop) ────────────────────────────────────────────────
+
+def test_shop_menu_lists_stores_with_prices():
+    menu = client.get("/api/shop").json()
+    assert {s["id"] for s in menu["stores"]} == {"store-a", "store-b", "store-c"}
+    item = menu["stores"][0]["items"][0]
+    assert {"sku", "name", "qty", "safety", "price_usdc"} <= set(item)
+
+
+def test_visitor_purchase_moves_ledger_and_till():
+    before_qty = utils.effective_inventory("store-c")["CHK-10"]["qty"]
+    before_till = (db.get(economy.TILL, "store-c") or {}).get("accrued_usdc", 0.0)
+
+    res = client.post("/api/shop/purchase", json={"store_id": "store-c", "sku": "CHK-10", "qty": 1})
+
+    assert res.status_code == 200
+    data = res.json()
+    assert data["remaining"] == before_qty - 1
+    assert "next" in data
+    till = db.get(economy.TILL, "store-c")["accrued_usdc"]
+    assert till == pytest.approx(before_till + economy._sku_price("CHK-10"))
+    move = db.list_docs("inventory_moves")[-1]
+    assert move["reason"] == "sold" and move["ref"] == "손님 구매 (라이브)"
+
+
+def test_visitor_purchase_guards():
+    assert client.post("/api/shop/purchase",
+                       json={"store_id": "store-x", "sku": "CHK-10", "qty": 1}).status_code == 404
+    assert client.post("/api/shop/purchase",
+                       json={"store_id": "store-a", "sku": "CHK-10", "qty": 9}).status_code == 422
+    assert client.post("/api/shop/purchase",
+                       json={"store_id": "store-a", "sku": "LOB-01", "qty": 1}).status_code == 409

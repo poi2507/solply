@@ -64,10 +64,26 @@ def _delivery_id(store_id: str) -> str:
 
 # ── 1. 판매 — 손님이 다녀간다 ────────────────────────────────────────
 
-def run_sales(rng: random.Random) -> list[dict]:
-    """지점마다 보유 재고 한도 내에서 몇 개 판매하고, 매출을 금고(till)에 적립한다."""
+def sell(store_id: str, sku: str, qty: int, note: str) -> dict:
+    """판매 한 건 — 재고 원장에 기록하고 매출을 금고(till)에 적립한다.
+
+    틱의 시뮬 판매와 /shop의 실제 방문자 구매가 같은 경로를 지난다.
+    손님 결제는 체인 밖(카드) — 온체인은 카드정산 틱에서 일어난다.
+    """
     from app.agents.store import tools as store_tools
 
+    result = store_tools.record_sales(store_id, sku, qty, note)
+    if result.get("error"):
+        return result
+    revenue = round(result["sold"] * _sku_price(sku), 2)  # 소매가 = 공급가 (총량 보존)
+    till = db.get(TILL, store_id) or {"accrued_usdc": 0.0}
+    db.put(TILL, store_id, {"accrued_usdc": round(till["accrued_usdc"] + revenue, 2)})
+    return {"store_id": store_id, "sku": sku, "qty": result["sold"],
+            "remaining": result["remaining"], "revenue": revenue}
+
+
+def run_sales(rng: random.Random) -> list[dict]:
+    """지점마다 보유 재고 한도 내에서 몇 개 판매한다 (시뮬 수요)."""
     sold = []
     for store_id in fixtures.load()["stores"]:
         for sku, entry in utils.effective_inventory(store_id).items():
@@ -76,13 +92,9 @@ def run_sales(rng: random.Random) -> list[dict]:
             qty = min(entry["qty"], rng.randint(0, 2))
             if qty <= 0:
                 continue
-            result = store_tools.record_sales(store_id, sku, qty, "영업 판매")
-            if result.get("error"):
-                continue
-            revenue = round(result["sold"] * _sku_price(sku), 2)  # 소매가 = 공급가 (총량 보존)
-            till = db.get(TILL, store_id) or {"accrued_usdc": 0.0}
-            db.put(TILL, store_id, {"accrued_usdc": round(till["accrued_usdc"] + revenue, 2)})
-            sold.append({"store_id": store_id, "sku": sku, "qty": result["sold"], "revenue": revenue})
+            result = sell(store_id, sku, qty, "영업 판매")
+            if not result.get("error"):
+                sold.append(result)
     return sold
 
 

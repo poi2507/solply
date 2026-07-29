@@ -11,7 +11,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app import config
-from app.api import approvals, assistant, dashboard, policy, schedules, ticks, x402
+from app.api import approvals, assistant, dashboard, policy, schedules, shop, ticks, x402
 
 app = FastAPI(
     title="Solply",
@@ -24,6 +24,7 @@ app.include_router(assistant.router)
 app.include_router(dashboard.router)
 app.include_router(policy.router)
 app.include_router(schedules.router)
+app.include_router(shop.router)
 app.include_router(ticks.router)
 app.include_router(x402.router)
 
@@ -33,3 +34,8 @@ if config.FRONTEND_DIR.exists():
     @app.get("/", include_in_schema=False)
     def index() -> FileResponse:
         return FileResponse(config.FRONTEND_DIR / "index.html")
+
+    @app.get("/shop", include_in_schema=False)
+    def shop_page() -> FileResponse:
+        """손님 페이지 — 방문자가 라이브 경제에 수요를 넣는 입구."""
+        return FileResponse(config.FRONTEND_DIR / "shop.html")
