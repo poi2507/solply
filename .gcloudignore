@@ -1,0 +1,10 @@
+# Cloud Build에 올릴 필요 없는 것들
+.git/
+.dev-logs/
+docs/
+backend/.venv/
+backend/.env
+backend/tests/
+payments/node_modules/
+payments/.env
+**/__pycache__/

@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import {
@@ -36,7 +36,11 @@ export function isWalletName(name: string): name is WalletName {
 }
 
 export function loadKeypair(name: WalletName): Keypair {
-  const raw = readFileSync(join(WALLET_DIR, `${name}.json`), "utf-8");
+  // 평평한 배치(로컬: <dir>/hq.json)를 먼저, 지갑별 하위 디렉터리(<dir>/hq/hq.json)를 다음에.
+  // Cloud Run은 한 디렉터리에 시크릿 하나만 마운트할 수 있어 운영에선 후자가 된다.
+  const flat = join(WALLET_DIR, `${name}.json`);
+  const nested = join(WALLET_DIR, name, `${name}.json`);
+  const raw = readFileSync(existsSync(flat) ? flat : nested, "utf-8");
   return Keypair.fromSecretKey(Uint8Array.from(JSON.parse(raw)));
 }
 
