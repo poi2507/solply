@@ -159,6 +159,9 @@ def align_balance(store_id: str, operating_need: float) -> None:
 
 async def scenario_c() -> None:
     banner("C지점 (부산) — 잔액 부족, 유예 협상 → 예약 실행", "c")
+    # 운영자금 4.0 + 하한 = 어떤 정책값에서도 청구액 7.0을 못 내는 잔액.
+    # 지갑 잔액·정책이 어떻게 남아 있든(새 DB 포함) '잔액 부족' 전제를 성립시킨다.
+    align_balance("store-c", 4.0)
     issued = await act("hq", "invoice.issue", "본사", "hq", delivery_id="DEL-003")
     invoice_id = issued.get("invoice_id")
     if not invoice_id:

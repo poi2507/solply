@@ -158,10 +158,18 @@ def propose_deferral(state: StoreState) -> dict:
     cash = state["cashflow"]
     forecast = cash.get("pos_forecast", {})
     when = forecast.get("inflow_date", "다음 정산일")
-    reason = (
-        f"현재 잔액 {cash['wallet_usdc']} USDC로 청구액 {cash['invoice_amount_usdc']} USDC 부족. "
-        f"{forecast.get('note', '')}"
-    ).strip()
+    # 못 내는 이유는 둘이다: 잔액 자체가 모자라거나, 내고 나면 하한이 깨지거나.
+    if not cash.get("sufficient", True):
+        shortage = (
+            f"현재 잔액 {cash['wallet_usdc']} USDC로 청구액 "
+            f"{cash['invoice_amount_usdc']} USDC 부족."
+        )
+    else:
+        shortage = (
+            f"청구액 {cash['invoice_amount_usdc']} USDC를 내면 잔액이 "
+            f"최소 보유 기준 {cash.get('min_reserve_usdc', 0)} USDC 아래로 내려갑니다."
+        )
+    reason = f"{shortage} {forecast.get('note', '')}".strip()
     proposal = tools.propose_deferral(state["store_id"], state["invoice_id"], when, reason)
 
     deferred = utils.pick_term(state.get("x402_terms", []), "deferred")
