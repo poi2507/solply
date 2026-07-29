@@ -178,6 +178,22 @@ def refuse_payment(store_id: str, invoice_id: str, reason: str) -> dict:
     return {"status": "refused", "escalated_to_human": True, "reason": reason}
 
 
+def record_sales(store_id: str, sku: str, qty: int, note: str = "POS 판매 집계") -> dict:
+    """판매 소진을 재고 원장에 반영한다 — 실서비스에선 POS 연동이 이 자리를 채운다."""
+    inventory = utils.effective_inventory(store_id)
+    entry = inventory.get(sku)
+    if not entry or entry["qty"] <= 0:
+        return utils.error(f"판매할 재고 없음: {store_id}/{sku}")
+
+    qty = min(int(qty), entry["qty"])
+    move = utils.record_move(store_id, sku, entry.get("name", sku), -qty, "sold", note)
+    utils.log(
+        utils.actor_name(store_id), "inventory.sold",
+        {"sku": sku, "qty": qty, "note": note, "move_id": move["id"]},
+    )
+    return {"sold": qty, "remaining": entry["qty"] - qty}
+
+
 # ── 지점 간 직거래 (P2P) ─────────────────────────────────────────────
 
 def check_inventory(store_id: str) -> dict:
@@ -202,9 +218,12 @@ def find_peer_supply(store_id: str, sku: str, qty: int) -> dict:
 
 def propose_p2p_trade(store_id: str, seller_id: str, sku: str, name: str, qty: int, price_usdc: float) -> dict:
     """잉여 지점에 재고 직거래를 제안한다. 대금은 구매 지점이 판매 지점에 직접 낸다."""
+    seq = len(db.list_docs("p2p_trades")) + 1
+    while db.get("p2p_trades", f"P2P-{seq:02d}"):
+        seq += 1
     trade = db.put(
         "p2p_trades",
-        db.new_id("P2P"),
+        f"P2P-{seq:02d}",
         {
             "sku": sku, "name": name, "qty": qty, "price_usdc": price_usdc,
             "buyer_id": store_id, "seller_id": seller_id,

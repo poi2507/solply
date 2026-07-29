@@ -119,6 +119,19 @@ def test_approval_guards_status_and_existence():
     assert client.post("/api/approvals/INV-ghost/decide", json={"decision": "approve"}).status_code == 404
 
 
+# ── 청구서 번호는 사람이 읽는다 ──────────────────────────────────────
+
+def test_invoice_ids_are_human_readable():
+    """INV-0729-B01 — 화면·영상·온체인 memo에서 그대로 읽히는 번호."""
+    import re
+
+    invoice = hq_tools.create_invoice("DEL-002")
+    assert re.fullmatch(r"INV-\d{4}-B\d{2,}", invoice["id"]), invoice["id"]
+
+    second = hq_tools.create_invoice("DEL-002")
+    assert second["id"] != invoice["id"], "같은 지점 연속 발행도 번호가 겹치면 안 된다"
+
+
 # ── 대시보드 정합성 ──────────────────────────────────────────────────
 
 def test_outstanding_excludes_split_and_refused():

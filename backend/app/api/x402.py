@@ -138,6 +138,15 @@ def trade_settle(
 
     if verified:
         store.update("p2p_trades", trade_id, {"status": "confirmed", "tx_sig": signature})
+        # 인수 확정 = 재고 이동 — 판 쪽은 줄고 산 쪽은 는다 (재고 원장)
+        from app.agents import utils as agent_utils
+
+        agent_utils.record_move(
+            trade["seller_id"], trade["sku"], trade["name"], -trade["qty"], "p2p_out", trade_id
+        )
+        agent_utils.record_move(
+            trade["buyer_id"], trade["sku"], trade["name"], trade["qty"], "p2p_in", trade_id
+        )
     store.log_event(
         f"{trade['seller_id']}-agent",
         "p2p.confirmed" if verified else "p2p.verification_failed",

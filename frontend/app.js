@@ -71,7 +71,7 @@ function renderStores(stores, targetId = "stores") {
   if (!stores.length) { el.innerHTML = '<div class="empty">가맹점 정보가 없습니다</div>'; return; }
   el.innerHTML = stores.map((s) => `
     <article class="store">
-      <div class="top"><span class="name">${esc(s.name)}</span><span class="score">${s.creditScore}</span></div>
+      <div class="top"><span class="name">${esc(s.name)}</span><span class="score ${s.creditScore >= 85 ? "hi" : "mid"}">${s.creditScore}</span></div>
       <div class="id">${esc(s.id)}</div>
       <div class="gauge"><i style="width:${Math.min(100, s.creditScore)}%"></i></div>
       ${s.creditBasis ? `<div class="basis">정시납 ${s.creditBasis.onTime}${s.creditBasis.liveSettled ? ` <em>+${s.creditBasis.liveSettled} 온체인</em>` : ""} · 연체 ${s.creditBasis.late} · 분쟁 ${s.creditBasis.disputed}</div>` : ""}
@@ -108,7 +108,7 @@ function amountCell(inv) {
   const now = fmt(inv.amount_usdc);
   const before = inv.original_amount_usdc;
   if (before == null || Number(before) === Number(inv.amount_usdc)) return now;
-  return `<span class="dash">${fmt(before)} →</span> ${now}`;
+  return `<span class="dash">${fmt(before)} →</span> <b class="amt-chg">${now}</b>`;
 }
 
 function invoiceRow({ inv, child }, network, firstPaint) {
@@ -385,7 +385,7 @@ function eventRow(evt, isNew) {
   return `<li class="${isNew ? "new" : ""}">
     <span class="t">${clock(evt.ts)}</span>
     <span class="what">
-      <span class="who">${esc(evt.actor.replace("-agent", ""))}</span><span class="act">${esc(label)}</span>
+      <span class="who">${esc(evt.actor.replace("-agent", ""))}</span><span class="act ${toneOf(evt)}">${esc(label)}</span>
       ${meta ? `<span class="meta">${esc(meta)}</span>` : ""}
     </span>
   </li>`;
@@ -418,6 +418,17 @@ if (reportBtn) {
   });
 }
 
+/** 말풍선용 경량 마크다운 — 굵게·코드·목록·헤딩만. 전부 이스케이프한 뒤에 입힌다. */
+function mdLite(text) {
+  let h = esc(text);
+  h = h.replace(/`([^`\n]+)`/g, "<code>$1</code>");
+  h = h.replace(/\*\*([^*\n]+)\*\*/g, "<b>$1</b>");
+  h = h.replace(/^#{1,4}\s*(.+)$/gm, "<b>$1</b>");     // 헤딩은 굵은 줄로
+  h = h.replace(/^(\s*)[-*]\s+/gm, "$1· ");            // 불릿
+  h = h.replace(/^-{3,}\s*$/gm, "");                   // 구분선 제거
+  return h.replace(/\n{3,}/g, "\n\n");
+}
+
 const chatForm = $("chat-form");
 if (chatForm) {
   const log = $("chat-log");
@@ -425,7 +436,8 @@ if (chatForm) {
   const append = (text, who) => {
     const li = document.createElement("li");
     li.className = `msg ${who}`;
-    li.textContent = text;
+    if (who === "bot") li.innerHTML = mdLite(text);
+    else li.textContent = text;
     log.appendChild(li);
     log.scrollTop = log.scrollHeight;
     return li;
@@ -445,7 +457,8 @@ if (chatForm) {
         body: JSON.stringify({ message }),
       });
       const data = await res.json();
-      waiting.textContent = res.ok ? data.reply : (data.detail ?? "응답 실패");
+      if (res.ok) waiting.innerHTML = mdLite(data.reply);
+      else waiting.textContent = data.detail ?? "응답 실패";
     } catch {
       waiting.textContent = "연결에 실패했습니다.";
     } finally {
@@ -460,6 +473,48 @@ if (chatForm) {
 let me = null;          // 현재 역할
 let lastWallets = [];   // 지표에서 재사용
 let lastView = null;    // 지갑이 늦게 도착하면 지표만 다시 그린다
+
+// ── 재고 원장 ────────────────────────────────────────────────────────
+const MOVE_LABEL = { received: "입고", shipped: "출고", sold: "판매", p2p_in: "직거래 입고", p2p_out: "직거래 출고" };
+const storeLabel = (id) => (id === "hq" ? "본사 창고" : id);
+
+function stockBar(qty, safety) {
+  // 막대의 눈금: 안전재고의 2배(최소 보유량과 여유가 함께 보이는 배율)와 현재고 중 큰 쪽
+  const denom = Math.max(qty, safety * 2, 1);
+  const fill = Math.max(2, Math.min(100, (qty / denom) * 100));
+  const tick = safety > 0 ? Math.min(100, (safety / denom) * 100) : null;
+  return `<div class="stockbar ${qty < safety ? "low" : ""}">
+    <i style="width:${fill}%"></i>${tick != null ? `<b style="left:${tick}%" title="안전재고 ${safety}"></b>` : ""}
+  </div>`;
+}
+
+function renderInventory(rows, moves) {
+  const table = $("stock-table");
+  if (!table) return;
+
+  table.innerHTML = rows.length
+    ? rows.map((r) => `<tr>
+        <td class="col-store">${esc(r.store)}</td>
+        <td>${esc(r.name)}</td>
+        <td class="r stock-qty"><b>${r.qty}</b><i> / 안전 ${r.safety}</i></td>
+        <td class="stockbar-cell">${stockBar(r.qty, r.safety)}</td>
+        <td><span class="state ${r.qty < r.safety ? "disputed" : "settled"}">${r.qty < r.safety ? "안전재고 미달" : "정상"}</span></td>
+      </tr>`).join("")
+    : '<tr><td colspan="5" class="empty">재고 데이터가 없습니다</td></tr>';
+
+  const list = $("stock-moves");
+  if (!list) return;
+  const shown = (moves ?? []).slice(0, 8);
+  const count = $("mv-count");
+  if (count) count.textContent = moves?.length ? `${moves.length}건 기록됨` : "";
+  list.innerHTML = shown.map((m) => `
+    <div class="move">
+      <span class="mv-t">${clock(m.updated_at)}</span>
+      <span class="mv-chip ${esc(m.reason)}">${MOVE_LABEL[m.reason] ?? m.reason}</span>
+      <span class="mv-what"><b>${esc(m.name)}</b> · ${esc(storeLabel(m.store_id))} <span class="mono-ref">${esc(m.ref)}</span></span>
+      <span class="mv-qty ${m.qty > 0 ? "in" : "out"}">${m.qty > 0 ? "+" : ""}${m.qty}</span>
+    </div>`).join("") || '<div class="empty">아직 재고 이동이 없습니다</div>';
+}
 
 function renderMetrics(cards) {
   $("metrics").innerHTML = cards.map((c) => `
@@ -511,6 +566,20 @@ async function refresh() {
     }
 
     renderInvoices(view.invoices, ov.network);
+
+    // 재고 원장은 화면 권한대로 — 지점은 자기 것, 본사는 자기 창고, 관리자는 전부.
+    // (P2P 심사 때 시스템이 지점 잉여를 검증하는 것과 화면 노출은 별개다)
+    const asRows = (s) => (s.inventory ?? []).map((i) => ({ store: s.id, ...i }));
+    const hqRows = (ov.hqInventory ?? []).map((i) => ({ store: "본사 창고", ...i }));
+    const stockRows =
+      me.kind === "store" ? (view.stores ?? []).flatMap(asRows)
+      : me.kind === "hq" ? hqRows
+      : [...hqRows, ...(ov.stores ?? []).flatMap(asRows)];
+    const stockMoves =
+      me.kind === "store" ? view.inventoryMoves
+      : me.kind === "hq" ? (ov.inventoryMoves ?? []).filter((m) => m.store_id === "hq")
+      : ov.inventoryMoves;
+    renderInventory(stockRows, stockMoves);
     renderNegotiations(view.negotiations);
     renderTrades(view.trades);
     renderSchedules(view.invoices);

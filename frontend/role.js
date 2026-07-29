@@ -62,6 +62,7 @@ export function scope(role, overview) {
     trades: (overview.trades ?? []).filter(
       (t) => t.buyer_id === role.id || t.seller_id === role.id,
     ),
+    inventoryMoves: (overview.inventoryMoves ?? []).filter((m) => m.store_id === role.id),
   };
 }
 
@@ -78,27 +79,27 @@ export function metricsFor(role, scoped, wallets) {
       ? `정시납 ${me.creditBasis.onTime} · 연체 ${me.creditBasis.late}`
       : "납부 이력 기준";
     return [
-      { label: "납부 완료", value: sum(settled), unit: "USDC", foot: `${settled.length}건` },
+      { label: "납부 완료", value: sum(settled), unit: "USDC", foot: `${settled.length}건`, accent: true },
       { label: "납부할 금액", value: sum(open), unit: "USDC", foot: `${open.length}건`, warn: open.length > 0 },
       { label: "내 신용점수", value: me.creditScore ?? 0, unit: "점", foot: basis, plain: true },
-      { label: "지갑 잔액", value: wallet?.usdc, unit: "USDC", foot: wallet ? "결제 가능액" : "조회 중…", accent: true },
+      { label: "지갑 잔액", value: wallet?.usdc, unit: "USDC", foot: wallet ? "결제 가능액" : "조회 중…" },
     ];
   }
 
   const t = scoped.totals;
   if (role.kind === "admin") {
     return [
-      { label: "온체인 정산", value: t.settledUsdc, unit: "USDC", foot: `${t.settledCount}건` },
+      { label: "온체인 정산", value: t.settledUsdc, unit: "USDC", foot: `${t.settledCount}건`, accent: true },
       { label: "에이전트 협상", value: t.negotiations, unit: "건", foot: "자동 합의", plain: true },
-      { label: "사람 개입", value: t.humanActions, unit: "회", foot: "버튼을 누른 횟수", accent: true, plain: true },
+      { label: "사람 개입", value: t.humanActions, unit: "회", foot: "버튼을 누른 횟수", plain: true },
       { label: "청구서 총계", value: t.invoices, unit: "건", foot: "발행 누계", plain: true },
     ];
   }
 
   return [
-    { label: "정산 완료", value: t.settledUsdc, unit: "USDC", foot: `${t.settledCount}건` },
+    { label: "정산 완료", value: t.settledUsdc, unit: "USDC", foot: `${t.settledCount}건`, accent: true },
     { label: "미수금", value: t.outstandingUsdc, unit: "USDC", foot: `${t.outstandingCount ?? 0}건`, warn: (t.outstandingUsdc ?? 0) > 0 },
     { label: "에이전트 협상", value: t.negotiations, unit: "건", foot: "자동 합의", plain: true },
-    { label: "사람 개입", value: t.humanActions, unit: "회", foot: "버튼을 누른 횟수", accent: true, plain: true },
+    { label: "사람 개입", value: t.humanActions, unit: "회", foot: "버튼을 누른 횟수", plain: true },
   ];
 }

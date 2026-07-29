@@ -64,7 +64,15 @@ def overview() -> dict:
         )
 
     trades = store.list_docs("p2p_trades")
+    moves = store.list_docs("inventory_moves")
     return {
+        "inventoryMoves": sorted(moves, key=lambda m: m.get("updated_at", ""), reverse=True)[:40],
+        # 본사 창고 원장 — 본사 화면은 지점 재고가 아니라 자기 창고를 본다
+        "hqInventory": [
+            {"sku": sku, "name": entry.get("name", sku),
+             "qty": entry["qty"], "safety": entry["safety"]}
+            for sku, entry in agent_utils.effective_inventory("hq").items()
+        ],
         "network": config.NETWORK,
         "totals": {
             "invoices": len(invoices),

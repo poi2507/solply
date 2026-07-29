@@ -46,18 +46,48 @@ def test_fixture_seeds_the_scenario(monkeypatch):
     assert utils.sellable_surplus(inv_a, "CHK-10") >= shortages[0]["need"]
 
 
-def test_confirmed_trade_moves_inventory(monkeypatch):
-    """확정된 거래만 재고를 옮긴다 — 산 쪽은 늘고 판 쪽은 준다."""
-    trades = [
-        {"sku": "CHK-10", "qty": 4, "status": "confirmed", "buyer_id": "store-b", "seller_id": "store-a"},
-        {"sku": "CHK-10", "qty": 2, "status": "proposed", "buyer_id": "store-b", "seller_id": "store-a"},
+def test_inventory_moves_shift_stock(monkeypatch):
+    """현재고 = 시드 + 재고 원장의 합 — 입고·판매·직거래가 전부 이동으로 계산된다."""
+    moves = [
+        {"store_id": "store-b", "sku": "CHK-10", "name": "냉장 닭", "qty": 4, "reason": "p2p_in", "ref": "P2P-01"},
+        {"store_id": "store-a", "sku": "CHK-10", "name": "냉장 닭", "qty": -4, "reason": "p2p_out", "ref": "P2P-01"},
+        {"store_id": "store-a", "sku": "CHK-10", "name": "냉장 닭", "qty": 10, "reason": "received", "ref": "DEL-001"},
     ]
     monkeypatch.setattr(
         "app.db.store.list_docs",
-        lambda collection, **k: trades if collection == "p2p_trades" else [],
+        lambda collection, **k: (
+            [m for m in moves if m["store_id"] == k.get("store_id")]
+            if collection == "inventory_moves" else []
+        ),
     )
     assert utils.effective_inventory("store-b")["CHK-10"]["qty"] == 0 + 4
-    assert utils.effective_inventory("store-a")["CHK-10"]["qty"] == 10 - 4
+    assert utils.effective_inventory("store-a")["CHK-10"]["qty"] == 10 - 4 + 10
+
+
+def test_delivery_writes_shipment_and_receipt_pair():
+    """납품 = 본사 출고(발주 수량) ↔ 지점 입고(검수 수량) — 두 수량의 차이가 곧 분쟁이다."""
+    from app.agents.hq import tools as hq_tools
+
+    before = len(db.list_docs("inventory_moves"))
+    hq_tools.create_invoice("DEL-002")  # 발주 10, 검수 9
+    moves = [m for m in db.list_docs("inventory_moves")[before:] if m["sku"] == "CHK-10"]
+
+    shipped = next(m for m in moves if m["reason"] == "shipped")
+    received = next(m for m in moves if m["reason"] == "received")
+    assert shipped["store_id"] == "hq" and shipped["qty"] == -10
+    assert received["store_id"] == "store-b" and received["qty"] == 9
+    assert shipped["qty"] + received["qty"] == -1, "출고-입고 차이 1개 = 검수 분쟁 근거"
+
+
+def test_sales_never_go_below_zero():
+    """판매 기록은 보유 수량까지만 — 원장이 음수 재고를 만들지 않는다."""
+    from app.agents.store import tools as store_tools
+
+    current = store_tools.check_inventory("store-c")["inventory"]["CHK-10"]["qty"]
+    result = store_tools.record_sales("store-c", "CHK-10", current + 999, "테스트")
+    assert result["sold"] == current
+    assert store_tools.check_inventory("store-c")["inventory"]["CHK-10"]["qty"] == 0
+    assert store_tools.record_sales("store-c", "CHK-10", 1, "테스트")["error"]
 
 
 def test_sellable_surplus_respects_multiplier():

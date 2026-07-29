@@ -230,6 +230,15 @@ async def scenario_e() -> None:
     banner("B지점 ⇄ A지점 — 가맹점 간 재고 직거래, 본사는 심판", "b")
     simulate_card_settlement("store-b", 2.0)
 
+    # 주말 피크 — 입고된 닭이 전부 팔려나간다 (실서비스에선 POS 연동, 재고 원장에 기록)
+    from app.agents.store import tools as store_tools
+
+    stock = store_tools.check_inventory("store-b")["inventory"].get("CHK-10", {})
+    if stock.get("qty", 0) > 0:
+        sold = store_tools.record_sales("store-b", "CHK-10", stock["qty"], "주말 피크 판매")
+        if not sold.get("error"):
+            print(f"  {C['dim']}🍗 주말 피크 — 냉장 닭 {sold['sold']}개 판매 소진 (재고 원장 기록){C['0']}")
+
     # 1) 구매측(B): 재고 점검 → 조달 경로 비교 → 직거래 제안
     proposed = await act("store", "restock.check", "B지점", "b", store_id="store-b")
     trade_id = (proposed.get("trade") or {}).get("id")

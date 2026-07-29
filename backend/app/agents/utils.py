@@ -58,24 +58,38 @@ def get_trade(trade_id: str) -> dict | None:
     return store.get("p2p_trades", trade_id)
 
 
-def effective_inventory(store_id: str) -> dict[str, dict]:
-    """현재 재고 = 시드 재고(fixtures) ± 확정된 지점 간 직거래.
+def record_move(store_id: str, sku: str, name: str, qty: int, reason: str, ref: str) -> dict:
+    """재고 이동을 원장에 기록한다 — 입고(received)·판매(sold)·직거래(p2p_in/p2p_out).
 
-    거래가 확정되면 산 쪽은 늘고 판 쪽은 준다. 데모 초기화(db.reset)가 거래를
+    현재고는 항상 '시드 + 이동의 합'으로 계산되므로, 재고를 바꾸는 모든 사건은
+    반드시 여기를 지나야 한다. ERP의 재고 원장에 해당한다.
+    """
+    seq = len(store.list_docs("inventory_moves")) + 1
+    while store.get("inventory_moves", f"MOV-{seq:03d}"):
+        seq += 1
+    return store.put(
+        "inventory_moves",
+        f"MOV-{seq:03d}",
+        {"store_id": store_id, "sku": sku, "name": name, "qty": qty,
+         "reason": reason, "ref": ref},
+    )
+
+
+def effective_inventory(store_id: str) -> dict[str, dict]:
+    """현재 재고 = 시드 재고(fixtures) + 재고 원장(inventory_moves)의 합.
+
+    입고·판매·직거래가 전부 이동으로 기록되고, 데모 초기화(db.reset)가 이동을
     지우면 재고도 시드값으로 돌아온다 — 반복 리허설에 안전하다.
     """
     inventory = {
         sku: dict(entry)
         for sku, entry in fixtures.load().get("inventory", {}).get(store_id, {}).items()
     }
-    for trade in store.list_docs("p2p_trades"):
-        if trade["status"] != "confirmed":
-            continue
-        if trade["buyer_id"] == store_id:
-            entry = inventory.setdefault(trade["sku"], {"name": trade["sku"], "qty": 0, "safety": 0})
-            entry["qty"] += trade["qty"]
-        elif trade["seller_id"] == store_id and trade["sku"] in inventory:
-            inventory[trade["sku"]]["qty"] -= trade["qty"]
+    for move in store.list_docs("inventory_moves", store_id=store_id):
+        entry = inventory.setdefault(
+            move["sku"], {"name": move.get("name", move["sku"]), "qty": 0, "safety": 0}
+        )
+        entry["qty"] += move["qty"]
     return inventory
 
 

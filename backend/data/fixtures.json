@@ -66,6 +66,11 @@
     ]
   },
   "inventory": {
+    "hq": {
+      "CHK-10": { "name": "냉장 닭 10kg", "qty": 80, "safety": 20 },
+      "VEG-05": { "name": "모둠 야채 5kg", "qty": 30, "safety": 10 },
+      "SAU-01": { "name": "시그니처 소스 1box", "qty": 20, "safety": 5 }
+    },
     "store-a": {
       "CHK-10": {
         "name": "냉장 닭 10kg",

@@ -86,6 +86,23 @@
         </div>
       </section>
 
+      <section class="panel" data-role="hq store admin">
+        <div class="panel-head">
+          <h2>재고 원장</h2>
+          <span class="hint">입고 · 출고 · 판매 · 지점 간 이동이 전부 기록으로 남습니다</span>
+        </div>
+        <div class="tablewrap">
+          <table class="ledger">
+            <thead>
+              <tr><th class="col-store">지점</th><th>품목</th><th class="r">현재고</th><th>수준</th><th>상태</th></tr>
+            </thead>
+            <tbody id="stock-table"></tbody>
+          </table>
+        </div>
+        <div class="mv-head"><span>최근 이동</span><span id="mv-count"></span></div>
+        <div id="stock-moves" class="mv-list"></div>
+      </section>
+
       <section class="panel" data-role="hq store" id="approvals-panel" style="display:none">
         <div class="panel-head">
           <h2>사람 승인 대기</h2>

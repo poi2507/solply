@@ -11,6 +11,22 @@ from app.solana import payments
 ACTOR = utils.actor_name()
 
 
+def _invoice_id(store_id: str) -> str:
+    """사람이 읽는 청구서 번호 — INV-0729-B01 (날짜·지점·순번).
+
+    무작위 16진수는 화면·영상·온체인 memo 어디서도 읽히지 않는다.
+    번호는 지점별 발행 수에서 나오고, 데모 초기화 시 함께 리셋된다.
+    """
+    from datetime import UTC, datetime, timedelta
+
+    day = (datetime.now(UTC) + timedelta(hours=9)).strftime("%m%d")  # KST 기준 날짜
+    initial = store_id.rsplit("-", 1)[-1][:1].upper()
+    seq = len(store.list_docs("invoices", store_id=store_id)) + 1
+    while store.get("invoices", f"INV-{day}-{initial}{seq:02d}"):
+        seq += 1
+    return f"INV-{day}-{initial}{seq:02d}"
+
+
 def create_invoice(delivery_id: str) -> dict:
     """납품 완료 이벤트로부터 청구서를 생성한다."""
     delivery = fixtures.load()["deliveries"].get(delivery_id)
@@ -18,7 +34,7 @@ def create_invoice(delivery_id: str) -> dict:
         return utils.error(f"납품 건 없음: {delivery_id}")
 
     amount = utils.line_total(delivery["items"])
-    invoice_id = store.new_id("INV")
+    invoice_id = _invoice_id(delivery["store_id"])
     invoice = store.put(
         "invoices",
         invoice_id,
@@ -32,6 +48,17 @@ def create_invoice(delivery_id: str) -> dict:
         },
     )
     utils.log(ACTOR, "invoice.created", {"invoice_id": invoice_id, "amount": amount})
+
+    # 납품 = 본사 창고 출고(발주 수량) ↔ 지점 입고(검수 수량).
+    # 두 수량의 차이가 곧 검수 분쟁이다 — 원장이 분쟁을 숫자로 보여준다.
+    received = utils.receiving_log(delivery["store_id"], delivery_id)
+    for item in delivery["items"]:
+        utils.record_move("hq", item["sku"], item["name"], -item["qty"], "shipped", delivery_id)
+        qty = received.get(item["sku"], 0)
+        if qty > 0:
+            utils.record_move(
+                delivery["store_id"], item["sku"], item["name"], qty, "received", delivery_id
+            )
     return invoice
 
 
