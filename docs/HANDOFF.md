@@ -58,37 +58,38 @@ make demo-mock                         # 6종(A→B→E→D→C→F) 완주 + �
 어긋나면 `frontend/style.css`의 `--line`(구분선)·`--raise`(펼친 배경) 대비만 만지면 된다.
 색은 `--accent`(강조) 하나 + `--good/--warn/--risk`(의미) 셋이라는 규칙을 깨지 말 것.
 
-### 2. Cloud Run 배포 (wbs 3.2~3.7) ⏱️반나절 — **오늘의 본체**
+### 2. Cloud Run 배포 ✅ 완료 (7/29 밤, 집 맥)
 
-지금 **Dockerfile이 둘 다 없다.** 순서대로:
+**라이브 URL: https://solply-api-965647250280.us-central1.run.app**
 
-**① `payments/Dockerfile`** — `node:24-slim`, `npm ci`, `npm start`(tsx).
-Cloud Run이 주는 `PORT`는 `src/index.ts:53`이 이미 읽는다.
+| 자원 | 이름 | 비고 |
+|---|---|---|
+| Cloud Run 서비스 | `solply-api` (공개) | FastAPI+대시보드+에이전트. 루트 `Dockerfile` (frontend 포함) |
+| Cloud Run 서비스 | `solply-payments` (**비공개**) | 지갑 키 보유. backend SA만 `run.invoker` |
+| Cloud Run Job | `solply-demo` | 같은 이미지로 demo.py 실행 — **심사용 화면을 언제든 재생성** |
+| Cloud SQL | `solply-db` (Postgres 16, us-central1) | 커넥터(`/cloudsql/...`)로 연결 |
+| Secret Manager | `solply-wallet-{hq,store-a,b,c}` | 지갑별 디렉터리로 마운트 |
+| 서비스 계정 | `solply-backend` / `solply-payments` | vertex·sql·invoker / secret 접근 |
 
-**② `backend/Dockerfile`** — `python:3.13-slim` + uv, `uv sync --frozen`, uvicorn `--port $PORT`.
-대시보드 정적 파일이 `/assets`로 서빙되므로 **`frontend/`도 이미지에 들어가야 한다** →
-빌드 컨텍스트를 레포 루트로 잡을 것 (`gcloud run deploy --source .` 대신 루트 기준 Dockerfile).
+라이브 데모 재실행: `gcloud run jobs execute solply-demo --region us-central1`
+(Vertex 판단 + devnet 결제가 전부 클라우드 안에서 돈다. 새 이미지 배포 후에는
+`gcloud run jobs update solply-demo --image <새 이미지>` 먼저.)
 
-**③ 지갑 키 → Secret Manager**
+재배포(백엔드): 레포 루트에서 — **반드시 루트에서**. backend/에서 돌리면 Dockerfile을
+못 찾고 buildpack으로 빠져 죽은 리비전이 생긴다 (7/29에 실제로 겪음, rev 00003).
 ```bash
-for w in hq store-a store-b store-c; do
-  gcloud secrets create solply-wallet-$w --data-file="$HOME/.config/solana/solply/$w.json"
-done
+gcloud run deploy solply-api --source /절대/경로/레포루트 --clear-base-image --region us-central1 ...
 ```
-결제 서비스에 볼륨으로 마운트하고 `SOLPLY_WALLET_DIR=/secrets/wallets`.
-**파일명이 `<지갑>.json`으로 떨어지게** 마운트해야 한다 — `payments/src/solana.ts:39`가 그 이름으로 읽는다.
+전체 명령은 커밋 `2ea1188` 메시지와 이 파일의 git 이력에 있다. DB 비밀번호는
+`~/.config/solply-cloudsql-pass` (집 맥, git 밖).
 
-**④ 저장소** — Cloud SQL Postgres(db-f1-micro) + `SOLPLY_STORE=postgres` + `DATABASE_URL`.
-시간이 없으면 `SOLPLY_STORE=local`로 먼저 띄워도 데모는 돈다(컨테이너 재시작 시 초기화).
-심사자가 직접 눌러볼 URL이라면 데이터가 남는 게 설명이 되므로 Cloud SQL 권장.
-
-**⑤ 배포 순서** — 결제 서비스 먼저, URL을 받아 백엔드 `PAYMENTS_API_URL`에 넣는다.
-**결제 서비스는 공개하지 않는다** (`--no-allow-unauthenticated`): 지갑 키를 쥔 서비스다.
-백엔드 서비스 계정에만 `roles/run.invoker`를 준다. **이 분리 자체가 발표 재료다** —
-"에이전트가 돈을 만지는 경로는 인터넷에 열려 있지 않다".
-
-**⑥ 스모크(3.7)** — 라이브 `/api/health`가 `network: devnet`·`llm: vertex`를 답하는지,
-그 URL에서 데모 한 바퀴, explorer 링크 클릭까지.
+**배포에서 배운 것 (코드에 반영됨):**
+- Cloud Run은 한 디렉터리에 시크릿 하나 → `loadKeypair`가 `<dir>/hq/hq.json` 폴백 지원
+- 비공개 서비스 호출은 ID 토큰 필요 → `app/solana/payments.py`가 메타데이터 서버에서
+  받아 붙인다 (로컬엔 메타데이터 서버가 없어 자동으로 무인증 — 개발 흐름 불변)
+- **시나리오 C의 전제가 로컬 DB의 사용자 정책(min_reserve=10)에 숨어 있었다** —
+  새 DB에선 기본값 2라 C가 그냥 결제해버림. `align_balance("store-c", 4.0)`로
+  어떤 정책값에서도 전제가 성립하게 고정 (커밋 `f4a4535`)
 
 ### 3. 영상 대본 (4.5) ⏱️1시간
 

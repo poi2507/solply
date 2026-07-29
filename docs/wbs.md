@@ -150,19 +150,19 @@ Firestore 백엔드, 위 DB 백로그 1·2·4·5, pay.sh(Discord 답변 오면),
 
 **남은 확인**: 브라우저로 눈으로 본 적이 없다(렌더 결과만 검증). HANDOFF §1이 그 체크리스트.
 
-## Phase 3 — 배포 (7/29 수) · 결제 해결로 전부 언블록
+## Phase 3 — 배포 ✅ 완료 (7/29 밤, 집 맥) — 라이브 URL: https://solply-api-965647250280.us-central1.run.app
 
 | ID | 작업 | 담당 | 산출물 | 의존 |
 |---|---|---|---|---|
 | 3.1 | ✅ GCP 결제 수단 해결 (7/28) | 👤 | 미납 입금 → 계정 재개 → **$300 크레딧 전액 재지급** | — |
 | 3.2 | ✅ GCP 프로젝트·API 활성화 + Vertex 전환 (7/28) | 🤝 | `LLM_PROVIDER=vertex`, `make vertex-check` 통과 | 3.1 |
-| 3.3 | Cloud SQL 결정 (db-f1-micro Postgres 권장, 급하면 `SOLPLY_STORE=local`) | 🤖 | 배포용 `DATABASE_URL` | 3.2 |
-| 3.4 | 결제 서비스 Cloud Run 배포 — **`payments/Dockerfile`을 새로 써야 한다** | 🤖 | 서비스 URL (`--no-allow-unauthenticated`) | 3.2 |
-| 3.5 | 백엔드+대시보드 Cloud Run 배포 — **`backend/Dockerfile` 없음. `frontend/`도 이미지에 넣어야 한다** | 🤖 | **라이브 URL** (가산점) | 3.3, 3.4 |
-| 3.6 | Secret Manager로 지갑 키 이전 | 🤖 | `SOLPLY_WALLET_DIR`로 마운트, 파일명 `<지갑>.json` 유지 | 3.5 |
-| 3.7 | 배포 환경 스모크 테스트 | 🤖 | 라이브에서 데모 1회 + explorer 링크 | 3.5 |
+| 3.3 | ✅ Cloud SQL `solply-db` (Postgres 16) | 🤖 | 커넥터로 연결, 비밀번호는 집 맥 `~/.config/solply-cloudsql-pass` | 3.2 |
+| 3.4 | ✅ 결제 서비스 `solply-payments` (비공개) | 🤖 | 지갑 시크릿은 지갑별 디렉터리 마운트 | 3.2 |
+| 3.5 | ✅ 백엔드+대시보드 `solply-api` (공개) | 🤖 | **라이브 URL 확보** — 루트 Dockerfile, frontend 포함 | 3.3, 3.4 |
+| 3.6 | ✅ Secret Manager 지갑 키 4개 | 🤖 | `solply-wallet-*`, 이미지에는 키 없음 | 3.5 |
+| 3.7 | ✅ 스모크 — 클라우드 Job(`solply-demo`)으로 6종 완주 | 🤖 | Vertex 판단 + devnet 결제 인클라우드, 협상 3건·explorer 링크 확인 | 3.5 |
 
-**완료 기준**: 인터넷에서 접속 가능한 대시보드 URL이 있고, 거기서 데모가 돈다.
+**완료 기준 충족 (7/29)**: 라이브 대시보드에서 데모 데이터·협상 근거·explorer 링크가 보이고, `gcloud run jobs execute solply-demo`로 언제든 재생성된다.
 
 **설계 결정**: 결제 서비스는 **공개하지 않는다**. 지갑 키를 쥔 유일한 서비스이므로 백엔드
 서비스 계정만 `roles/run.invoker`로 호출한다. "에이전트가 돈을 만지는 경로는 인터넷에
@@ -221,8 +221,8 @@ devnet 리허설(4.3)도 끝났다. 남은 유일한 미완성 기술 항목이 
 |---|---|---|
 | ~~7/27 (일)~~ | LangGraph 전환·정책 DB화 (계획 외 작업으로 소진) | ✅ |
 | ~~7/28 (월)~~ | Phase 1·2·2.5·2.7 완주 · GCP 결제 · devnet 전환 · 화면 재설계 | ✅ **계획을 앞질렀다** |
-| **7/29 (수)** | **인터넷에서 접속되는 URL이 있다** (Phase 3) + 영상 대본·README | ← 오늘 |
-| 7/30 (목) | 예비일 — 배포가 밀렸으면 여기서 끝낸다. 아니면 리허설 반복 | |
+| ~~7/29 (수)~~ | 인터넷에서 접속되는 URL이 있다 (Phase 3) | ✅ |
+| 7/30 (목) | 영상 대본(4.5) + README(4.9) + 리허설 | |
 | 7/31 (금) | devnet 전체 리허설, 촬영 준비 (장면별 `--only`) | |
 | 8/1 (토) | 영상 촬영 | |
 | 8/2 (일) | 영상 편집 + PPT 최종 (팀명·라이브 URL·영상 URL 채우기) | |
