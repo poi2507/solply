@@ -123,18 +123,12 @@ async def scenario_b() -> None:
 
 
 def simulate_card_settlement(store_id: str, invoice_amount: float) -> None:
-    """예약일의 카드정산금 입금 시뮬레이션 — 본사가 카드매출 정산을 대행하는 구조.
+    """예약일의 카드정산금 입금 시뮬레이션 — 로직은 경제 루프와 공용 (economy.ensure_funds)."""
+    from app.core import economy
 
-    '청구액 + 운영 하한'을 채우는 만큼만 넣는다. 데모를 반복해도 지점 잔액이
-    불어나 '잔액 부족' 시나리오가 깨지지 않도록 자기 유지되는 금액이다.
-    """
-    balance = payments.balance(store_id)
-    reserve = policy_mod.get(store_id).min_reserve_usdc
-    needed = round(max(0.0, invoice_amount + reserve - balance["usdc"]), 2)
-    if needed <= 0:
-        return
-    payments.pay("hq", balance["address"], needed, "CARD-SETTLEMENT")
-    print(f"  {C['dim']}💳 카드정산금 {needed} USDC 입금 확인 (지점 지갑){C['0']}")
+    needed = economy.ensure_funds(store_id, invoice_amount)
+    if needed > 0:
+        print(f"  {C['dim']}💳 카드정산금 {needed} USDC 입금 확인 (지점 지갑){C['0']}")
 
 
 def align_balance(store_id: str, operating_need: float) -> None:

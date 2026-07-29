@@ -4,7 +4,6 @@
 """
 
 from app.agents import utils
-from app.core import fixtures
 from app.db import store
 from app.solana import payments
 
@@ -28,8 +27,8 @@ def _invoice_id(store_id: str) -> str:
 
 
 def create_invoice(delivery_id: str) -> dict:
-    """납품 완료 이벤트로부터 청구서를 생성한다."""
-    delivery = fixtures.load()["deliveries"].get(delivery_id)
+    """납품 완료 이벤트로부터 청구서를 생성한다 (시드·동적 납품 모두)."""
+    delivery = utils.get_delivery(delivery_id)
     if not delivery:
         return utils.error(f"납품 건 없음: {delivery_id}")
 

@@ -37,6 +37,10 @@ VERTEX_STORE_MODEL = os.getenv("VERTEX_STORE_MODEL", "gemini-2.5-flash-lite")
 STORE_ID = os.getenv("STORE_ID", "store-a")
 SPEND_LIMIT_USDC = float(os.getenv("AGENT_SPEND_LIMIT_USDC", "50"))
 
+# ── 경제 루프 ──
+# 라이브에서 스케줄러가 굴리는 틱. 촬영·리허설 중에는 0으로 꺼서 상태를 고정한다
+TICK_ENABLED = os.getenv("TICK_ENABLED", "1").lower() not in ("0", "false")
+
 # ── 저장소 ──
 # local | postgres  (Cloud SQL로 옮길 때도 DATABASE_URL만 바꾼다)
 STORE_BACKEND = os.getenv("SOLPLY_STORE", "local")

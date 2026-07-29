@@ -40,9 +40,27 @@ def store_profile(store_id: str) -> dict | None:
     return fixtures.load()["stores"].get(store_id)
 
 
+def get_delivery(delivery_id: str) -> dict | None:
+    """납품 건 — 시드(fixtures)와 동적 생성분(db `deliveries`)을 한 얼굴로."""
+    seeded = fixtures.load()["deliveries"].get(delivery_id)
+    if seeded:
+        return {**seeded, "id": delivery_id}
+    return store.get("deliveries", delivery_id)
+
+
 def receiving_log(store_id: str, delivery_id: str) -> dict[str, int]:
-    """지점의 실제 입고 기록 {sku: qty}."""
-    return fixtures.load()["receiving_logs"].get(store_id, {}).get(delivery_id, {})
+    """지점의 실제 입고 기록 {sku: qty}.
+
+    시드 납품은 fixtures의 검수 기록을, 경제 루프가 만든 동적 납품은
+    납품 문서에 실린 `received`를 본다 (루프 납품은 검수 일치가 기본).
+    """
+    seeded = fixtures.load()["receiving_logs"].get(store_id, {}).get(delivery_id)
+    if seeded is not None:
+        return seeded
+    doc = store.get("deliveries", delivery_id)
+    if doc and doc.get("store_id") == store_id:
+        return doc.get("received", {item["sku"]: item["qty"] for item in doc["items"]})
+    return {}
 
 
 def pos_forecast(store_id: str) -> dict:

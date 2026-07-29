@@ -43,6 +43,15 @@ demo-mock:         ## 데모 3종 — 규칙 기반 (리허설용, 빠름 / 온�
 fund-devnet:       ## devnet SOL을 hq에서 지점 지갑으로 분배 (운영진 수령 후)
 	bash scripts/fund-devnet.sh
 
+devnet:            ## devnet으로 전환 (시연·촬영 — explorer 링크가 살아난다)
+	bash scripts/switch-network.sh devnet
+
+localnet:          ## 로컬넷으로 전환 (개발 — 무제한 리허설)
+	bash scripts/switch-network.sh localnet
+
+tick:              ## 경제 루프 한 바퀴 (판매→카드정산→조달→재입고→예약실행)
+	curl -s -X POST localhost:8080/api/ticks/run | python3 -m json.tool
+
 vertex-check:      ## Vertex AI 전환 준비 상태 점검 (GCP 결제 해결 후)
 	bash scripts/vertex-check.sh
 
