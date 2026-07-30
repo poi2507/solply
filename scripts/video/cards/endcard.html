@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  body {
+    width: 1600px; height: 900px; overflow: hidden;
+    background: #eef1ee;
+    font-family: -apple-system, "Apple SD Gothic Neo", sans-serif;
+    display: flex; align-items: center; justify-content: center;
+    color: #17211b;
+  }
+  body::after { /* 그레인 */
+    content: ""; position: fixed; inset: 0; pointer-events: none; opacity: .045;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  .card { text-align: center; }
+  .mark {
+    width: 74px; height: 74px; border-radius: 20px; margin: 0 auto 26px;
+    background: linear-gradient(135deg, #00d18f, #0ec2d8);
+    box-shadow: 0 14px 40px rgba(10,158,116,.35);
+  }
+  h1 { font-size: 66px; font-weight: 800; letter-spacing: -.02em; }
+  .tag { font-size: 26px; color: #47534b; margin-top: 10px; font-weight: 600; }
+  .url {
+    margin-top: 44px; font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 25px; color: #067a5a; font-weight: 700;
+    background: #fff; border: 1px solid #dde3dd; border-radius: 14px;
+    padding: 16px 34px; display: inline-block;
+    box-shadow: 0 4px 18px rgba(23,33,27,.07);
+  }
+  .stack { margin-top: 28px; font-size: 17.5px; color: #79857c; letter-spacing: .02em; }
+  .stack b { color: #47534b; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="mark"></div>
+    <h1>Solply</h1>
+    <div class="tag">Settle On Ledger, for supply — 식자재 대금 자율 정산</div>
+    <div class="url">solply-api-965647250280.us-central1.run.app</div>
+    <div class="stack"><b>Gemini(Vertex AI) · LangGraph · ADK</b> &nbsp;×&nbsp; <b>Solana devnet · x402 · USDC · pay.sh</b></div>
+  </div>
+</body>
+</html>

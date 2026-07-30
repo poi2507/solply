@@ -1,0 +1,7 @@
+clips/
+work/
+out/
+subs/
+qa/
+node_modules/
+package*.json

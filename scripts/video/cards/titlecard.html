@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  body {
+    width: 1600px; height: 900px; overflow: hidden;
+    background: #eef1ee;
+    font-family: -apple-system, "Apple SD Gothic Neo", sans-serif;
+    display: flex; align-items: center; justify-content: center;
+    color: #17211b; text-align: center;
+  }
+  body::after {
+    content: ""; position: fixed; inset: 0; pointer-events: none; opacity: .045;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  .mark {
+    width: 64px; height: 64px; border-radius: 18px; margin: 0 auto 24px;
+    background: linear-gradient(135deg, #00d18f, #0ec2d8);
+    box-shadow: 0 12px 36px rgba(10,158,116,.35);
+  }
+  h1 { font-size: 58px; font-weight: 800; letter-spacing: -.02em; }
+  .sub { font-size: 24px; color: #47534b; margin-top: 14px; font-weight: 600; line-height: 1.6; }
+  .sub b { color: #067a5a; }
+</style>
+</head>
+<body>
+  <div>
+    <div class="mark"></div>
+    <h1>Solply</h1>
+    <div class="sub">프랜차이즈 식자재 대금, 에이전트가 <b>청구·검수·협상·온체인 정산</b>까지<br>사람 개입 없이 끝냅니다</div>
+  </div>
+</body>
+</html>
