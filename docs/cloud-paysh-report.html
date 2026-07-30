@@ -1,0 +1,564 @@
+<title>솔플라이 — 클라우드 배포 & pay.sh 연동 기록</title>
+<style>
+  :root {
+    --canvas: #eef1ee;
+    --card: #ffffff;
+    --raise: #f4f6f4;
+    --line: #dde3dd;
+    --ink: #17211b;
+    --ink-2: #47534b;
+    --ink-3: #79857c;
+    --accent: #0a9e74;
+    --accent-deep: #067a5a;
+    --cyan: #0e87a8;
+    --warn: #b7791f;
+    --fail: #c0392b;
+    --ok-bg: #e5f5ee;
+    --warn-bg: #faf0dd;
+    --fail-bg: #fbe9e6;
+    --chip-bg: #eef4ef;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+    --shadow: 0 1px 2px rgba(23,33,27,.05), 0 4px 14px rgba(23,33,27,.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --canvas: #131815;
+      --card: #1b211d;
+      --raise: #222925;
+      --line: #313a34;
+      --ink: #e8ede9;
+      --ink-2: #b4beb7;
+      --ink-3: #7d877f;
+      --accent: #34c99a;
+      --accent-deep: #6adfba;
+      --cyan: #4cc3e0;
+      --warn: #e0a94e;
+      --fail: #e5705f;
+      --ok-bg: #16352a;
+      --warn-bg: #382c14;
+      --fail-bg: #3a1f1a;
+      --chip-bg: #232c26;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.25);
+    }
+  }
+  :root[data-theme="light"] {
+    --canvas: #eef1ee; --card: #ffffff; --raise: #f4f6f4; --line: #dde3dd;
+    --ink: #17211b; --ink-2: #47534b; --ink-3: #79857c;
+    --accent: #0a9e74; --accent-deep: #067a5a; --cyan: #0e87a8;
+    --warn: #b7791f; --fail: #c0392b;
+    --ok-bg: #e5f5ee; --warn-bg: #faf0dd; --fail-bg: #fbe9e6; --chip-bg: #eef4ef;
+    --shadow: 0 1px 2px rgba(23,33,27,.05), 0 4px 14px rgba(23,33,27,.05);
+  }
+  :root[data-theme="dark"] {
+    --canvas: #131815; --card: #1b211d; --raise: #222925; --line: #313a34;
+    --ink: #e8ede9; --ink-2: #b4beb7; --ink-3: #7d877f;
+    --accent: #34c99a; --accent-deep: #6adfba; --cyan: #4cc3e0;
+    --warn: #e0a94e; --fail: #e5705f;
+    --ok-bg: #16352a; --warn-bg: #382c14; --fail-bg: #3a1f1a; --chip-bg: #232c26;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.25);
+  }
+
+  body {
+    background: var(--canvas);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", "Segoe UI", sans-serif;
+    line-height: 1.7;
+    font-size: 15px;
+    margin: 0;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 44px 22px 90px; }
+
+  h1 { font-size: 25px; font-weight: 800; letter-spacing: -.02em; margin: 0 0 6px; }
+  h2 { font-size: 18.5px; font-weight: 750; letter-spacing: -.01em; margin: 0; }
+  h3 { font-size: 15px; font-weight: 700; margin: 0 0 8px; }
+  p { margin: 10px 0; color: var(--ink-2); }
+  p strong, li strong { color: var(--ink); }
+  a { color: var(--accent-deep); }
+  code {
+    font-family: var(--mono); font-size: .86em;
+    background: var(--chip-bg); border: 1px solid var(--line);
+    border-radius: 5px; padding: 1px 5px; color: var(--ink);
+    white-space: nowrap;
+  }
+  pre {
+    background: var(--raise); border: 1px solid var(--line); border-radius: 10px;
+    padding: 13px 16px; overflow-x: auto; font-family: var(--mono);
+    font-size: 12.5px; line-height: 1.65; color: var(--ink-2); margin: 12px 0;
+  }
+  pre b { color: var(--accent-deep); font-weight: 700; }
+
+  .lede { font-size: 15.5px; color: var(--ink-2); max-width: 62ch; }
+  .meta-strip {
+    display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 0;
+  }
+  .meta-chip {
+    background: var(--card); border: 1px solid var(--line); border-radius: 999px;
+    padding: 4px 13px; font-size: 12.5px; color: var(--ink-2); box-shadow: var(--shadow);
+  }
+  .meta-chip b { color: var(--ink); font-weight: 700; }
+  .meta-chip .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); margin-right: 6px; vertical-align: 1px; }
+
+  section { margin-top: 52px; }
+  .sec-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 6px; }
+  .sec-no {
+    font-family: var(--mono); font-size: 12px; font-weight: 700;
+    color: var(--accent-deep); letter-spacing: .08em;
+  }
+  .sec-sub { font-size: 13px; color: var(--ink-3); margin: 2px 0 18px; }
+
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 20px 24px; box-shadow: var(--shadow); margin: 14px 0;
+  }
+
+  /* ── 아키텍처 맵 ── */
+  .arch { display: flex; flex-direction: column; gap: 10px; }
+  .arch-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .arch-group {
+    flex: 1 1 260px; border: 1.5px dashed var(--line); border-radius: 12px;
+    padding: 12px 14px 14px; min-width: 240px;
+  }
+  .arch-group > .g-label {
+    font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--ink-3); margin-bottom: 9px;
+  }
+  .arch-group.gcp > .g-label { color: var(--cyan); }
+  .arch-group.sol > .g-label { color: var(--accent-deep); }
+  .node-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+  .node {
+    background: var(--raise); border: 1px solid var(--line); border-radius: 9px;
+    padding: 7px 11px; font-size: 12.5px; flex: 1 1 150px; min-width: 140px;
+  }
+  .node b { display: block; font-size: 12.5px; color: var(--ink); }
+  .node span { font-size: 11.5px; color: var(--ink-3); display: block; line-height: 1.5; }
+  .node.hot { border-color: var(--accent); background: var(--ok-bg); }
+  .node.lock b::after { content: " 🔒"; font-size: 10px; }
+  .arch-links { font-size: 12.5px; color: var(--ink-3); line-height: 2; }
+  .arch-links b { color: var(--ink-2); font-weight: 650; }
+  .arr { color: var(--accent-deep); font-weight: 700; }
+
+  /* ── 타임라인 ── */
+  .tl { list-style: none; margin: 0; padding: 0; position: relative; }
+  .tl::before {
+    content: ""; position: absolute; left: 7px; top: 8px; bottom: 8px;
+    width: 2px; background: var(--line); border-radius: 2px;
+  }
+  .tl > li { position: relative; padding: 0 0 22px 30px; }
+  .tl > li:last-child { padding-bottom: 0; }
+  .tl > li::before {
+    content: ""; position: absolute; left: 1px; top: 7px;
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--accent); border: 2.5px solid var(--card);
+    box-shadow: 0 0 0 1.5px var(--accent);
+  }
+  .tl > li.day::before { background: var(--ink); box-shadow: 0 0 0 1.5px var(--ink-3); }
+  .tl > li.trouble::before { background: var(--fail); box-shadow: 0 0 0 1.5px var(--fail); }
+  .day-badge {
+    display: inline-block; font-size: 12px; font-weight: 800; letter-spacing: .04em;
+    background: var(--ink); color: var(--canvas); border-radius: 6px; padding: 2px 10px;
+    margin-bottom: 4px;
+  }
+  .tl h3 { margin-bottom: 3px; }
+  .tl .when { font-family: var(--mono); font-size: 11px; color: var(--ink-3); margin-left: 7px; font-weight: 400; }
+  .tl p { margin: 4px 0 0; font-size: 13.5px; }
+
+  /* ── 파이프라인 (가로 단계 체인) ── */
+  .chain-scroll { overflow-x: auto; padding: 4px 0 10px; }
+  .chain { display: flex; align-items: stretch; gap: 0; min-width: max-content; }
+  .chain .step {
+    background: var(--raise); border: 1px solid var(--line); border-radius: 10px;
+    padding: 9px 13px; font-size: 12.5px; max-width: 170px; min-width: 118px;
+  }
+  .chain .step b { display: block; color: var(--ink); font-size: 12.5px; margin-bottom: 2px; }
+  .chain .step span { color: var(--ink-3); font-size: 11.5px; line-height: 1.5; display: block; }
+  .chain .step.hot { border-color: var(--accent); background: var(--ok-bg); }
+  .chain .step.bad { border-color: var(--fail); background: var(--fail-bg); }
+  .chain .joint {
+    align-self: center; padding: 0 7px; color: var(--accent-deep);
+    font-weight: 800; font-size: 15px; flex: none;
+  }
+
+  /* ── 표 ── */
+  .tbl-scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); font-weight: 700; white-space: nowrap; }
+  td:first-child { font-family: var(--mono); font-size: 12px; white-space: nowrap; }
+  tr:last-child td { border-bottom: none; }
+  .pill {
+    display: inline-block; font-size: 11px; font-weight: 750; border-radius: 999px;
+    padding: 1.5px 10px; white-space: nowrap;
+  }
+  .pill.ok { background: var(--ok-bg); color: var(--accent-deep); }
+  .pill.bad { background: var(--fail-bg); color: var(--fail); }
+  .pill.warn { background: var(--warn-bg); color: var(--warn); }
+
+  /* ── 시퀀스 (x402 왕복) ── */
+  .seq { display: flex; flex-direction: column; gap: 7px; }
+  .seq-row { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+  .seq-no {
+    flex: none; width: 22px; height: 22px; border-radius: 50%;
+    background: var(--ink); color: var(--canvas); font-size: 11.5px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .seq-dir { flex: none; font-family: var(--mono); font-size: 11px; color: var(--ink-3); width: 108px; }
+  .seq-dir .arr { font-size: 13px; }
+  .seq-body { color: var(--ink-2); }
+  .seq-body b { color: var(--ink); }
+  .seq-row.pay .seq-no { background: var(--accent); }
+  .seq-row.pay .seq-body { color: var(--ink); }
+
+  /* ── 디버깅 카드 ── */
+  .debug-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+  .debug-card { border: 1px solid var(--line); border-radius: 12px; padding: 15px 17px; background: var(--card); box-shadow: var(--shadow); }
+  .debug-card.solved { border-top: 3px solid var(--accent); }
+  .debug-card.failed { border-top: 3px solid var(--fail); }
+  .debug-card h3 { display: flex; justify-content: space-between; align-items: baseline; }
+  .debug-card h3 .rev { font-family: var(--mono); font-size: 11px; color: var(--ink-3); font-weight: 400; }
+  .debug-card dl { margin: 8px 0 0; font-size: 12.5px; }
+  .debug-card dt { font-weight: 750; color: var(--ink-3); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; margin-top: 9px; }
+  .debug-card dd { margin: 2px 0 0; color: var(--ink-2); line-height: 1.6; }
+  .debug-card dd code { white-space: normal; }
+
+  /* ── 강조 박스 ── */
+  .callout {
+    border-left: 3px solid var(--accent); background: var(--ok-bg);
+    border-radius: 0 12px 12px 0; padding: 14px 18px; margin: 16px 0; font-size: 13.5px;
+    color: var(--ink-2);
+  }
+  .callout.amber { border-left-color: var(--warn); background: var(--warn-bg); }
+  .callout b { color: var(--ink); }
+  .callout ul { margin: 6px 0 0; padding-left: 18px; }
+  .callout li { margin: 5px 0; }
+
+  /* ── 실제 라이브 로그 재현 ── */
+  .live-log { font-family: var(--mono); font-size: 12px; line-height: 1.9; }
+  .live-log .t { color: var(--ink-3); margin-right: 8px; }
+  .live-log .who { color: var(--cyan); font-weight: 700; margin-right: 6px; }
+  .live-log .act { color: var(--ink); font-weight: 700; }
+  .live-log .hl { background: var(--ok-bg); border-radius: 4px; padding: 1px 5px; }
+  .live-log div { white-space: nowrap; }
+
+  ul.clean { padding-left: 20px; margin: 8px 0; color: var(--ink-2); font-size: 13.5px; }
+  ul.clean li { margin: 6px 0; }
+  .file-role td:nth-child(1) { color: var(--accent-deep); }
+
+  footer { margin-top: 60px; font-size: 12px; color: var(--ink-3); border-top: 1px solid var(--line); padding-top: 16px; }
+</style>
+
+<div class="wrap">
+
+<header>
+  <h1>솔플라이 — 클라우드 배포 & pay.sh 연동 기록</h1>
+  <p class="lede">7/29 밤(집)부터 7/30(회사)까지, 구글 클라우드에 라이브 시스템을 올리고
+  pay.sh를 연동하기까지의 전 과정. 무엇을 왜 했는지, 어디서 막혔고 어떻게 뚫었는지를 순서대로 담았다.</p>
+  <div class="meta-strip">
+    <span class="meta-chip"><span class="dot"></span>라이브 <b>리비전 00010</b> 서빙 중</span>
+    <span class="meta-chip">자동 틱 <b>10분마다</b> (Cloud Scheduler)</span>
+    <span class="meta-chip">테스트 <b>115개</b> 통과</span>
+    <span class="meta-chip">제출 마감 <b>8/3 23:59</b></span>
+  </div>
+</header>
+
+<!-- ══════════════ 1. 지금 클라우드에 뭐가 돌고 있나 ══════════════ -->
+<section>
+  <div class="sec-head"><span class="sec-no">01</span><h2>지금 클라우드에서 돌고 있는 것</h2></div>
+  <p class="sec-sub">먼저 완성된 그림부터 — 아래 전부가 어제·오늘 이틀 사이에 올라갔다.</p>
+
+  <div class="card arch">
+    <div class="arch-row">
+      <div class="arch-group">
+        <div class="g-label">바깥 세상</div>
+        <div class="node-grid">
+          <div class="node"><b>심사위원 · 방문자</b><span>대시보드(/) 와 손님 페이지(/shop)로 접속해 라이브 경제에 참여</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="arch-row">
+      <div class="arch-group gcp">
+        <div class="g-label">Google Cloud (us-central1)</div>
+        <div class="node-grid">
+          <div class="node hot"><b>Cloud Run · solply-api</b><span>FastAPI + 대시보드 + /shop + 에이전트 그래프. 유일한 공개 입구</span></div>
+          <div class="node lock"><b>Cloud Run · solply-payments</b><span>지갑 열쇠 보관·서명 전담. 비공개 — ID 토큰 인증으로만 호출 가능</span></div>
+          <div class="node"><b>Cloud SQL (Postgres)</b><span>문서(documents) + 증빙 이벤트(events) 두 테이블</span></div>
+          <div class="node"><b>Cloud Scheduler</b><span>10분마다 POST /api/ticks/run — 경제가 스스로 돈다</span></div>
+          <div class="node"><b>Secret Manager</b><span>지갑 키 4개(hq·A·B·C) + DB 비밀번호</span></div>
+          <div class="node"><b>Vertex AI (Gemini)</b><span>본사·지점 에이전트의 판단 두뇌. $300 크레딧으로 결제</span></div>
+        </div>
+      </div>
+      <div class="arch-group sol">
+        <div class="g-label">Solana</div>
+        <div class="node-grid">
+          <div class="node hot"><b>devnet</b><span>본사↔지점 물대 정산, 카드정산, 지점 간 직거래 — 전부 USDC 온체인</span></div>
+          <div class="node"><b>Surfpool 샌드박스</b><span>pay.sh 전용 연습 체인. 시세 데이터 구매 대금이 여기서 지불된다 (실자금 0)</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="arch-links">
+      <b>돈의 흐름</b> — 손님 구매(체인 밖 카드) <span class="arr">→</span> 금고 적립 <span class="arr">→</span> 카드정산으로 본사가 지점에 USDC 지급 <span class="arr">→</span> 지점이 물대·직거래 대금을 x402로 결제 <span class="arr">→</span> 다시 본사로. 온체인 총량이 보존되는 순환.<br>
+      <b>데이터의 흐름</b> — 조달 판단 직전, 지점 에이전트가 시세 데이터를 pay.sh로 구매 (Surfpool 샌드박스에서 지불).
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ 2. 이틀의 타임라인 ══════════════ -->
+<section>
+  <div class="sec-head"><span class="sec-no">02</span><h2>이틀 동안 무슨 일이 있었나</h2></div>
+  <p class="sec-sub">집 → 회사로 이어진 작업 순서 그대로.</p>
+
+  <div class="card">
+    <ul class="tl">
+      <li class="day">
+        <span class="day-badge">7/29 밤 · 집</span>
+        <h3>구글 클라우드 첫 연결과 첫 배포</h3>
+        <p>프로젝트에 Cloud SQL·Secret Manager·Cloud Run 서비스 2개(공개 API + 비공개 결제)와 데모 Job을 만들고 첫 배포.
+        데브넷 지갑 4개를 만들어 열쇠를 Secret Manager에 올렸다.</p>
+      </li>
+      <li class="trouble">
+        <h3>첫 함정: 빌드팩이 만든 죽은 리비전 <span class="when">rev 00003</span></h3>
+        <p><code>backend/</code>에서 배포하니 빌드팩(소스를 보고 이미지를 알아서 만들어주는 도구)이 서버 시작 방법을 잘못 추측해
+        기동 실패. <b>저장소 루트에 Dockerfile을 직접 두는 방식으로 정착</b> — 시작 명령을 우리가 명시한다.</p>
+      </li>
+      <li class="day">
+        <span class="day-badge">7/30 오전 · 회사</span>
+        <h3>회사 맥에 gcloud 환경 복제</h3>
+        <p>SDK 설치(<code>~/.local/google-cloud-sdk</code>) → 로그인 2종(CLI용 + 애플리케이션 기본 자격증명, Vertex AI가 쓴다)
+        → Secret Manager에서 지갑 4개 내려받아 집 지갑과 동일함을 확인. 이제 양쪽 맥 어디서든 배포 가능.</p>
+      </li>
+      <li>
+        <h3>경제 루프 라이브 가동 <span class="when">rev 00005</span></h3>
+        <p>판매→카드정산→조달→재입고→예약납부가 한 바퀴 도는 틱을 배포하고 <b>Cloud Scheduler가 10분마다 굴리게</b> 걸었다.
+        라이브 URL이 "과거 데모의 기록"이 아니라 "지금 거래 중인 시스템"이 됐다. 비용도 점검: Vertex 하루 $0.05~0.15,
+        Cloud SQL 월 $8~10 — 8/21까지 다 합쳐도 $15 안쪽, 크레딧 $300의 5%.</p>
+      </li>
+      <li class="trouble">
+        <h3>손님 페이지(/shop) 배포 실패 <span class="when">rev 00006</span></h3>
+        <p>배포 명령에 <code>--clear-base-image</code>가 빠지자 서비스에 남아있던 빌드팩 설정이 되살아나
+        Dockerfile을 무시하고 잘못된 시작 명령으로 빌드 → 기동 실패. <b>Cloud Run은 새 버전이 못 일어나면
+        트래픽을 안 넘긴다</b> — 그래서 라이브는 무사했다.</p>
+      </li>
+      <li>
+        <h3>/shop 재배포 성공 + 라이브 구매 검증 <span class="when">rev 00007</span></h3>
+        <p>올바른 명령으로 재배포. 라이브에서 실제 구매 1건(닭 1개 → 재고 20, 매출 0.5 USDC 적립)까지 확인.
+        이제 방문자 구매가 라이브 경제의 진짜 수요가 된다.</p>
+      </li>
+      <li>
+        <h3>pay.sh 연동 <span class="when">rev 00008 → 00009 → 00010</span></h3>
+        <p>이 문서의 후반부 전체가 이 이야기다 — 조사, 스파이크, 구현, 그리고 컨테이너에서 두 번 조용히 죽은 것을
+        잡아낸 과정. 최종적으로 <b>09:40:58에 라이브 에이전트가 시세를 사고 그 데이터로 직거래를 제안</b>하는 것까지 확인.</p>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<!-- ══════════════ 3. 배포 파이프라인 ══════════════ -->
+<section>
+  <div class="sec-head"><span class="sec-no">03</span><h2>배포는 어떻게 이루어지나</h2></div>
+  <p class="sec-sub">명령 한 줄 뒤에서 벌어지는 일 — 그리고 왜 <code>--clear-base-image</code>가 생명줄인지.</p>
+
+  <div class="card">
+    <pre><b>gcloud run deploy solply-api --source . --clear-base-image --region us-central1</b>  <em># 반드시 저장소 루트에서</em></pre>
+    <div class="chain-scroll">
+      <div class="chain">
+        <div class="step"><b>① 소스 압축·업로드</b><span>.gcloudignore가 문서·테스트·비밀 파일을 제외</span></div>
+        <div class="joint">→</div>
+        <div class="step hot"><b>② Cloud Build</b><span>루트 Dockerfile로 이미지 빌드 — 파이썬 + 프론트 + pay CLI</span></div>
+        <div class="joint">→</div>
+        <div class="step"><b>③ Artifact Registry</b><span>완성된 이미지를 저장</span></div>
+        <div class="joint">→</div>
+        <div class="step"><b>④ 새 리비전 생성</b><span>rev 00010 같은 번호가 붙은 불변 배포 단위</span></div>
+        <div class="joint">→</div>
+        <div class="step"><b>⑤ 기동 확인</b><span>8080 포트를 열고 살아나는지 검사</span></div>
+        <div class="joint">→</div>
+        <div class="step hot"><b>⑥ 트래픽 100% 전환</b><span>실패하면 전환 없음 — 이전 버전이 계속 서빙</span></div>
+      </div>
+    </div>
+    <p style="font-size:13.5px"><b>함정의 정체</b>: <code>--source .</code> 배포는 원래 Dockerfile을 쓰지만, 서비스에 빌드팩
+    설정이 한 번이라도 남으면 그게 우선한다. 빌드팩은 시작 명령을 <code>uvicorn app:app</code>으로 추측하는데 실제는
+    <code>app.main:app</code> — 그래서 ⑤에서 죽는다. <code>--clear-base-image</code>가 그 설정을 지워 Dockerfile로 되돌린다.
+    집(00003)과 회사(00006)가 같은 함정에 한 번씩 빠졌고, 이제 HANDOFF에 박제됐다.</p>
+  </div>
+
+  <div class="card tbl-scroll">
+    <h3>리비전 연대기</h3>
+    <table>
+      <thead><tr><th>리비전</th><th>내용</th><th>결과</th></tr></thead>
+      <tbody>
+        <tr><td>~00004</td><td>집에서 첫 배포 (00003은 빌드팩 함정으로 사망 → Dockerfile 정착)</td><td><span class="pill ok">서빙</span></td></tr>
+        <tr><td>00005</td><td>경제 루프 + Cloud Scheduler 10분 틱</td><td><span class="pill ok">서빙</span></td></tr>
+        <tr><td>00006</td><td>손님 페이지 /shop — 배포 명령에 <code>--clear-base-image</code> 누락</td><td><span class="pill bad">기동 실패</span></td></tr>
+        <tr><td>00007</td><td>/shop 재배포 + 라이브 구매 1건 검증</td><td><span class="pill ok">서빙</span></td></tr>
+        <tr><td>00008</td><td>pay.sh 연동 1차 — 코드는 정상, 컨테이너에서 CLI가 조용히 실패</td><td><span class="pill warn">기능 불발</span></td></tr>
+        <tr><td>00009</td><td>베이스 이미지 교체(glibc) + 진단 로그 추가</td><td><span class="pill warn">기능 불발</span></td></tr>
+        <tr><td>00010</td><td>curl 설치 — <b>시세 구매 라이브 검증 완료</b></td><td><span class="pill ok">현재 서빙</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ══════════════ 4. pay.sh — 왜, 무엇 ══════════════ -->
+<section>
+  <div class="sec-head"><span class="sec-no">04</span><h2>pay.sh — 왜 넣었고, 뭐 하는 물건인가</h2></div>
+  <p class="sec-sub">심사 기준 3의 마지막 퍼즐 조각.</p>
+
+  <div class="card">
+    <p><b>왜</b> — 심사 기준 3은 "USDC · x402 · pay.sh를 실제 유스케이스에 녹였는가"를 본다. 우리는 USDC(정산 통화)와
+    x402(정산 프로토콜)는 처음부터 실사용이었지만 pay.sh만 비어 있었고, HANDOFF에 "정직한 약점 ②"로 적어뒀었다.</p>
+    <p><b>무엇</b> — pay.sh는 솔라나 재단 + 구글 클라우드가 만든 <b>에이전트 전용 API 결제 도구</b>다. 방향이 중요하다:
+    우리가 대금을 <em>받는</em> 레일이 아니라, <b>에이전트가 남의 유료 API를 쓰고 그 자리에서 USDC로 지불하는</b> 레일.
+    사람처럼 회원가입·카드등록·API 키 발급을 못 하는 에이전트를 위해, HTTP 402(Payment Required) 챌린지를
+    자동으로 지불하고 통과시켜 준다.</p>
+    <p><b>어디에</b> — 지점 에이전트가 조달 경로(지점 간 직거래 vs 본사 발주)를 고르는 <code>find_supply</code> 판단 직전.
+    모든 조달이 이 길목을 지나므로, <b>조달이 일어날 때마다 "판단 재료를 돈 주고 사는" 장면이 라이브에서 반복</b>된다.
+    지금까지 에이전트는 물건값만 냈는데, 이제 정보값도 자기 지갑으로 낸다 — "판단 재료도 공짜가 아니다."</p>
+  </div>
+
+  <div class="card">
+    <h3>한 번의 시세 구매에서 벌어지는 일 (x402 자동 결제)</h3>
+    <p style="font-size:13px; margin-top:0">에이전트가 <code>pay --sandbox curl https://debugger.pay.sh/mpp/quote/CHK</code> 를 실행하면:</p>
+    <div class="seq">
+      <div class="seq-row"><span class="seq-no">1</span><span class="seq-dir">에이전트 <span class="arr">→</span> 시세 API</span><span class="seq-body">그냥 GET 요청을 보낸다</span></div>
+      <div class="seq-row"><span class="seq-no">2</span><span class="seq-dir">시세 API <span class="arr">→</span> 에이전트</span><span class="seq-body"><b>402 Payment Required</b> — "돈 내면 줄게" + 결제 조건</span></div>
+      <div class="seq-row pay"><span class="seq-no">3</span><span class="seq-dir">pay CLI</span><span class="seq-body">샌드박스 지갑에서 <b>USDC를 자동 지불</b> (첫 호출이면 지갑도 자동 생성·충전)</span></div>
+      <div class="seq-row"><span class="seq-no">4</span><span class="seq-dir">에이전트 <span class="arr">→</span> 시세 API</span><span class="seq-body">지불 증명을 붙여 재요청</span></div>
+      <div class="seq-row"><span class="seq-no">5</span><span class="seq-dir">시세 API <span class="arr">→</span> 에이전트</span><span class="seq-body"><b>200 OK</b> + 시세 JSON + <code>payment-receipt</code> 헤더 (온체인 트랜잭션 참조가 든 영수증)</span></div>
+    </div>
+    <p style="font-size:13px"><b>우리가 본사↔지점 정산에 직접 구현한 그 x402 왕복</b>을, pay.sh는 데이터 구매 쪽에서
+    기성품으로 해주는 것이다. 영수증의 온체인 참조는 <code>market.quote_purchased</code> 이벤트에 저장돼
+    심사 기준 4(실행 증빙)와도 연결된다.</p>
+  </div>
+</section>
+
+<!-- ══════════════ 5. 연동 과정 step by step ══════════════ -->
+<section>
+  <div class="sec-head"><span class="sec-no">05</span><h2>연동 과정 — step by step</h2></div>
+  <p class="sec-sub">조사부터 라이브 검증까지, 실제 진행 순서 그대로.</p>
+
+  <div class="card">
+    <h3>1단계 — 정체 확인과 스파이크 (될지부터 확인)</h3>
+    <p style="font-size:13.5px">미뤄뒀던 이유가 "데브넷 지원 불확실"이었으니, 코드를 쓰기 전에 실제로 되는지부터 확인했다.</p>
+    <pre>brew install pay          <em># 홈브루 정식 패키지 (0.24.0)</em>
+pay --sandbox curl -s https://debugger.pay.sh/mpp/quote/AAPL
+<b>{"symbol":"AAPL","price":"127.89","currency":"USD","source":"mpp-demo"}</b>  <em># 402를 스스로 지불하고 통과!</em></pre>
+    <ul class="clean">
+      <li><code>--sandbox</code>가 핵심: 연습용 체인(Surfpool)에 연결하고 <b>임시 지갑을 자동 생성·충전</b>해준다 — 실자금 0원</li>
+      <li><code>-si</code>로 헤더를 열어보니 <code>payment-receipt</code>에 온체인 트랜잭션 참조가 들어 있었다 — 증빙 확보 가능</li>
+      <li>설정 파일이 전혀 없는 새 환경(컨테이너 조건)에서도 도는지 가짜 HOME으로 미리 확인 — 통과</li>
+      <li>호출당 약 4.5초 — 10분 캐시를 붙이면 틱 지연으로 무시할 수준</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>2단계 — 꽂을 자리 선정</h3>
+    <p style="font-size:13.5px">"산 데이터가 실제로 판단에 쓰여야" 이야기가 성립한다. 조달 그래프에서 모든 경로가 지나는
+    길목이 <code>find_supply</code> 노드다:</p>
+    <div class="chain-scroll">
+      <div class="chain">
+        <div class="step"><b>check_stock</b><span>재고 점검 — 안전선 미달이 조달의 방아쇠</span></div>
+        <div class="joint">→</div>
+        <div class="step hot"><b>find_supply</b><span>⭐ 여기서 시세를 pay.sh로 구매 → 본사 발주 vs 지점 잉여 비교</span></div>
+        <div class="joint">→</div>
+        <div class="step"><b>propose_trade</b><span>잉여 지점에 직거래 제안</span></div>
+        <div class="joint">or</div>
+        <div class="step"><b>본사 발주</b><span>납품·청구 발행 → x402 정산</span></div>
+      </div>
+    </div>
+    <p style="font-size:13px">직거래로 가든 본사 발주로 가든 시세 구매를 반드시 지나므로, 라이브 경제가 도는 한 이 장면이 계속 재생된다.</p>
+  </div>
+
+  <div class="card tbl-scroll">
+    <h3>3단계 — 구현 (파일별 역할)</h3>
+    <table class="file-role">
+      <thead><tr><th>파일</th><th>역할</th></tr></thead>
+      <tbody>
+        <tr><td>core/market.py</td><td><b>신규.</b> <code>pay --sandbox curl</code> 실행 → 응답에서 시세와 영수증을 파싱 → 10분 캐시 → <code>market.quote_purchased</code> 이벤트 기록. <b>어떤 실패도 조달을 멈추지 않는다</b> — 시세는 판단을 돕는 재료지, 조달의 전제가 아니다.</td></tr>
+        <tr><td>store/tools.py</td><td><code>fetch_market_quote</code> 도구 추가 — 부수효과는 tools에 둔다는 프로젝트 원칙대로.</td></tr>
+        <tr><td>store/node.py</td><td><code>find_supply</code>가 비교 전에 시세를 사서 메시지·판단 근거에 포함.</td></tr>
+        <tr><td>config.py</td><td><code>PAYSH_ENABLED</code> 등 스위치 4개 — 환경변수는 여기서만 읽는다는 원칙대로.</td></tr>
+        <tr><td>frontend/app.js</td><td>실행 로그에 "시세 데이터 구매 (pay.sh)" 라벨.</td></tr>
+        <tr><td>tests/test_market.py</td><td><b>신규 4개.</b> CLI·네트워크 없이 가짜 출력으로 파싱·캐시·무해한 실패·판단 포함을 검증.</td></tr>
+        <tr><td>Dockerfile</td><td>pay 리눅스 바이너리 설치 — 라이브 틱에서도 돌게. (여기서 두 함정이 기다리고 있었다 ↓)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>4단계 — 컨테이너에서 두 번 조용히 죽다</h3>
+    <p style="font-size:13.5px">로컬 맥에서는 완벽했는데, 배포하니 시세 구매 이벤트가 없었다.
+    실패해도 조달은 계속 가게 설계했기 때문에 <b>겉으로는 아무 문제가 없어 보였다</b> — 조용한 실패의 대가다.</p>
+    <div class="debug-grid">
+      <div class="debug-card failed">
+        <h3>1차 배포 <span class="rev">rev 00008</span></h3>
+        <dl>
+          <dt>단서</dt><dd>이벤트 0건 + 조달 판단 통과가 <b>1초</b> — 4.5초짜리 구매가 일어났을 리 없다</dd>
+          <dt>진단</dt><dd>빌드 로그는 정상 → 런타임 문제. 리눅스 바이너리를 열어보니(<code>strings</code>) <b>GLIBC_2.39 요구</b>. 우리 베이스 이미지(Debian bookworm)는 2.36 — 실행 파일이 로드조차 안 됐다</dd>
+          <dt>처방</dt><dd>베이스를 <code>python:3.13-slim-trixie</code>(glibc 2.41)로 + <b>실패 시 서버 로그에 <code>[market]</code> 진단 줄을 남기게 보강</b></dd>
+        </dl>
+      </div>
+      <div class="debug-card failed">
+        <h3>2차 배포 <span class="rev">rev 00009</span></h3>
+        <dl>
+          <dt>단서</dt><dd>여전히 0건. 하지만 이번엔 심어둔 진단 로그가 즉답했다</dd>
+          <dt>진단</dt><dd><code>"Command not found: curl"</code> — <b>pay의 curl 모드는 자체 통신이 아니라 시스템 curl에 그대로 넘기는(패스스루) 방식</b>. 슬림 이미지에는 curl이 없다. 맥에서는 당연히 있어서 몰랐던 것</dd>
+          <dt>처방</dt><dd>이미지에 <code>curl</code> + 인증서 설치</dd>
+        </dl>
+      </div>
+      <div class="debug-card solved">
+        <h3>3차 배포 <span class="rev">rev 00010</span></h3>
+        <dl>
+          <dt>결과</dt><dd><b>성공.</b> 라이브 에이전트가 시세를 사고, 같은 초에 그 데이터를 근거로 직거래를 제안했다 (아래 실제 로그)</dd>
+          <dt>남긴 것</dt><dd>두 함정 모두 HANDOFF에 기록 — 다음 사람(밤의 나)은 5분이면 안다</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>5단계 — 라이브 최종 검증 (7/30 09:40, 실제 이벤트 로그)</h3>
+    <p style="font-size:13.5px; margin-top:0">/shop에서 B지점 닭 재고를 안전선 아래로 내리고 틱을 실행 — 한 틱 안에서 전체 체인이 완주했다:</p>
+    <div class="tbl-scroll"><div class="live-log">
+      <div><span class="t">09:40:55</span><span class="who">hq</span><span class="act">card.settled</span> — 적립 매출을 온체인 USDC로 지급</div>
+      <div><span class="t">09:40:58</span><span class="who">store-b</span><span class="act hl">market.quote_purchased</span> — CHK 시세 75.98 USD 구매, 영수증 4bpkArDH…</div>
+      <div><span class="t">09:40:58</span><span class="who">store-b</span><span class="act">p2p.proposed</span> — 그 데이터를 근거로 A지점에 닭 3개 직거래 제안</div>
+      <div><span class="t">09:41:22</span><span class="who">store-a</span><span class="act">p2p.responded</span> — 안전재고를 지키고도 팔 수 있어 수락</div>
+      <div><span class="t">09:41:34</span><span class="who">hq</span><span class="act">p2p.reviewed</span> — 본사 심사 승인</div>
+      <div><span class="t">09:41:43</span><span class="who">store-b</span><span class="act">p2p.paid</span> — 대금 1.5 USDC 온체인 결제 (tx 5LpV69cc…)</div>
+      <div><span class="t">09:41:46</span><span class="who">hq</span><span class="act">p2p.recorded</span> — 장부 확정</div>
+    </div></div>
+    <p style="font-size:13px"><b>읽는 법</b>: 손님 구매(수요) → 재고 미달 감지 → <b>시세 데이터 구매(pay.sh, 정보값 지불)</b> →
+    직거래 협상 → 본사 승인 → <b>물대 결제(x402, 물건값 지불)</b>. 에이전트가 정보값과 물건값을 모두 자기 지갑으로
+    처리하는 완결된 상거래 한 사이클이다.</p>
+  </div>
+</section>
+
+<!-- ══════════════ 6. 교훈 ══════════════ -->
+<section>
+  <div class="sec-head"><span class="sec-no">06</span><h2>이번에 배운 것</h2></div>
+
+  <div class="callout">
+    <b>조용히 실패해도 되는 기능일수록, 실패를 어딘가에는 적어야 한다.</b>
+    <ul>
+      <li>1차 디버깅(진단 로그 없음)은 타이밍 추리 + 바이너리 해부까지 가서야 원인을 찾았다. 2차는 심어둔 로그 한 줄이 <b>즉답</b>했다.</li>
+      <li>"기능이 안 죽게" 만드는 것과 "안 죽어서 문제를 못 보는" 것은 한 끗 차이 — 사용자 화면은 조용하게, 서버 로그는 수다스럽게.</li>
+    </ul>
+  </div>
+  <div class="callout amber">
+    <b>맥에서 되는 게 컨테이너에서 안 되는 3대 원인을 이번에 두 개나 만났다.</b>
+    <ul>
+      <li>① 바이너리 호환 — glibc 버전은 <code>strings 바이너리 | grep GLIBC_</code>로 배포 전에 확인 가능</li>
+      <li>② 없는 시스템 도구 — 슬림 이미지엔 curl·git 같은 "당연한 것"이 없다. 외부 CLI를 넣을 땐 그 CLI가 또 뭘 부르는지까지 볼 것</li>
+      <li>③ (이번엔 안 만난) 권한·경로 차이 — 다음을 위해 기억</li>
+    </ul>
+  </div>
+  <div class="callout">
+    <b>Cloud Run의 안전망 덕을 두 번 봤다.</b> 새 리비전이 기동에 실패하면 트래픽을 넘기지 않는다 —
+    00006, 00008 모두 라이브는 한 순간도 끊기지 않았다. 배포가 무서우면 안 되는 이유이자, 자주 배포해도 되는 이유.
+  </div>
+</section>
+
+<footer>
+  솔플라이 · GCP × Solana AI Agentic 해커톤 2026 · 작성 7/30 ·
+  라이브: solply-api-965647250280.us-central1.run.app (대시보드 / · 손님 페이지 /shop)
+</footer>
+
+</div>

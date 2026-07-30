@@ -165,6 +165,9 @@ x402(정산 프로토콜) · pay.sh(판단 재료 구매 레일).
   → 베이스를 `python:3.13-slim-trixie`로 고정 (bookworm 2.36에선 즉시 죽음).
   ② `pay curl`은 시스템 curl에 패스스루 → 이미지에 curl 설치 필요.
   실패는 조달을 안 막는 대신 서버 로그 `[market]` 줄로 남는다 — 안 사는 것 같으면 거기부터.
+- **전 과정 정리 문서**: [cloud-paysh-report.html](cloud-paysh-report.html) —
+  이틀간의 클라우드 배포 타임라인·아키텍처 지도·리비전 연대기·pay.sh 연동 step by step·
+  디버깅 기록을 다이어그램으로 정리 (브라우저로 열면 됨).
 - 시세 출처는 데버거 데모 API(`debugger.pay.sh/mpp/quote/{심볼}`, 심볼=SKU 앞부분) —
   영상·소개서에선 "시세 제공자(데모)"로 정직하게 표기할 것.
 
