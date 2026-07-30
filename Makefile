@@ -56,6 +56,7 @@ vertex-check:      ## Vertex AI 전환 준비 상태 점검 (GCP 결제 해결 �
 	bash scripts/vertex-check.sh
 
 test:              ## 백엔드 테스트 (임시 JSON 저장소로 격리 — 라이브 DB를 더럽히지 않는다)
+	rm -f /tmp/solply-test-state.json  # 실패한 이전 실행이 남긴 상태가 연쇄 실패를 만들지 않게
 	cd backend && SOLPLY_STORE=local SOLPLY_STATE_PATH=/tmp/solply-test-state.json PAYSH_ENABLED=0 uv run pytest -q
 	rm -f /tmp/solply-test-state.json
 

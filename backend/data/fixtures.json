@@ -54,22 +54,72 @@
   "orders": {
     "store-a": [
       "CHK-10",
-      "VEG-05"
+      "VEG-05",
+      "OIL-18",
+      "FLR-20",
+      "MU-03",
+      "BEV-24",
+      "PCK-50"
     ],
     "store-b": [
       "CHK-10",
-      "SAU-01"
+      "SAU-01",
+      "OIL-18",
+      "FLR-20",
+      "MU-03",
+      "BEV-24",
+      "PCK-50"
     ],
     "store-c": [
       "CHK-10",
-      "VEG-05"
+      "VEG-05",
+      "SAU-01",
+      "MU-03",
+      "BEV-24"
     ]
   },
   "inventory": {
     "hq": {
-      "CHK-10": { "name": "냉장 닭 10kg", "qty": 80, "safety": 20 },
-      "VEG-05": { "name": "모둠 야채 5kg", "qty": 30, "safety": 10 },
-      "SAU-01": { "name": "시그니처 소스 1box", "qty": 20, "safety": 5 }
+      "CHK-10": {
+        "name": "냉장 닭 10kg",
+        "qty": 80,
+        "safety": 20
+      },
+      "VEG-05": {
+        "name": "모둠 야채 5kg",
+        "qty": 30,
+        "safety": 10
+      },
+      "SAU-01": {
+        "name": "시그니처 소스 1box",
+        "qty": 20,
+        "safety": 5
+      },
+      "OIL-18": {
+        "name": "튀김유 18L",
+        "qty": 40,
+        "safety": 10
+      },
+      "FLR-20": {
+        "name": "튀김가루 20kg",
+        "qty": 40,
+        "safety": 10
+      },
+      "MU-03": {
+        "name": "치킨무 3kg",
+        "qty": 60,
+        "safety": 15
+      },
+      "BEV-24": {
+        "name": "탄산음료 24캔",
+        "qty": 50,
+        "safety": 12
+      },
+      "PCK-50": {
+        "name": "포장 박스 50매",
+        "qty": 45,
+        "safety": 10
+      }
     },
     "store-a": {
       "CHK-10": {
@@ -77,6 +127,38 @@
         "qty": 10,
         "safety": 4,
         "note": "지난주 과발주로 잉여"
+      },
+      "VEG-05": {
+        "name": "모둠 야채 5kg",
+        "qty": 8,
+        "safety": 3
+      },
+      "OIL-18": {
+        "name": "튀김유 18L",
+        "qty": 6,
+        "safety": 2
+      },
+      "FLR-20": {
+        "name": "튀김가루 20kg",
+        "qty": 7,
+        "safety": 3
+      },
+      "MU-03": {
+        "name": "치킨무 3kg",
+        "qty": 10,
+        "safety": 4,
+        "note": "프로모션 종료로 잉여"
+      },
+      "BEV-24": {
+        "name": "탄산음료 24캔",
+        "qty": 9,
+        "safety": 3,
+        "note": "세트 할인 종료로 잉여"
+      },
+      "PCK-50": {
+        "name": "포장 박스 50매",
+        "qty": 8,
+        "safety": 3
       }
     },
     "store-b": {
@@ -85,6 +167,32 @@
         "qty": 0,
         "safety": 4,
         "note": "주말 피크 임박, 재고 소진"
+      },
+      "OIL-18": {
+        "name": "튀김유 18L",
+        "qty": 5,
+        "safety": 2
+      },
+      "FLR-20": {
+        "name": "튀김가루 20kg",
+        "qty": 6,
+        "safety": 2
+      },
+      "MU-03": {
+        "name": "치킨무 3kg",
+        "qty": 2,
+        "safety": 3,
+        "note": "배달 세트 급증으로 소진 임박"
+      },
+      "BEV-24": {
+        "name": "탄산음료 24캔",
+        "qty": 7,
+        "safety": 2
+      },
+      "PCK-50": {
+        "name": "포장 박스 50매",
+        "qty": 12,
+        "safety": 4
       }
     },
     "store-c": {
@@ -92,6 +200,27 @@
         "name": "냉장 닭 10kg",
         "qty": 5,
         "safety": 4
+      },
+      "VEG-05": {
+        "name": "모둠 야채 5kg",
+        "qty": 6,
+        "safety": 2
+      },
+      "SAU-01": {
+        "name": "시그니처 소스 1box",
+        "qty": 4,
+        "safety": 2
+      },
+      "MU-03": {
+        "name": "치킨무 3kg",
+        "qty": 8,
+        "safety": 3
+      },
+      "BEV-24": {
+        "name": "탄산음료 24캔",
+        "qty": 0,
+        "safety": 3,
+        "note": "단체 예약으로 전량 소진"
       }
     }
   },
@@ -100,6 +229,41 @@
       "unit_price_usdc": 0.5,
       "lead_time": "D+2",
       "min_qty": 10
+    },
+    "VEG-05": {
+      "unit_price_usdc": 0.25,
+      "lead_time": "D+1",
+      "min_qty": 6
+    },
+    "SAU-01": {
+      "unit_price_usdc": 0.4,
+      "lead_time": "D+3",
+      "min_qty": 5
+    },
+    "OIL-18": {
+      "unit_price_usdc": 0.6,
+      "lead_time": "D+2",
+      "min_qty": 4
+    },
+    "FLR-20": {
+      "unit_price_usdc": 0.35,
+      "lead_time": "D+2",
+      "min_qty": 6
+    },
+    "MU-03": {
+      "unit_price_usdc": 0.15,
+      "lead_time": "D+1",
+      "min_qty": 8
+    },
+    "BEV-24": {
+      "unit_price_usdc": 0.3,
+      "lead_time": "D+1",
+      "min_qty": 6
+    },
+    "PCK-50": {
+      "unit_price_usdc": 0.2,
+      "lead_time": "D+3",
+      "min_qty": 5
     }
   },
   "deliveries": {

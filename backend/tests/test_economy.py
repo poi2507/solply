@@ -39,6 +39,7 @@ def test_sales_move_ledger_and_accrue_till():
 def test_card_settlement_pays_accrued_and_resets(monkeypatch):
     db.put(economy.TILL, "store-a", {"accrued_usdc": 3.5})
     db.put(economy.TILL, "store-b", {"accrued_usdc": 0.0})
+    db.put(economy.TILL, "store-c", {"accrued_usdc": 0.0})  # 앞 테스트의 판매 적립 제거
     payouts = []
     monkeypatch.setattr(
         "app.core.economy.payments.balance",
