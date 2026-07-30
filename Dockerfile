@@ -2,7 +2,8 @@
 # 빌드 컨텍스트는 레포 루트다: 대시보드(frontend/)가 이 앱의 /assets로 서빙되기 때문.
 #   gcloud run deploy ... --source .  (루트에서)  또는
 #   docker build -f backend/Dockerfile .
-FROM python:3.13-slim
+# trixie 고정 — pay CLI가 GLIBC_2.39를 요구한다 (bookworm은 2.36이라 즉시 실패)
+FROM python:3.13-slim-trixie
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 

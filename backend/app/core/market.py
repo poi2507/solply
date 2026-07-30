@@ -81,10 +81,13 @@ def quote(sku: str, actor: str) -> dict | None:
              f"{config.PAYSH_QUOTE_URL}/{symbol}"],
             capture_output=True, text=True, timeout=30, check=False,
         )
-    except (OSError, subprocess.TimeoutExpired):
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        print(f"[market] pay 실행 불가 — 시세 없이 진행: {exc}")
         return cached
     body, receipt = _parse(proc.stdout)
     if not body:
+        # 조달은 계속 가지만, 원인은 서버 로그에 남긴다 (glibc·네트워크류 진단용)
+        print(f"[market] 시세 구매 실패 (exit {proc.returncode}): {(proc.stderr or proc.stdout)[:200]}")
         return cached
 
     prev = float(cached["price_usd"]) if cached else None
