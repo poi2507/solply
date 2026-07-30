@@ -98,24 +98,60 @@ function renderStores(stores, targetId = "stores") {
     </article>`).join("");
 }
 
+// ── 쪽 넘기기 ─────────────────────────────────────────────────────
+// 하루치라도 청구서·직거래는 수십~수백 건이 된다. 한 화면에 30건씩 보여주고 넘긴다.
+const PAGE_SIZE = 30;
+const page = { invoices: 0, trades: 0 };
+
+function paginate(key, items) {
+  const pages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+  if (page[key] > pages - 1) page[key] = pages - 1;  // 목록이 줄면 마지막 쪽으로 당긴다
+  const from = page[key] * PAGE_SIZE;
+  return { rows: items.slice(from, from + PAGE_SIZE), from, pages, total: items.length };
+}
+
+/** 쪽 표시 + 이동 버튼. 한 쪽에 다 들어가면 건수만 적는다. */
+function pagerHtml(key, cut, tail = "") {
+  const suffix = tail ? ` · ${tail}` : "";
+  if (cut.pages <= 1) return `${cut.total}건${suffix}`;
+  const to = Math.min(cut.from + PAGE_SIZE, cut.total);
+  return `${cut.total}건 중 ${cut.from + 1}–${to}${suffix}
+    <span class="pager">
+      <button class="daybtn" data-page="${key}:-1" ${page[key] === 0 ? "disabled" : ""}
+              aria-label="이전 쪽">‹</button>
+      <b>${page[key] + 1}/${cut.pages}</b>
+      <button class="daybtn" data-page="${key}:1" ${page[key] >= cut.pages - 1 ? "disabled" : ""}
+              aria-label="다음 쪽">›</button>
+    </span>`;
+}
+
+function bindPager(scope) {
+  scope.querySelectorAll("button[data-page]").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const [key, step] = btn.dataset.page.split(":");
+      page[key] = Math.max(0, page[key] + Number(step));
+      refresh();
+    });
+  });
+}
+
 // ── 청구서 표 ─────────────────────────────────────────────────────
-/** 분할 자식은 부모 바로 아래로 붙인다 — 같은 이야기가 표에서 흩어지지 않게. */
-function orderInvoices(invoices) {
+/** 분할 가족(부모+자식)을 한 덩어리로 묶는다 — 쪽이 넘어가도 같은 이야기가 쪼개지지 않게. */
+function invoiceFamilies(invoices) {
   const byParent = new Map();
   for (const inv of invoices) {
     if (!inv.parent_id) continue;
     if (!byParent.has(inv.parent_id)) byParent.set(inv.parent_id, []);
     byParent.get(inv.parent_id).push(inv);
   }
-  const out = [];
+  const families = [];
   for (const inv of invoices) {
     if (inv.parent_id && invoices.some((x) => x.id === inv.parent_id)) continue;
-    out.push({ inv, child: false });
-    for (const kid of (byParent.get(inv.id) ?? []).sort((a, b) => a.id.localeCompare(b.id))) {
-      out.push({ inv: kid, child: true });
-    }
+    const kids = (byParent.get(inv.id) ?? []).sort((a, b) => a.id.localeCompare(b.id));
+    families.push([{ inv, child: false }, ...kids.map((kid) => ({ inv: kid, child: true }))]);
   }
-  return out;
+  return families;
 }
 
 function amountCell(inv) {
@@ -152,14 +188,19 @@ function invoiceRow({ inv, child }, network, firstPaint) {
 
 function renderInvoices(invoices, network) {
   const el = $("invoices");
-  $("invoice-count").textContent = `${invoices.length}건 · 행을 누르면 협상 과정이 펼쳐집니다`;
+  const head = $("invoice-count");
   if (!invoices.length) {
-    el.innerHTML = '<tr><td colspan="5" class="empty">아직 청구서가 없습니다. 데모를 실행하면 여기에 나타납니다.</td></tr>';
+    head.textContent = "이 날은 청구서가 없습니다";
+    el.innerHTML = '<tr><td colspan="5" class="empty">이 날짜에는 청구서가 없습니다. 날짜를 옮기거나 데모를 실행해 보세요.</td></tr>';
     return;
   }
+  const cut = paginate("invoices", invoiceFamilies(invoices));
+  head.innerHTML = pagerHtml("invoices", cut, "행을 누르면 협상 과정이 펼쳐집니다");
+  bindPager(head);
+
   // 첫 그림에는 강조를 넣지 않는다 — 전부 새것이라 전부 깜빡이면 아무것도 강조되지 않는다
   const firstPaint = seenInvoices.size === 0;
-  el.innerHTML = orderInvoices(invoices)
+  el.innerHTML = cut.rows.flat()
     .map((entry) => invoiceRow(entry, network, firstPaint)).join("");
   el.querySelectorAll("tr[data-inv]").forEach((tr) => {
     tr.addEventListener("click", () => toggle(tr.dataset.inv));
@@ -298,12 +339,19 @@ function renderNegotiations(negs) {
 function renderTrades(trades) {
   const el = $("trades");
   if (!el) return;
+  const head = $("trade-count");
   if (!trades || !trades.length) {
-    el.innerHTML = '<div class="empty">아직 지점 간 직거래가 없습니다</div>';
+    if (head) head.textContent = "이 날은 지점 간 직거래가 없습니다";
+    el.innerHTML = '<div class="empty">이 날짜에는 지점 간 직거래가 없습니다</div>';
     return;
   }
+  const cut = paginate("trades", trades);
+  if (head) {
+    head.innerHTML = pagerHtml("trades", cut, "본사가 승인한 지점 간 거래");
+    bindPager(head);
+  }
   const STATUS = { proposed: "제안됨", accepted: "수락", approved: "본사 승인", paid: "결제됨", confirmed: "확정", rejected: "거절" };
-  el.innerHTML = trades.map((t) => {
+  el.innerHTML = cut.rows.map((t) => {
     const tx = t.tx_sig
       ? ` · <a class="txlink" href="${explorerUrl(t.tx_sig, currentNetwork)}" target="_blank" rel="noopener">${short(t.tx_sig, 8, 6)}</a>`
       : "";
@@ -580,6 +628,8 @@ function goDay(target) {
   viewDay = target && target !== dayMeta.today ? target : null;
   seenInvoices.clear();   // 날짜가 바뀌면 "새 항목" 강조를 초기화한다
   expanded.clear();
+  page.invoices = 0;      // 다른 날의 첫 쪽부터
+  page.trades = 0;
   refresh();
 }
 
