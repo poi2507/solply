@@ -5,10 +5,13 @@ import { readFileSync, mkdirSync } from "node:fs";
 const plan = JSON.parse(readFileSync("plan.json", "utf8"));
 mkdirSync("subs", { recursive: true });
 
-const html = (text) => `<!doctype html><meta charset="utf-8"><style>
+// pos: "bottom"(기본) | "top" — 하단에 대시보드 드로어가 뜨는 장면은 위로 올린다
+const html = (text, pos = "bottom") => `<!doctype html><meta charset="utf-8"><style>
   * { margin:0; box-sizing:border-box }
   html,body { width:1600px; height:900px; background:transparent; overflow:hidden }
-  body { display:flex; align-items:flex-end; justify-content:center; padding-bottom:54px;
+  body { display:flex; justify-content:center;
+         align-items:${pos === "top" ? "flex-start" : "flex-end"};
+         padding-${pos === "top" ? "top" : "bottom"}:${pos === "top" ? 30 : 54}px;
          font-family:-apple-system,"Apple SD Gothic Neo",sans-serif }
   .bar {
     max-width:1180px; background:rgba(255,255,255,.97); color:#17211b;
@@ -23,8 +26,8 @@ const page = await browser.newPage({ viewport: { width: 1600, height: 900 } });
 let n = 0;
 for (const scene of plan.scenes) {
   for (let i = 0; i < (scene.subs || []).length; i++) {
-    const text = scene.subs[i][2];
-    await page.setContent(html(text));
+    const [, , text, pos] = scene.subs[i];
+    await page.setContent(html(text, pos));
     await page.waitForTimeout(150);
     await page.screenshot({ path: `subs/${scene.id}-${i}.png`, omitBackground: true });
     n++;

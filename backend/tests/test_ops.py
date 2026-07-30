@@ -247,3 +247,22 @@ def test_report_stats_and_mock_narration(monkeypatch):
 
     text = rules.weekly_report(stats)
     assert "2건" in text and "67.5" in text and "직거래 1건" in text
+
+
+def test_event_log_reads_only_what_it_shows():
+    """로그가 수천 건 쌓여도 화면 조회는 요청한 건수만 읽어야 한다 (SSE·지표 병목 방지)."""
+    from app.db import store as db
+
+    for i in range(30):
+        db.log_event("human" if i % 10 == 0 else "system", "probe", {"i": i})
+
+    recent = db.recent_events(5)
+    assert len(recent) == 5
+    assert recent[0]["payload"]["i"] > recent[-1]["payload"]["i"], "최신순이어야 한다"
+    assert db.count_events(actor="human") >= 3
+    assert db.count_events() >= 30
+
+    cursor = db.count_events()
+    db.log_event("system", "probe", {"i": 999})
+    fresh = db.events_after(cursor)
+    assert [e["payload"]["i"] for e in fresh] == [999], "커서 이후 새 이벤트만"

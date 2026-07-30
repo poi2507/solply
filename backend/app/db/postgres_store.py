@@ -121,6 +121,35 @@ class PostgresStore:
             {"ts": r[0].isoformat(), "actor": r[1], "action": r[2], "payload": r[3]} for r in rows
         ]
 
+    def count_events(self, actor: str | None = None) -> int:
+        sql, params = "SELECT count(*) FROM events", []
+        if actor:
+            sql += " WHERE actor = %s"
+            params.append(actor)
+        with self.pool.connection() as conn:
+            return conn.execute(sql, params).fetchone()[0]
+
+    def recent_events(self, limit: int) -> list[dict]:
+        with self.pool.connection() as conn:
+            rows = conn.execute(
+                "SELECT ts, actor, action, payload FROM events ORDER BY id DESC LIMIT %s",
+                [limit],
+            ).fetchall()
+        return [
+            {"ts": r[0].isoformat(), "actor": r[1], "action": r[2], "payload": r[3]} for r in rows
+        ]
+
+    def events_after(self, cursor: int) -> list[dict]:
+        """append-only라 '앞에서 cursor개를 건너뛴 나머지'가 곧 새 이벤트다."""
+        with self.pool.connection() as conn:
+            rows = conn.execute(
+                "SELECT ts, actor, action, payload FROM events ORDER BY id OFFSET %s",
+                [cursor],
+            ).fetchall()
+        return [
+            {"ts": r[0].isoformat(), "actor": r[1], "action": r[2], "payload": r[3]} for r in rows
+        ]
+
     def log_event(self, actor: str, action: str, payload: dict) -> None:
         with self.pool.connection() as conn:
             conn.execute(

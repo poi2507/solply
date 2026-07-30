@@ -27,6 +27,8 @@ const ACTION_LABEL = {
   "payment.refused": "결제 거부",
   "payment.blocked_over_limit": "한도 초과 차단",
   "payment.needs_approval": "사람 승인 요청",
+  "human.approved": "사람이 승인",
+  "human.rejected": "사람이 반려",
   "market.quote_purchased": "시세 데이터 구매 (pay.sh)",
   "x402.payment_required": "x402 결제 요구 (402)",
   "x402.terms_received": "x402 조건 수신",

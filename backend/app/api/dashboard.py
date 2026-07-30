@@ -9,6 +9,7 @@ from fastapi.responses import StreamingResponse
 from app import config
 from app.agents import utils as agent_utils
 from app.core import credit, fixtures
+from app.core import policy as policy_mod
 from app.db import store
 from app.solana import payments
 
@@ -49,7 +50,9 @@ def overview() -> dict:
                     "liveSettled": rating["live_settled"],
                 },
                 "creditLimit": profile["credit_limit_usdc"],
-                "autoPayLimit": profile["policy"]["auto_pay_limit_usdc"],
+                # 시드값이 아니라 점주가 프론트에서 설정한 실효 정책을 보여준다 —
+                # 상한을 낮췄는데 화면이 옛 값이면 승인 대기 사유와 모순된다
+                "autoPayLimit": policy_mod.get(sid).auto_pay_limit_usdc,
                 "inventory": [
                     {"sku": sku, "name": entry.get("name", sku),
                      "qty": entry["qty"], "safety": entry["safety"]}
@@ -81,7 +84,7 @@ def overview() -> dict:
             "outstandingCount": len(outstanding),
             "outstandingUsdc": round(sum(i["amount_usdc"] for i in outstanding), 2),
             "negotiations": len(negotiations),
-            "humanActions": sum(1 for e in store.list_events() if e["actor"] == "human"),
+            "humanActions": store.count_events(actor="human"),
         },
         "stores": stores,
         "invoices": sorted(invoices, key=lambda i: i.get("updated_at", ""), reverse=True),
@@ -139,9 +142,8 @@ def timeline(invoice_id: str) -> dict:
 
 @router.get("/events")
 def events(limit: int = 100) -> dict:
-    """실행 증빙 로그 — 심사 기준 4번의 근거."""
-    all_events = store.list_events()
-    return {"events": all_events[-limit:][::-1], "total": len(all_events)}
+    """실행 증빙 로그 — 심사 기준 4번의 근거. 최근 N건만 읽는다 (수천 건 쌓여도 가볍게)."""
+    return {"events": store.recent_events(limit), "total": store.count_events()}
 
 
 @router.get("/wallets")
@@ -160,18 +162,20 @@ async def stream(request: Request) -> StreamingResponse:
     """SSE — 새 이벤트가 생기면 즉시 밀어준다. 대시보드가 살아 움직이는 이유."""
 
     async def gen():
-        cursor = len(store.list_events())
+        # 개수만 세서 변화를 감지하고, 늘었을 때만 새 이벤트를 가져온다.
+        # 매 틱마다 전체를 읽으면 열려 있는 대시보드가 DB를 계속 갈아 다른 요청까지 느려진다.
+        cursor = store.count_events()
         yield f"event: ready\ndata: {json.dumps({'cursor': cursor})}\n\n"
         while True:
             if await request.is_disconnected():
                 break
-            events_now = store.list_events()
-            if len(events_now) > cursor:
-                for event in events_now[cursor:]:
+            total = store.count_events()
+            if total > cursor:
+                for event in store.events_after(cursor):
                     yield f"event: activity\ndata: {json.dumps(event, ensure_ascii=False)}\n\n"
-                cursor = len(events_now)
+                cursor = total
                 yield "event: refresh\ndata: {}\n\n"
-            await asyncio.sleep(0.6)
+            await asyncio.sleep(1.2)
 
     return StreamingResponse(
         gen(),

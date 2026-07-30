@@ -73,9 +73,28 @@ async function glowByText(page, cssScope, text, seconds = 3) {
   }, { cssScope, text, seconds });
 }
 
-async function openDashboard(page, waitSel = "#feed li, #invoices tr") {
+/** 어시스턴트 답변을 기다린다 — "…" 자리표시자가 실제 답으로 바뀔 때까지. */
+async function waitForReply(page, timeout = 90000) {
+  const t0 = Date.now();
+  while (Date.now() - t0 < timeout) {
+    const ok = await page.evaluate(() => {
+      const bots = [...document.querySelectorAll("#chat-log li.bot")];
+      const last = bots[bots.length - 1];
+      const input = document.getElementById("chat-input");
+      return !!last && last.textContent.trim() !== "…" &&
+             last.textContent.trim().length > 8 && input && !input.disabled;
+    });
+    if (ok) return true;
+    await sleep(700);
+  }
+  return false;
+}
+
+// 빈 상태 자리표시자도 li·tr이라 "요소 존재"로는 로딩 완료를 알 수 없다 —
+// 실제 데이터가 든 행(타임스탬프·청구서 링크)이 나올 때까지 기다린다.
+async function openDashboard(page, waitSel = "#feed li .t, #invoices tr[data-inv]") {
   await page.goto(API + "/", { waitUntil: "domcontentloaded" });
-  await page.waitForSelector(waitSel, { timeout: 30000 }).catch(() => {});
+  await page.waitForSelector(waitSel, { timeout: 40000 }).catch(() => {});
   await sleep(2500); // 데이터 로드 안정화
 }
 
@@ -83,7 +102,7 @@ async function openDashboard(page, waitSel = "#feed li, #invoices tr") {
 
 async function clip0a() {
   await clip("clip0a", { role: "admin" }, async (page) => {
-    await openDashboard(page, "#feed li");
+    await openDashboard(page, "#feed li .t");
     await sleep(2000);
     await smoothScroll(page, 1800, 12000);   // 실행 로그를 천천히 훑는다
     await sleep(1500);
@@ -129,7 +148,7 @@ async function clip3a() {
 
 async function clip3b() {
   await clip("clip3b", { role: "admin" }, async (page) => {
-    await openDashboard(page, "#feed li");
+    await openDashboard(page, "#feed li .t");
     await sleep(2000);
     // 틱을 당긴다 — 운영에선 Cloud Scheduler 몫
     fetch(API + "/api/ticks/run", { method: "POST" }).catch(() => {});
@@ -185,7 +204,7 @@ async function expandById(page, invoiceId) {
 
 async function clip1() {
   await clip("clip1", { role: "hq" }, async (page) => {
-    await openDashboard(page, "#invoices tr");
+    await openDashboard(page, "#invoices tr[data-inv]");
     // 경제 루프가 방금 정산한 건 — 402 왕복이 한 줄기로 보인다
     const row = await expandById(page, "INV-0730-C07") || await expandById(page, "INV-0730-C06");
     if (!row) { await sleep(3000); return; }
@@ -210,7 +229,7 @@ async function clip1b() { // Solana Explorer 실제 트랜잭션
 
 async function clip2() { // 검수 불일치 → 차감 협상 (B지점 시점)
   await clip("clip2", { role: "store-b" }, async (page) => {
-    await openDashboard(page, "#invoices tr");
+    await openDashboard(page, "#invoices tr[data-inv]");
     if (!(await expandById(page, "INV-0729-B01"))) { await sleep(3000); return; }
     await sleep(3000);
     await glowByText(page, ".tl-step, .tl-body, li", "불일치", 4);
@@ -232,7 +251,7 @@ async function clip2b() { // 본사 심사 근거 (협상 기록 패널)
 
 async function clip4a() { // C지점 잔액 부족 → 유예 제안 → 본사 수락 → 예약 → 실행
   await clip("clip4a", { role: "store-c" }, async (page) => {
-    await openDashboard(page, "#invoices tr");
+    await openDashboard(page, "#invoices tr[data-inv]");
     if (!(await expandById(page, "INV-0729-C01"))) { await sleep(3000); return; }
     await sleep(3000);
     await glowByText(page, ".tl-step, .tl-body, li", "유예", 4);
@@ -252,7 +271,7 @@ async function clip4a2() { // 분할 역제안 (멀티턴 협상) — 본사 심
 
 async function clip4b() { // 발주 없는 품목 청구 → 거부 (A지점 시점)
   await clip("clip4b", { role: "store-a" }, async (page) => {
-    await openDashboard(page, "#invoices tr");
+    await openDashboard(page, "#invoices tr[data-inv]");
     if (!(await expandById(page, "INV-0729-A02"))) { await sleep(3000); return; }
     await sleep(3000);
     await glowByText(page, ".tl-step, .tl-body, li", "거부", 4);
@@ -260,23 +279,73 @@ async function clip4b() { // 발주 없는 품목 청구 → 거부 (A지점 시
   });
 }
 
-async function clip4c() { // 어시스턴트 대화
+async function clip4c() { // 어시스턴트 대화 — 타이핑부터 답변까지가 볼거리다
+  const started = Date.now();
   await clip("clip4c", { role: "hq" }, async (page) => {
     await openDashboard(page);
+    const fabAt = (Date.now() - started) / 1000;
     await page.click("#chat-fab");
-    await sleep(1200);
-    await page.locator("#chat-input").pressSequentially("오늘 정산 상황 요약해줘", { delay: 70 });
-    await sleep(600);
+    await sleep(1000);
+    await page.locator("#chat-input").pressSequentially("오늘 정산 상황 요약해줘", { delay: 90 });
+    await sleep(700);
     await page.locator("#chat-form button[type=submit]").click();
-    // 답변(마지막 bot 메시지)이 늘어날 때까지 대기
-    const before = await page.locator("#chat-log li").count();
-    const t0 = Date.now();
-    while (Date.now() - t0 < 60000) {
-      if ((await page.locator("#chat-log li").count()) > before + 0 &&
-          (await page.locator("#chat-log li.bot").count()) >= 2) break;
-      await sleep(1200);
-    }
-    await sleep(5000);
+    await waitForReply(page, 60000);
+    await sleep(4000);
+    // 페이지 로딩 구간은 볼 게 없다 — 드로어 열리는 순간부터 쓰라고 알려준다
+    console.log(`  ⤵ 트림 시작점: ${Math.max(0, fabAt - 0.6).toFixed(1)}s`);
+  });
+}
+
+async function clip4d() { // 한도 초과 → 에이전트가 멈추고 사람을 부른다
+  await clip("clip4d", { role: "hq", zoom: 1.25 }, async (page) => {
+    await openDashboard(page);
+    await page.waitForSelector("#approvals .row", { timeout: 20000 }).catch(() => {});
+    await glow(page, "#approvals-panel", 5);
+    await sleep(7000);
+  });
+}
+
+async function clip4e() { // 사람의 권한을 대화로 행사한다 (ADK가 승인 API를 호출)
+  const t0 = Date.now();
+  const at = () => ((Date.now() - t0) / 1000).toFixed(1);
+  const invoiceId = process.env.APPROVE_ID || "INV-0730-A13";
+  await clip("clip4e", { role: "hq" }, async (page) => {
+    await openDashboard(page);
+    await page.click("#chat-fab");
+    await sleep(900);
+    console.log(`  [${at()}] 1차 질문 타이핑`);
+    await page.locator("#chat-input").pressSequentially("승인 대기 있어?", { delay: 95 });
+    await sleep(500);
+    await page.locator("#chat-form button[type=submit]").click();
+    await waitForReply(page);
+    console.log(`  [${at()}] 1차 답변(목록) 도착`);
+    await sleep(2500);
+    console.log(`  [${at()}] 2차 지시 타이핑`);
+    await page.locator("#chat-input").pressSequentially(`${invoiceId} 승인해줘`, { delay: 95 });
+    await sleep(500);
+    await page.locator("#chat-form button[type=submit]").click();
+    await waitForReply(page);
+    console.log(`  [${at()}] 확인 요청 도착`);
+    await sleep(2200);
+    // 어시스턴트는 돈이 나가기 전에 사람 확인을 한 번 더 받는다 — 그 확인이 여기다
+    console.log(`  [${at()}] 최종 확인 타이핑`);
+    await page.locator("#chat-input").pressSequentially("네, 승인해줘", { delay: 95 });
+    await sleep(500);
+    await page.locator("#chat-form button[type=submit]").click();
+    await waitForReply(page);
+    console.log(`  [${at()}] 승인 완료 답변 도착`);
+    await sleep(5500);
+  });
+}
+
+async function clip4f() { // 실행 증빙 — 사람 승인 후 에이전트가 이어서 결제한다
+  await clip("clip4f", { role: "admin" }, async (page) => {
+    await openDashboard(page, "#feed li .t");
+    // 라이브 API가 느려져 앞부분이 로딩 화면이다 — 뒤에 쓸 구간을 넉넉히 남긴다
+    await glowByText(page, "#feed li", "사람이 승인", 6);
+    await sleep(8000);
+    await glowByText(page, "#feed li", "사람이 승인", 6);
+    await sleep(7000);
   });
 }
 
@@ -303,7 +372,7 @@ async function clip5b() {
 const CLIPS = {
   clip0a, clip0b, clip1, clip1b, clip2, clip2b,
   clip3a, clip3b, clip3c, clip3d,
-  clip4a, clip4a2, clip4b, clip4c, clip5a, clip5b,
+  clip4a, clip4a2, clip4b, clip4c, clip4d, clip4e, clip4f, clip5a, clip5b,
 };
 
 const targets = process.argv.slice(2);

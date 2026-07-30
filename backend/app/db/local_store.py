@@ -74,6 +74,19 @@ class LocalStore:
         with self._lock:
             return self._load().setdefault("events", [])
 
+    def count_events(self, actor: str | None = None) -> int:
+        with self._lock:
+            events = self._load().setdefault("events", [])
+            return len(events) if actor is None else sum(1 for e in events if e["actor"] == actor)
+
+    def recent_events(self, limit: int) -> list[dict]:
+        with self._lock:
+            return self._load().setdefault("events", [])[-limit:][::-1]
+
+    def events_after(self, cursor: int) -> list[dict]:
+        with self._lock:
+            return self._load().setdefault("events", [])[cursor:]
+
     def log_event(self, actor: str, action: str, payload: dict) -> None:
         with self._lock:
             state = self._load()

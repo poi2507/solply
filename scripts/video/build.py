@@ -52,14 +52,21 @@ for s in plan["scenes"]:
 # 장면 길이 = 내레이션이 필요한 길이와 영상이 필요한 길이 중 긴 쪽.
 # 영상을 상한 배속 이상으로 조여 읽을 수 없게 만들지 않는다 — 남는 시간은 침묵으로 둔다.
 def clip_pairs(scene):
-    return [(c, None) if isinstance(c, str) else (c[0], c[1]) for c in scene.get("clips", [])]
+    """클립 지정: "이름" | ["이름", 사용초] | ["이름", 사용초, 시작초(로딩 구간 스킵)]"""
+    out = []
+    for c in scene.get("clips", []):
+        if isinstance(c, str):
+            out.append((c, None, 0.0))
+        else:
+            out.append((c[0], c[1], c[2] if len(c) > 2 else 0.0))
+    return out
 
 
 for s in plan["scenes"]:
     if s.get("card"):
         s["dur"] = s["duration"]
         continue
-    footage = sum(cap if cap else dur(f"clips/{name}.webm") for name, cap in clip_pairs(s))
+    footage = sum(cap if cap else dur(f"clips/{n}.webm") - off for n, cap, off in clip_pairs(s))
     s["footage"] = footage
     s["dur"] = round(max(s["narr_dur"] + GAP * 2, footage / MAX_SPEED), 2)
 
@@ -82,10 +89,13 @@ for s in plan["scenes"]:
 
     # 클립들을 정규화(+지정 길이만 사용)해서 이어붙인다
     parts = []
-    for name, cap in clip_pairs(s):
+    for name, cap, off in clip_pairs(s):
         src, norm = Path(f"clips/{name}.webm"), Path(f"work/n-{name}.mp4")
         if not norm.exists():
-            args = [FF, "-y", "-loglevel", "error", "-i", str(src)]
+            args = [FF, "-y", "-loglevel", "error"]
+            if off:
+                args += ["-ss", str(off)]
+            args += ["-i", str(src)]
             if cap:
                 args += ["-t", str(cap)]
             run(args + ["-vf", f"scale={W}:{H}:force_original_aspect_ratio=decrease,"
@@ -117,7 +127,8 @@ for s in plan["scenes"]:
         out.write_bytes(src.read_bytes())
         continue
     inputs, filters, last = ["-i", str(src)], [], "0:v"
-    for i, (a, b, _) in enumerate(subs):
+    for i, sub in enumerate(subs):
+        a, b = sub[0], sub[1]
         inputs += ["-i", f"subs/{s['id']}-{i}.png"]
         t0, t1 = a * s["dur"], b * s["dur"]
         nxt = f"v{i}"

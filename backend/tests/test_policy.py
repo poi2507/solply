@@ -29,6 +29,18 @@ def test_save_and_read_back():
     assert saved.min_reserve_usdc == 5
 
 
+def test_dashboard_shows_the_policy_the_owner_set():
+    """화면이 시드값을 보여주면 '상한 초과로 보류'와 모순된다 — 실효 정책을 내려야 한다."""
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+
+    policy_mod.save("store-a", {"auto_pay_limit_usdc": 1})
+    view = TestClient(app).get("/api/overview").json()
+    mine = next(s for s in view["stores"] if s["id"] == "store-a")
+    assert mine["autoPayLimit"] == 1
+
+
 def test_unknown_field_is_rejected():
     with pytest.raises(ValueError, match="알 수 없는"):
         policy_mod.save("store-a", {"drain_the_wallet": True})

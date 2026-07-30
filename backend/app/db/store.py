@@ -18,6 +18,9 @@ class Store(Protocol):
     def update(self, collection: str, doc_id: str, patch: dict) -> dict: ...
     def list_docs(self, collection: str, **filters) -> list[dict]: ...
     def list_events(self) -> list[dict]: ...
+    def count_events(self, actor: str | None = None) -> int: ...
+    def events_after(self, cursor: int) -> list[dict]: ...
+    def recent_events(self, limit: int) -> list[dict]: ...
     def log_event(self, actor: str, action: str, payload: dict) -> None: ...
     def reset(self, keep: tuple[str, ...] = ()) -> None: ...
 
@@ -54,6 +57,21 @@ def list_docs(collection: str, **filters) -> list[dict]:
 
 def list_events() -> list[dict]:
     return _store.list_events()
+
+
+def count_events(actor: str | None = None) -> int:
+    """이벤트 개수만 센다 — SSE와 지표가 전체를 읽지 않도록."""
+    return _store.count_events(actor)
+
+
+def events_after(cursor: int) -> list[dict]:
+    """cursor번째 이후로 새로 쌓인 이벤트만."""
+    return _store.events_after(cursor)
+
+
+def recent_events(limit: int) -> list[dict]:
+    """최근 N건만 (최신순) — 로그가 수천 건 쌓여도 화면은 가볍게."""
+    return _store.recent_events(limit)
 
 
 def log_event(actor: str, action: str, payload: dict) -> None:
