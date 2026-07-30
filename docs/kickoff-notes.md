@@ -148,6 +148,6 @@ npx @solana/pay claude "buy some water with pay"
 - [ ] devnet 전환 + Discord에서 devnet SOL 추가 요청
 
 ### 여유 있으면
-- [ ] pay.sh `--sandbox`로 에이전트가 시세 데이터 구매 (심사 기준 3 강화)
+- [x] pay.sh `--sandbox`로 에이전트가 시세 데이터 구매 (심사 기준 3 강화) — 7/30 완료, `core/market.py`
 - [ ] AP2 mandate 개념으로 한도 정책 재표현
 - [ ] 검수 완료 시 settle하는 에스크로 구조 (x402 표준 공백 → 독자 기여 어필)

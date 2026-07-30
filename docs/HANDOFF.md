@@ -147,12 +147,20 @@ gcloud run deploy solply-api --source /절대/경로/레포루트 --clear-base-i
 "Initiated"가 명실상부해진다. 소개서·영상에서도 이 프레임("에이전트가 주문을 시작한다")을
 명시적으로 쓸 것.
 
-**② 심사 기준 3에 나열된 pay.sh·Solana Pay를 안 쓴다.** Solana Pay(QR)는 사람 흐름이라
-안 쓰는 근거가 서지만, **pay.sh는 우리와 결이 맞다** — "에이전트가 유료 API를 사 쓰는
-레일"이므로, 협상 때 식자재 시세·공급사 데이터를 pay.sh로 사서 판단 근거로 쓰는 연동
-([kickoff-notes.md](kickoff-notes.md) §pay.sh 활용안, `--sandbox`로 실자금 없이 가능).
-루프 끝나고 여유가 있으면 반나절 거리 — 넣으면 기준 3(USDC·x402·pay.sh)이 완전해진다.
-막히면 Discord `#pay-sh-질문`에서 Ludo가 한/영 직접 답변.
+**② 심사 기준 3에 나열된 pay.sh·Solana Pay를 안 쓴다.** → **✅ pay.sh 해소 (7/30).**
+Solana Pay(QR)는 사람 흐름이라 안 쓰는 근거가 서고, pay.sh는 연동했다 — 지점 에이전트가
+조달 판단(`find_supply` 노드) 전에 **시세 데이터를 `pay --sandbox curl`(x402)로 구매**해서
+판단 근거로 쓴다. 이제 기준 3의 세 레일이 전부 실사용이다: USDC(정산 통화) ·
+x402(정산 프로토콜) · pay.sh(판단 재료 구매 레일).
+- 구현: `core/market.py`(구매·영수증 파싱·TTL 캐시) → `store/tools.fetch_market_quote` →
+  `find_supply`가 메시지·판단 근거에 포함. 이벤트 `market.quote_purchased`에
+  **payment-receipt의 온체인 참조**가 남는다 (기준 4 증빙과도 연결).
+- 샌드박스(호스티드 Surfpool 로컬넷)라 실자금 0. 지갑은 첫 호출에 자동 생성·충전.
+- CLI 없거나 실패하면 조용히 건너뛴다 — 시세가 조달을 멈추지 않는다. 끄려면 `PAYSH_ENABLED=0`.
+- Dockerfile에 Linux 바이너리(pay-v0.25.0)를 넣어 **라이브 틱에서도 돈다**.
+  로컬 맥은 `brew install pay` (설치돼 있음).
+- 시세 출처는 데버거 데모 API(`debugger.pay.sh/mpp/quote/{심볼}`, 심볼=SKU 앞부분) —
+  영상·소개서에선 "시세 제공자(데모)"로 정직하게 표기할 것.
 
 **+ 발표 리스크 (기술 아님)**: "실물 B2B x402 첫 사례" 포지션엔 "왜 아직 아무도 안
 했나(실물 이행·분쟁 리스크)"가 반드시 따라온다 — 답은 "그래서 검수 대조·차감 협상·거부가

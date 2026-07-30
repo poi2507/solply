@@ -6,6 +6,10 @@ FROM python:3.13-slim
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
+# pay.sh CLI — 에이전트가 조달 판단용 시세 데이터를 x402로 구매한다 (샌드박스 — 실자금 없음)
+ADD https://github.com/solana-foundation/pay/releases/download/pay-v0.25.0/pay-x86_64-unknown-linux-gnu.tar.gz /tmp/pay.tar.gz
+RUN tar -xzf /tmp/pay.tar.gz -C /usr/local/bin && rm /tmp/pay.tar.gz
+
 WORKDIR /app/backend
 
 # 의존성 레이어 (lock 그대로 — 로컬과 동일한 버전)

@@ -221,8 +221,19 @@ def check_stock(state: StoreState) -> dict:
 
 
 def find_supply(state: StoreState) -> dict:
-    """(구매측) 본사 발주와 지점 잉여를 비교해 조달 경로를 고른다."""
+    """(구매측) 본사 발주와 지점 잉여를 비교해 조달 경로를 고른다.
+
+    비교에 앞서 외부 시세를 pay.sh(x402)로 구매한다 — 판단 재료도 공짜가 아니고,
+    데이터 구매 결제가 영수증과 함께 증빙으로 남는다.
+    """
     s = state["shortage"]
+    quote = tools.fetch_market_quote(state["store_id"], s["sku"])
+    quote_msgs = [f"외부 시세를 x402로 구매했습니다 — {quote['summary']}."] if quote else []
+    quote_reason = (
+        ["시세는 무료 크롤링이 아니라 pay.sh 유료 API에서 구매한 판단 재료 — 결제 영수증이 증빙으로 남는다"]
+        if quote else []
+    )
+
     result = tools.find_peer_supply(state["store_id"], s["sku"], s["need"])
     hq_terms = result["hq_reorder"]
     hq_line = (
@@ -230,16 +241,22 @@ def find_supply(state: StoreState) -> dict:
         if hq_terms else "본사 발주 조건 미확인"
     )
     if not result["peers"]:
-        return {"outcome": "noop", "messages": [f"잉여 지점이 없습니다. {hq_line} — 본사 발주로 진행합니다."]}
+        return {
+            "outcome": "noop",
+            "messages": [*quote_msgs, f"잉여 지점이 없습니다. {hq_line} — 본사 발주로 진행합니다."],
+            "reasoning": quote_reason,
+        }
 
     best = max(result["peers"], key=lambda p: p["surplus"])
     return {
         "supply": {**best, "unit_price_usdc": hq_terms.get("unit_price_usdc", 0)},
         "messages": [
-            f"조달 비교 — {hq_line}. {best['name']}에 잉여 {best['surplus']}개, 오늘 인수 가능."
+            *quote_msgs,
+            f"조달 비교 — {hq_line}. {best['name']}에 잉여 {best['surplus']}개, 오늘 인수 가능.",
         ],
         "reasoning": [
-            f"필요 수량 {s['need']}개는 최소 발주량 미만이고 리드타임을 기다리면 결품 위험 — 지점 간 직거래가 유리"
+            *quote_reason,
+            f"필요 수량 {s['need']}개는 최소 발주량 미만이고 리드타임을 기다리면 결품 위험 — 지점 간 직거래가 유리",
         ],
     }
 

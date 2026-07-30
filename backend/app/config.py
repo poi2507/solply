@@ -41,6 +41,14 @@ SPEND_LIMIT_USDC = float(os.getenv("AGENT_SPEND_LIMIT_USDC", "50"))
 # 라이브에서 스케줄러가 굴리는 틱. 촬영·리허설 중에는 0으로 꺼서 상태를 고정한다
 TICK_ENABLED = os.getenv("TICK_ENABLED", "1").lower() not in ("0", "false")
 
+# ── pay.sh (판단 재료 구매) ──
+# 조달 판단 전에 에이전트가 시세 데이터를 x402로 사서 쓴다. 샌드박스라 실자금은 없다.
+# CLI가 없거나 호출이 실패하면 조용히 건너뛴다 — 시세가 조달을 멈출 사유는 아니다.
+PAYSH_ENABLED = os.getenv("PAYSH_ENABLED", "1").lower() not in ("0", "false")
+PAYSH_BIN = os.getenv("PAYSH_BIN", "pay")
+PAYSH_QUOTE_URL = os.getenv("PAYSH_QUOTE_URL", "https://debugger.pay.sh/mpp/quote")
+PAYSH_QUOTE_TTL_S = int(os.getenv("PAYSH_QUOTE_TTL_S", "600"))
+
 # ── 저장소 ──
 # local | postgres  (Cloud SQL로 옮길 때도 DATABASE_URL만 바꾼다)
 STORE_BACKEND = os.getenv("SOLPLY_STORE", "local")
