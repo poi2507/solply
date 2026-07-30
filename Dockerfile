@@ -8,8 +8,11 @@ FROM python:3.13-slim-trixie
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 # pay.sh CLI — 에이전트가 조달 판단용 시세 데이터를 x402로 구매한다 (샌드박스 — 실자금 없음)
+# `pay curl`은 시스템 curl에 패스스루라 curl 본체가 있어야 한다 (slim엔 없음)
 ADD https://github.com/solana-foundation/pay/releases/download/pay-v0.25.0/pay-x86_64-unknown-linux-gnu.tar.gz /tmp/pay.tar.gz
-RUN tar -xzf /tmp/pay.tar.gz -C /usr/local/bin && rm /tmp/pay.tar.gz
+RUN tar -xzf /tmp/pay.tar.gz -C /usr/local/bin && rm /tmp/pay.tar.gz \
+    && apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app/backend
 
