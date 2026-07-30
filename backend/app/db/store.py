@@ -16,11 +16,13 @@ class Store(Protocol):
     def get(self, collection: str, doc_id: str) -> dict | None: ...
     def put(self, collection: str, doc_id: str, doc: dict) -> dict: ...
     def update(self, collection: str, doc_id: str, patch: dict) -> dict: ...
-    def list_docs(self, collection: str, **filters) -> list[dict]: ...
+    def list_docs(self, collection: str, day: str | None = None, **filters) -> list[dict]: ...
+    def count_docs(self, collection: str, **filters) -> int: ...
+    def first_day(self) -> str | None: ...
     def list_events(self) -> list[dict]: ...
-    def count_events(self, actor: str | None = None) -> int: ...
+    def count_events(self, actor: str | None = None, day: str | None = None) -> int: ...
     def events_after(self, cursor: int) -> list[dict]: ...
-    def recent_events(self, limit: int) -> list[dict]: ...
+    def recent_events(self, limit: int, day: str | None = None) -> list[dict]: ...
     def log_event(self, actor: str, action: str, payload: dict) -> None: ...
     def reset(self, keep: tuple[str, ...] = ()) -> None: ...
 
@@ -51,17 +53,28 @@ def update(collection: str, doc_id: str, patch: dict) -> dict:
     return _store.update(collection, doc_id, patch)
 
 
-def list_docs(collection: str, **filters) -> list[dict]:
-    return _store.list_docs(collection, **filters)
+def list_docs(collection: str, day: str | None = None, **filters) -> list[dict]:
+    """day를 주면 그 KST 날짜에 갱신된 문서만 — 대시보드가 하루치만 읽는다."""
+    return _store.list_docs(collection, day=day, **filters)
+
+
+def count_docs(collection: str, **filters) -> int:
+    """건수만 센다 — 날짜와 무관한 누적 총계용."""
+    return _store.count_docs(collection, **filters)
+
+
+def first_day() -> str | None:
+    """기록이 시작된 KST 날짜 — 날짜 이동의 왼쪽 끝."""
+    return _store.first_day()
 
 
 def list_events() -> list[dict]:
     return _store.list_events()
 
 
-def count_events(actor: str | None = None) -> int:
+def count_events(actor: str | None = None, day: str | None = None) -> int:
     """이벤트 개수만 센다 — SSE와 지표가 전체를 읽지 않도록."""
-    return _store.count_events(actor)
+    return _store.count_events(actor, day)
 
 
 def events_after(cursor: int) -> list[dict]:
@@ -69,9 +82,9 @@ def events_after(cursor: int) -> list[dict]:
     return _store.events_after(cursor)
 
 
-def recent_events(limit: int) -> list[dict]:
-    """최근 N건만 (최신순) — 로그가 수천 건 쌓여도 화면은 가볍게."""
-    return _store.recent_events(limit)
+def recent_events(limit: int, day: str | None = None) -> list[dict]:
+    """최근 N건만 (최신순). day를 주면 그 하루 안에서."""
+    return _store.recent_events(limit, day)
 
 
 def log_event(actor: str, action: str, payload: dict) -> None:

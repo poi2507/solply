@@ -25,11 +25,10 @@ DISPUTE_PENALTY = 2
 def evaluate(store_id: str) -> dict:
     """이력에서 신용점수를 계산한다. 근거(정시납·연체·분쟁 건수)를 함께 돌려준다."""
     seeded = fixtures.load().get("payment_history", {}).get(store_id, {})
-    live_settled = [
-        i for i in db.list_docs("invoices", store_id=store_id) if i["status"] == "settled"
-    ]
+    # 건수만 필요하다 — 정산 이력이 수천 건 쌓여도 문서를 다 읽지 않는다
+    live_settled = db.count_docs("invoices", store_id=store_id, status="settled")
 
-    on_time = int(seeded.get("on_time", 0)) + len(live_settled)
+    on_time = int(seeded.get("on_time", 0)) + live_settled
     late = int(seeded.get("late", 0))
     disputed = int(seeded.get("disputed", 0))
 
@@ -39,6 +38,6 @@ def evaluate(store_id: str) -> dict:
         "on_time": on_time,
         "late": late,
         "disputed": disputed,
-        "live_settled": len(live_settled),
+        "live_settled": live_settled,
         "note": seeded.get("note", ""),
     }

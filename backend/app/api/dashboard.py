@@ -8,7 +8,7 @@ from fastapi.responses import StreamingResponse
 
 from app import config
 from app.agents import utils as agent_utils
-from app.core import credit, fixtures
+from app.core import credit, fixtures, kst
 from app.core import policy as policy_mod
 from app.db import store
 from app.solana import payments
@@ -22,21 +22,32 @@ def health() -> dict:
 
 
 @router.get("/overview")
-def overview() -> dict:
-    """대시보드 첫 화면에 필요한 모든 것."""
-    invoices = store.list_docs("invoices")
-    negotiations = store.list_docs("negotiations")
+def overview(day: str | None = None) -> dict:
+    """대시보드 첫 화면 — 기본은 오늘(KST) 하루, `day`로 과거를 본다.
+
+    목록은 하루치만 읽는다 (기록이 몇 달 쌓여도 화면이 무거워지지 않는다).
+    다만 **미수금은 날짜로 자르지 않는다** — 어제 안 낸 돈이 오늘 화면에서
+    사라지면 안 된다. 누적 건수도 날짜와 무관하게 센다.
+    """
+    day = kst.parse(day)
+    invoices = store.list_docs("invoices", day=day)
+    negotiations = store.list_docs("negotiations", day=day)
     profiles = fixtures.load()["stores"]
 
     settled = [i for i in invoices if i["status"] == "settled"]
     # 미수금 = 아직 받을 돈. 분할 원본(split)은 자식이 대신하므로 빼고(이중 계산),
     # 거부(refused)는 분쟁 확인 대기지 수취 채권이 아니다.
-    not_receivable = ("settled", "split", "refused")
-    outstanding = [i for i in invoices if i["status"] not in not_receivable]
+    # 상태별로 따로 물어본다 — 전체 청구서를 읽지 않고도 미결 건만 모인다.
+    open_invoices = [
+        inv
+        for status in ("issued", "paid", "disputed", "scheduled", "pending_approval")
+        for inv in store.list_docs("invoices", status=status)
+    ]
 
     stores = []
     for sid, profile in profiles.items():
         mine = [i for i in invoices if i["store_id"] == sid]
+        my_open = [i for i in open_invoices if i["store_id"] == sid]
         rating = credit.evaluate(sid)  # 점수는 상수가 아니라 납부 이력에서 계산된다
         stores.append(
             {
@@ -59,16 +70,20 @@ def overview() -> dict:
                     for sku, entry in agent_utils.effective_inventory(sid).items()
                 ],
                 "invoiceCount": len(mine),
-                "outstandingUsdc": round(
-                    sum(i["amount_usdc"] for i in mine if i["status"] not in not_receivable), 2
+                # 미수금은 전체 기간, 정산액은 보고 있는 하루
+                "outstandingUsdc": round(sum(i["amount_usdc"] for i in my_open), 2),
+                "settledUsdc": round(
+                    sum(i["amount_usdc"] for i in mine if i["status"] == "settled"), 2
                 ),
-                "settledUsdc": round(sum(i["amount_usdc"] for i in mine if i["status"] == "settled"), 2),
             }
         )
 
-    trades = store.list_docs("p2p_trades")
-    moves = store.list_docs("inventory_moves")
+    trades = store.list_docs("p2p_trades", day=day)
+    moves = store.list_docs("inventory_moves", day=day)
     return {
+        "day": day,
+        "today": kst.today(),
+        "firstDay": store.first_day(),
         "inventoryMoves": sorted(moves, key=lambda m: m.get("updated_at", ""), reverse=True)[:40],
         # 본사 창고 원장 — 본사 화면은 지점 재고가 아니라 자기 창고를 본다
         "hqInventory": [
@@ -78,13 +93,17 @@ def overview() -> dict:
         ],
         "network": config.NETWORK,
         "totals": {
+            # 보고 있는 하루
             "invoices": len(invoices),
             "settledCount": len(settled),
             "settledUsdc": round(sum(i["amount_usdc"] for i in settled), 2),
-            "outstandingCount": len(outstanding),
-            "outstandingUsdc": round(sum(i["amount_usdc"] for i in outstanding), 2),
             "negotiations": len(negotiations),
-            "humanActions": store.count_events(actor="human"),
+            "humanActions": store.count_events(actor="human", day=day),
+            # 날짜와 무관 — 받을 돈과 누적 실적
+            "outstandingCount": len(open_invoices),
+            "outstandingUsdc": round(sum(i["amount_usdc"] for i in open_invoices), 2),
+            "allInvoices": store.count_docs("invoices"),
+            "allTrades": store.count_docs("p2p_trades"),
         },
         "stores": stores,
         "invoices": sorted(invoices, key=lambda i: i.get("updated_at", ""), reverse=True),
@@ -141,9 +160,19 @@ def timeline(invoice_id: str) -> dict:
 
 
 @router.get("/events")
-def events(limit: int = 100) -> dict:
-    """실행 증빙 로그 — 심사 기준 4번의 근거. 최근 N건만 읽는다 (수천 건 쌓여도 가볍게)."""
-    return {"events": store.recent_events(limit), "total": store.count_events()}
+def events(limit: int = 100, day: str | None = None) -> dict:
+    """실행 증빙 로그 — 심사 기준 4번의 근거.
+
+    기본은 오늘(KST) 하루. 요청한 건수만 읽어서 기록이 수만 건 쌓여도 가볍다.
+    `total`은 그 하루의 건수, `allTime`은 지금까지 쌓인 전체 건수다.
+    """
+    day = kst.parse(day)
+    return {
+        "day": day,
+        "events": store.recent_events(limit, day=day),
+        "total": store.count_events(day=day),
+        "allTime": store.count_events(),
+    }
 
 
 @router.get("/wallets")

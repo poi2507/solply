@@ -10,6 +10,17 @@ import * as role from "./role.js";
 const $ = (id) => document.getElementById(id);
 const seenInvoices = new Set();
 const expanded = new Set();   // 펼쳐둔 청구서 — 새로고침에도 유지한다
+let viewDay = null;          // 보고 있는 날짜 (null = 오늘). 정산은 날짜 단위 업무다
+let dayMeta = { today: null, firstDay: null };
+
+// 날짜 계산은 시간대를 타지 않게 UTC로만 한다 — 로컬로 파싱하고 UTC로 출력하면
+// KST 브라우저에서 하루가 밀린다 (오늘에서 뒤로 가면 어제를 건너뛴다)
+const shiftDay = (day, n) => {
+  const d = new Date(`${day}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+};
+const dayParam = () => (viewDay ? `day=${viewDay}` : "");
 const timelines = new Map();  // id → 응답 캐시
 
 const ACTION_LABEL = {
@@ -545,12 +556,43 @@ function renderSysInfo(ov, health) {
   el.innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("");
 }
 
+
+// ── 날짜 이동 ─────────────────────────────────────────────────────
+// 오늘이 기본이고, 과거로 넘기면 그날의 청구·협상·직거래·로그만 보인다.
+// (미수금은 날짜와 무관하게 계속 보인다 — 어제 안 낸 돈이 사라지면 안 되니까)
+function renderDayNav(ov) {
+  const day = ov.day;
+  const isToday = day === ov.today;
+  const label = $("day-label");
+  if (label) {
+    label.textContent = isToday ? `오늘 ${day.slice(5)}` : day;
+    label.classList.toggle("past", !isToday);
+  }
+  const prev = $("day-prev");
+  const next = $("day-next");
+  if (prev) prev.disabled = !!(ov.firstDay && day <= ov.firstDay);
+  if (next) next.disabled = isToday;
+  const todayBtn = $("day-today");
+  if (todayBtn) todayBtn.hidden = isToday;
+}
+
+function goDay(target) {
+  viewDay = target && target !== dayMeta.today ? target : null;
+  seenInvoices.clear();   // 날짜가 바뀌면 "새 항목" 강조를 초기화한다
+  expanded.clear();
+  refresh();
+}
+
+$("day-prev")?.addEventListener("click", () => goDay(shiftDay(viewDay ?? dayMeta.today, -1)));
+$("day-next")?.addEventListener("click", () => goDay(shiftDay(viewDay ?? dayMeta.today, 1)));
+$("day-today")?.addEventListener("click", () => goDay(null));
+
 async function refresh() {
   if (!me) return;
   try {
     const [ov, ev, health] = await Promise.all([
-      getJSON("/api/overview"),
-      getJSON("/api/events?limit=60"),
+      getJSON(`/api/overview${viewDay ? `?${dayParam()}` : ""}`),
+      getJSON(`/api/events?limit=60${viewDay ? `&${dayParam()}` : ""}`),
       getJSON("/api/health").catch(() => null),
     ]);
     const view = role.scope(me, ov);
@@ -558,6 +600,8 @@ async function refresh() {
     currentNetwork = ov.network;
 
     $("network").textContent = ov.network;
+    dayMeta = { today: ov.today, firstDay: ov.firstDay };
+    renderDayNav(ov);
     renderMetrics(role.metricsFor(me, view, lastWallets));
 
     if (me.kind === "store") {
@@ -595,15 +639,16 @@ async function refresh() {
     // 펼쳐둔 행은 최신 과정으로 다시 채운다
     for (const id of expanded) loadTimeline(id, ov.network);
 
+    const dayNote = ev.day === ov.today ? "오늘" : ev.day;
+    for (const id of ["event-total", "event-total-side"]) {
+      const el = $(id);
+      if (el) el.textContent = `${dayNote} ${ev.total}건 · 누적 ${ev.allTime ?? ev.total}건`;
+    }
     const feedHtml = ev.events.map((e) => eventRow(e, false)).join("")
       || '<li class="empty" style="display:block">아직 활동이 없습니다</li>';
     for (const id of ["feed", "feed-side"]) {
       const el = $(id);
       if (el) el.innerHTML = feedHtml;
-    }
-    for (const id of ["event-total", "event-total-side"]) {
-      const el = $(id);
-      if (el) el.textContent = `${ev.total}건 기록됨`;
     }
   } catch (err) {
     console.error(err);
@@ -630,6 +675,8 @@ function connect() {
 
   src.addEventListener("activity", (e) => {
     const evt = JSON.parse(e.data);
+    // 과거 날짜를 보고 있으면 지금 일어나는 일을 그 날 로그에 끼워넣지 않는다
+    if (viewDay) return;
     for (const id of ["feed", "feed-side"]) {
       const feed = $(id);
       if (!feed || feed.hidden) continue;
@@ -646,7 +693,7 @@ function connect() {
     }, 3000);
   });
 
-  src.addEventListener("refresh", () => refresh());
+  src.addEventListener("refresh", () => { if (!viewDay) refresh(); });
   src.onerror = () => {
     beacon.className = "beacon";
     beacon.innerHTML = "<i></i>재연결 중";

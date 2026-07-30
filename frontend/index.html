@@ -39,6 +39,13 @@
       </div>
     </div>
     <div class="live">
+      <!-- 정산은 날짜 단위 업무다 — 기본은 오늘, 화살표로 지난 날을 본다 -->
+      <div class="daynav">
+        <button class="daybtn" id="day-prev" title="이전 날" aria-label="이전 날">‹</button>
+        <span class="dayval" id="day-label">—</span>
+        <button class="daybtn" id="day-next" title="다음 날" aria-label="다음 날">›</button>
+        <button class="linkish" id="day-today" hidden>오늘로</button>
+      </div>
       <span class="who-chip" id="who-chip">—</span>
       <span class="net" id="network">—</span>
       <span class="beacon" id="beacon"><i></i>대기 중</span>

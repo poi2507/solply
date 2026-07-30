@@ -266,3 +266,49 @@ def test_event_log_reads_only_what_it_shows():
     db.log_event("system", "probe", {"i": 999})
     fresh = db.events_after(cursor)
     assert [e["payload"]["i"] for e in fresh] == [999], "커서 이후 새 이벤트만"
+
+
+def test_dashboard_shows_one_day_but_never_hides_what_is_owed():
+    """기본은 오늘 하루. 다만 어제 안 낸 돈은 오늘 화면에서도 보여야 한다."""
+    from fastapi.testclient import TestClient
+
+    from app.core import kst
+    from app.db import store as db
+    from app.main import app
+
+    client = TestClient(app)
+    today = kst.today()
+    yesterday = kst.shift(today, -1)
+
+    db.put("invoices", "INV-OLD-1", {"store_id": "store-a", "amount_usdc": 9.0, "status": "issued"})
+    db.put("invoices", "INV-NEW-1", {"store_id": "store-a", "amount_usdc": 3.0, "status": "settled"})
+
+    view = client.get("/api/overview").json()
+    assert view["day"] == today and view["today"] == today
+    ids = {i["id"] for i in view["invoices"]}
+    assert "INV-NEW-1" in ids, "오늘 갱신된 건은 목록에 있어야 한다"
+    # 미결 청구는 날짜와 무관하게 미수금에 잡힌다
+    assert view["totals"]["outstandingUsdc"] >= 9.0
+    assert view["totals"]["allInvoices"] >= 2
+
+    # 어제로 옮기면 오늘 것은 안 보인다
+    past = client.get(f"/api/overview?day={yesterday}").json()
+    assert past["day"] == yesterday
+    assert "INV-NEW-1" not in {i["id"] for i in past["invoices"]}
+    assert past["totals"]["outstandingUsdc"] >= 9.0, "미수금은 어느 날짜에서 봐도 같다"
+
+
+def test_event_log_is_scoped_to_a_day():
+    from fastapi.testclient import TestClient
+
+    from app.core import kst
+    from app.db import store as db
+    from app.main import app
+
+    db.log_event("system", "probe.today", {})
+    res = TestClient(app).get("/api/events?limit=5").json()
+    assert res["day"] == kst.today()
+    assert res["total"] <= res["allTime"]
+
+    empty = TestClient(app).get(f"/api/events?day={kst.shift(kst.today(), -30)}").json()
+    assert empty["events"] == [] and empty["total"] == 0

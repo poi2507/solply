@@ -74,13 +74,15 @@ export function metricsFor(role, scoped, wallets) {
 
   if (role.kind === "store") {
     const me = scoped.stores[0] ?? {};
+    // 납부할 금액은 그날치가 아니라 전체 미결 — 어제 밀린 돈이 사라지면 안 된다
+    const owed = Number(me.outstandingUsdc ?? sum(open));
     const wallet = (wallets ?? []).find((w) => w.wallet === role.id);
     const basis = me.creditBasis
       ? `정시납 ${me.creditBasis.onTime} · 연체 ${me.creditBasis.late}`
       : "납부 이력 기준";
     return [
-      { label: "납부 완료", value: sum(settled), unit: "USDC", foot: `${settled.length}건`, accent: true },
-      { label: "납부할 금액", value: sum(open), unit: "USDC", foot: `${open.length}건`, warn: open.length > 0 },
+      { label: "납부 완료", value: sum(settled), unit: "USDC", foot: `이 날 ${settled.length}건`, accent: true },
+      { label: "납부할 금액", value: owed, unit: "USDC", foot: "미결 전체", warn: owed > 0 },
       { label: "내 신용점수", value: me.creditScore ?? 0, unit: "점", foot: basis, plain: true },
       { label: "지갑 잔액", value: wallet?.usdc, unit: "USDC", foot: wallet ? "결제 가능액" : "조회 중…" },
     ];
@@ -89,17 +91,17 @@ export function metricsFor(role, scoped, wallets) {
   const t = scoped.totals;
   if (role.kind === "admin") {
     return [
-      { label: "온체인 정산", value: t.settledUsdc, unit: "USDC", foot: `${t.settledCount}건`, accent: true },
-      { label: "에이전트 협상", value: t.negotiations, unit: "건", foot: "자동 합의", plain: true },
-      { label: "사람 개입", value: t.humanActions, unit: "회", foot: "버튼을 누른 횟수", plain: true },
-      { label: "청구서 총계", value: t.invoices, unit: "건", foot: "발행 누계", plain: true },
+      { label: "온체인 정산", value: t.settledUsdc, unit: "USDC", foot: `이 날 ${t.settledCount}건`, accent: true },
+      { label: "에이전트 협상", value: t.negotiations, unit: "건", foot: "이 날 자동 합의", plain: true },
+      { label: "사람 개입", value: t.humanActions, unit: "회", foot: "이 날 사람이 누른 횟수", plain: true },
+      { label: "누적 청구서", value: t.allInvoices ?? t.invoices, unit: "건", foot: "전체 기간 발행", plain: true },
     ];
   }
 
   return [
-    { label: "정산 완료", value: t.settledUsdc, unit: "USDC", foot: `${t.settledCount}건`, accent: true },
-    { label: "미수금", value: t.outstandingUsdc, unit: "USDC", foot: `${t.outstandingCount ?? 0}건`, warn: (t.outstandingUsdc ?? 0) > 0 },
-    { label: "에이전트 협상", value: t.negotiations, unit: "건", foot: "자동 합의", plain: true },
-    { label: "사람 개입", value: t.humanActions, unit: "회", foot: "버튼을 누른 횟수", plain: true },
+    { label: "정산 완료", value: t.settledUsdc, unit: "USDC", foot: `이 날 ${t.settledCount}건`, accent: true },
+    { label: "미수금", value: t.outstandingUsdc, unit: "USDC", foot: `미결 전체 ${t.outstandingCount ?? 0}건`, warn: (t.outstandingUsdc ?? 0) > 0 },
+    { label: "에이전트 협상", value: t.negotiations, unit: "건", foot: "이 날 자동 합의", plain: true },
+    { label: "누적 청구서", value: t.allInvoices ?? t.invoices, unit: "건", foot: "전체 기간 발행", plain: true },
   ];
 }

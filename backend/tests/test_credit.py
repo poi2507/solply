@@ -32,12 +32,17 @@ def test_seeded_history_reproduces_known_scores(no_live_history, store_id, expec
 
 def test_live_settlement_raises_the_score(monkeypatch):
     """이번 세션의 온체인 정산이 정시납으로 가산된다 — 데모 중 점수가 오른다."""
-    monkeypatch.setattr(
-        "app.db.store.list_docs",
-        lambda *a, **k: [{"status": "settled"}, {"status": "settled"}, {"status": "issued"}],
-    )
+    seen = {}
+
+    def counted(collection, **filters):
+        seen.update(filters)
+        return 2
+
+    # 문서를 다 읽지 않고 '정산 완료' 건수만 세는지도 함께 확인한다
+    monkeypatch.setattr("app.db.store.count_docs", counted)
     rating = credit.evaluate("store-a")
     assert rating["live_settled"] == 2
+    assert seen == {"store_id": "store-a", "status": "settled"}
     assert rating["credit_score"] == 88 + 2 * credit.ON_TIME_POINTS
 
 

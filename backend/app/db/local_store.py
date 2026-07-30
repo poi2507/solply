@@ -9,6 +9,8 @@ import threading
 from datetime import UTC, datetime
 from pathlib import Path
 
+from app.core import kst
+
 _EMPTY: dict = {"events": []}
 
 
@@ -63,25 +65,45 @@ class LocalStore:
             self._save(state)
             return doc
 
-    def list_docs(self, collection: str, **filters) -> list[dict]:
+    def list_docs(self, collection: str, day: str | None = None, **filters) -> list[dict]:
         with self._lock:
             docs = list(_collection(self._load(), collection).values())
+        if day:
+            docs = [d for d in docs if d.get("updated_at") and kst.day_of(d["updated_at"]) == day]
         for key, value in filters.items():
             docs = [d for d in docs if d.get(key) == value]
         return docs
+
+    def count_docs(self, collection: str, **filters) -> int:
+        return len(self.list_docs(collection, **filters))
+
+    def first_day(self) -> str | None:
+        with self._lock:
+            state = self._load()
+        stamps = [e["ts"] for e in state.get("events", [])]
+        for docs in state.values():
+            if isinstance(docs, dict):
+                stamps += [d["updated_at"] for d in docs.values() if d.get("updated_at")]
+        return kst.day_of(min(stamps)) if stamps else None
 
     def list_events(self) -> list[dict]:
         with self._lock:
             return self._load().setdefault("events", [])
 
-    def count_events(self, actor: str | None = None) -> int:
-        with self._lock:
-            events = self._load().setdefault("events", [])
-            return len(events) if actor is None else sum(1 for e in events if e["actor"] == actor)
+    def count_events(self, actor: str | None = None, day: str | None = None) -> int:
+        return len(self._events(actor=actor, day=day))
 
-    def recent_events(self, limit: int) -> list[dict]:
+    def recent_events(self, limit: int, day: str | None = None) -> list[dict]:
+        return self._events(day=day)[-limit:][::-1]
+
+    def _events(self, actor: str | None = None, day: str | None = None) -> list[dict]:
         with self._lock:
-            return self._load().setdefault("events", [])[-limit:][::-1]
+            events = list(self._load().setdefault("events", []))
+        if actor:
+            events = [e for e in events if e["actor"] == actor]
+        if day:
+            events = [e for e in events if kst.day_of(e["ts"]) == day]
+        return events
 
     def events_after(self, cursor: int) -> list[dict]:
         with self._lock:

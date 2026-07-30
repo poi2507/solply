@@ -17,6 +17,8 @@ from typing import Any
 from psycopg.types.json import Jsonb
 from psycopg_pool import ConnectionPool
 
+from app.core import kst
+
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS documents (
     collection  TEXT        NOT NULL,
@@ -29,6 +31,9 @@ CREATE TABLE IF NOT EXISTS documents (
 CREATE INDEX IF NOT EXISTS documents_collection_idx ON documents (collection);
 -- 지점별 조회가 잦다: list_docs("invoices", store_id=...)
 CREATE INDEX IF NOT EXISTS documents_store_idx ON documents ((data ->> 'store_id'));
+-- 대시보드는 '그날 하루'만 읽는다 — 기록이 몇 달 쌓여도 화면은 하루치만 훑는다
+CREATE INDEX IF NOT EXISTS documents_day_idx ON documents (collection, updated_at DESC);
+CREATE INDEX IF NOT EXISTS events_ts_idx ON events (ts DESC);
 
 CREATE TABLE IF NOT EXISTS events (
     id       BIGSERIAL   PRIMARY KEY,
@@ -98,9 +103,13 @@ class PostgresStore:
             raise KeyError(f"{collection}/{doc_id} 없음")
         return {**row[0], "updated_at": row[1].isoformat()}
 
-    def list_docs(self, collection: str, **filters: Any) -> list[dict]:
+    def list_docs(self, collection: str, day: str | None = None, **filters: Any) -> list[dict]:
         sql = "SELECT data, updated_at FROM documents WHERE collection = %s"
         params: list[Any] = [collection]
+        if day:
+            start, end = kst.bounds(day)
+            sql += " AND updated_at >= %s AND updated_at < %s"
+            params += [start, end]
         for key, value in filters.items():
             if value is None:
                 continue
@@ -110,6 +119,27 @@ class PostgresStore:
         with self.pool.connection() as conn:
             rows = conn.execute(sql, params).fetchall()
         return [{**r[0], "updated_at": r[1].isoformat()} for r in rows]
+
+    def count_docs(self, collection: str, **filters: Any) -> int:
+        sql = "SELECT count(*) FROM documents WHERE collection = %s"
+        params: list[Any] = [collection]
+        for key, value in filters.items():
+            if value is None:
+                continue
+            sql += f" AND data ->> '{key}' = %s"
+            params.append(str(value))
+        with self.pool.connection() as conn:
+            return conn.execute(sql, params).fetchone()[0]
+
+    def first_day(self) -> str | None:
+        """기록이 시작된 KST 날짜 — 날짜 이동의 왼쪽 끝."""
+        with self.pool.connection() as conn:
+            row = conn.execute(
+                "SELECT least("
+                " (SELECT min(updated_at) FROM documents),"
+                " (SELECT min(ts) FROM events))"
+            ).fetchone()
+        return kst.day_of(row[0]) if row and row[0] else None
 
     # ── 이벤트 ────────────────────────────────────────────────────
     def list_events(self) -> list[dict]:
@@ -121,20 +151,31 @@ class PostgresStore:
             {"ts": r[0].isoformat(), "actor": r[1], "action": r[2], "payload": r[3]} for r in rows
         ]
 
-    def count_events(self, actor: str | None = None) -> int:
-        sql, params = "SELECT count(*) FROM events", []
+    def count_events(self, actor: str | None = None, day: str | None = None) -> int:
+        sql, params, where = "SELECT count(*) FROM events", [], []
         if actor:
-            sql += " WHERE actor = %s"
+            where.append("actor = %s")
             params.append(actor)
+        if day:
+            start, end = kst.bounds(day)
+            where.append("ts >= %s AND ts < %s")
+            params += [start, end]
+        if where:
+            sql += " WHERE " + " AND ".join(where)
         with self.pool.connection() as conn:
             return conn.execute(sql, params).fetchone()[0]
 
-    def recent_events(self, limit: int) -> list[dict]:
+    def recent_events(self, limit: int, day: str | None = None) -> list[dict]:
+        sql = "SELECT ts, actor, action, payload FROM events"
+        params: list[Any] = []
+        if day:
+            start, end = kst.bounds(day)
+            sql += " WHERE ts >= %s AND ts < %s"
+            params += [start, end]
+        sql += " ORDER BY id DESC LIMIT %s"
+        params.append(limit)
         with self.pool.connection() as conn:
-            rows = conn.execute(
-                "SELECT ts, actor, action, payload FROM events ORDER BY id DESC LIMIT %s",
-                [limit],
-            ).fetchall()
+            rows = conn.execute(sql, params).fetchall()
         return [
             {"ts": r[0].isoformat(), "actor": r[1], "action": r[2], "payload": r[3]} for r in rows
         ]
