@@ -159,6 +159,12 @@ x402(정산 프로토콜) · pay.sh(판단 재료 구매 레일).
 - CLI 없거나 실패하면 조용히 건너뛴다 — 시세가 조달을 멈추지 않는다. 끄려면 `PAYSH_ENABLED=0`.
 - Dockerfile에 Linux 바이너리(pay-v0.25.0)를 넣어 **라이브 틱에서도 돈다**.
   로컬 맥은 `brew install pay` (설치돼 있음).
+- **라이브 검증 완료 (7/30, rev 00010)**: /shop에서 재고를 안전선 아래로 → 틱 →
+  `market.quote_purchased`(store-b, 영수증 포함) → 같은 초에 P2P 제안 → x402 결제까지 한 틱 완주.
+- 컨테이너 함정 둘 (이미 해결, 재발 방지용 기록): ① pay 바이너리가 GLIBC_2.39 요구
+  → 베이스를 `python:3.13-slim-trixie`로 고정 (bookworm 2.36에선 즉시 죽음).
+  ② `pay curl`은 시스템 curl에 패스스루 → 이미지에 curl 설치 필요.
+  실패는 조달을 안 막는 대신 서버 로그 `[market]` 줄로 남는다 — 안 사는 것 같으면 거기부터.
 - 시세 출처는 데버거 데모 API(`debugger.pay.sh/mpp/quote/{심볼}`, 심볼=SKU 앞부분) —
   영상·소개서에선 "시세 제공자(데모)"로 정직하게 표기할 것.
 
