@@ -54,3 +54,48 @@ def test_readonly_tools_return_compact_shapes():
 
     credit = tools.get_store_credit("store-c")
     assert credit["credit_score"] >= 85 and "on_time" in credit
+
+
+def test_provider_errors_never_reach_the_chat_window(monkeypatch):
+    """대화창에 공급자 오류 원문(문서 링크·스택)이 뜨면 안 된다 — 짧은 우리말 안내만."""
+    from fastapi.testclient import TestClient
+
+    from app import config
+    from app.main import app
+
+    monkeypatch.setattr(config, "LLM_PROVIDER", "vertex")
+
+    async def boom(*a, **kw):
+        raise RuntimeError("429 RESOURCE_EXHAUSTED ... refer to https://google.github.io/adk-docs/")
+
+    monkeypatch.setattr("app.assistant.agent.chat", boom)
+    res = TestClient(app, raise_server_exceptions=False).post(
+        "/api/assistant/chat", json={"message": "승인 대기 있어?"}
+    )
+
+    assert res.status_code == 502
+    detail = res.json()["detail"]
+    assert "http" not in detail and "429" not in detail
+    assert "다시 물어봐" in detail
+
+
+def test_transient_model_failure_is_retried(monkeypatch):
+    """한 번 흔들렸다고 사용자에게 실패를 보여주지 않는다."""
+    import asyncio
+
+    from app.assistant import agent
+
+    calls = {"n": 0}
+
+    async def flaky(session_id, message, user_id):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise RuntimeError("503 UNAVAILABLE")
+        return "승인 기다리는 건 하나 있어요."
+
+    real_sleep = asyncio.sleep  # 교체 전에 붙잡아 둔다 (안 그러면 자기 자신을 부른다)
+    monkeypatch.setattr(agent, "_turn", flaky)
+    monkeypatch.setattr(asyncio, "sleep", lambda _s: real_sleep(0))
+
+    reply = asyncio.run(agent.chat("s", "승인 대기 있어?"))
+    assert calls["n"] == 2 and reply.startswith("승인 기다리는")

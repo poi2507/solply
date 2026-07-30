@@ -24,5 +24,7 @@ async def chat(body: ChatIn) -> dict:
     try:
         reply = await assistant.chat(body.session_id, body.message.strip())
     except Exception as exc:
-        raise HTTPException(502, f"어시스턴트 응답 실패 (잠시 후 재시도): {str(exc)[:120]}") from exc
+        # 공급자 오류 원문(문서 링크·스택)을 대화창에 흘리지 않는다. 진단은 서버 로그에 남긴다.
+        print(f"[assistant] 응답 실패: {exc}")
+        raise HTTPException(502, "지금 답을 만들지 못했어요. 잠시 뒤 다시 물어봐 주세요.") from exc
     return {"reply": reply or "…답변을 만들지 못했습니다. 다시 물어봐 주세요."}

@@ -68,7 +68,8 @@ for s in plan["scenes"]:
         continue
     footage = sum(cap if cap else dur(f"clips/{n}.webm") - off for n, cap, off in clip_pairs(s))
     s["footage"] = footage
-    s["dur"] = round(max(s["narr_dur"] + GAP * 2, footage / MAX_SPEED), 2)
+    # 읽어야 하는 장면(대화·협상 문구)은 장면에서 배속 상한을 1.0까지 낮춘다
+    s["dur"] = round(max(s["narr_dur"] + GAP * 2, footage / s.get("maxSpeed", MAX_SPEED)), 2)
 
 total = sum(s["dur"] for s in plan["scenes"])
 print(f"   총 길이 {int(total // 60)}:{total % 60:04.1f}")
@@ -111,7 +112,7 @@ for s in plan["scenes"]:
          "-c", "copy", str(joined)])
 
     footage = dur(joined)
-    speed = max(0.75, min(footage / target, MAX_SPEED))  # >1 이면 빨리 감기
+    speed = max(0.75, min(footage / target, s.get("maxSpeed", MAX_SPEED)))  # >1 이면 빨리 감기
     run([FF, "-y", "-loglevel", "error", "-i", str(joined),
          "-vf", f"setpts=PTS/{speed:.5f},fps={FPS}", "-t", str(target),
          "-c:v", "libx264", "-preset", "medium", "-crf", "20",
