@@ -93,3 +93,20 @@ def test_find_supply_buys_quote_as_judgment_input(monkeypatch):
     out = node.find_supply(state)
 
     assert any("x402로 구매" in m for m in out["messages"]), "구매한 시세가 판단 근거에 남아야 한다"
+    assert out["market_quote"]["summary"].startswith("CHK"), "다음 노드가 쓰도록 상태에 실려야 한다"
+
+
+def test_purchased_quote_lands_in_trade_doc_as_basis():
+    state = {
+        "store_id": "store-b",
+        "shortage": {"sku": "CHK-10", "name": "냉장 닭 10kg", "qty": 0, "safety": 4, "need": 2},
+        "supply": {"store_id": "store-a", "name": "A지점 (강남)", "surplus": 10, "unit_price_usdc": 0.5},
+        "market_quote": {"summary": "CHK 75.98 USD (직전 구매가 대비 -2.1%, 제공 mpp-demo)"},
+    }
+
+    out = node.propose_trade(state)
+
+    trade = db.get("p2p_trades", out["trade_id"])
+    assert "75.98" in trade["basis"] and "pay.sh" in trade["basis"], (
+        "산 시세가 거래 문서에 남아 본사 심사와 대시보드가 읽을 수 있어야 한다"
+    )

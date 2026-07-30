@@ -245,6 +245,7 @@ def find_supply(state: StoreState) -> dict:
             "outcome": "noop",
             "messages": [*quote_msgs, f"잉여 지점이 없습니다. {hq_line} — 본사 발주로 진행합니다."],
             "reasoning": quote_reason,
+            **({"market_quote": quote} if quote else {}),
         }
 
     best = max(result["peers"], key=lambda p: p["surplus"])
@@ -258,15 +259,22 @@ def find_supply(state: StoreState) -> dict:
             *quote_reason,
             f"필요 수량 {s['need']}개는 최소 발주량 미만이고 리드타임을 기다리면 결품 위험 — 지점 간 직거래가 유리",
         ],
+        **({"market_quote": quote} if quote else {}),
     }
 
 
 def propose_trade(state: StoreState) -> dict:
-    """(구매측) 잉여 지점에 직거래를 제안한다. 가격은 본사 공급가 기준."""
+    """(구매측) 잉여 지점에 직거래를 제안한다. 가격은 본사 공급가 기준.
+
+    구매한 시세가 있으면 제안 문서에 판단 근거로 남긴다 — 본사 심사가 이 근거를 읽는다.
+    """
     s, sup = state["shortage"], state["supply"]
     price = round(s["need"] * sup["unit_price_usdc"], 2)
+    quote = state.get("market_quote")
+    basis = f"구매한 외부 시세: {quote['summary']} — pay.sh(x402) 결제" if quote else None
     trade = tools.propose_p2p_trade(
-        state["store_id"], sup["store_id"], s["sku"], s["name"], s["need"], price
+        state["store_id"], sup["store_id"], s["sku"], s["name"], s["need"], price,
+        basis=basis,
     )
     return {
         "trade": trade,

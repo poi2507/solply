@@ -22,3 +22,4 @@ class StoreState(BaseState, total=False):
     inventory: dict[str, Any]       # 재고 현황 (시드 + 확정 거래 반영)
     shortage: dict[str, Any]        # 안전재고 미달 품목 {sku, qty, safety, need}
     supply: dict[str, Any]          # 선택한 조달처 {store_id, name, surplus, unit_price_usdc}
+    market_quote: dict[str, Any]    # pay.sh로 구매한 외부 시세 {symbol, price_usd, summary, receipt}

@@ -216,6 +216,7 @@ def review_p2p(state: HQState) -> dict:
             "seller_surplus": utils.sellable_surplus(seller_inventory, trade["sku"]),
             "buyer_credit_score": buyer_credit["credit_score"],
             "seller_credit_score": seller_credit["credit_score"],
+            "buyer_basis": trade.get("basis") or "제공 안 됨",  # 구매측이 산 시세 근거
         },
         policy_values=policy_mod.get("hq").as_prompt_values()
         | {"p2p_min_credit_score": policy_mod.get("hq").p2p_min_credit_score},

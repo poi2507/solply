@@ -225,8 +225,14 @@ def find_peer_supply(store_id: str, sku: str, qty: int) -> dict:
     return {"sku": sku, "qty": qty, "peers": peers, "hq_reorder": utils.hq_reorder_terms(sku)}
 
 
-def propose_p2p_trade(store_id: str, seller_id: str, sku: str, name: str, qty: int, price_usdc: float) -> dict:
-    """잉여 지점에 재고 직거래를 제안한다. 대금은 구매 지점이 판매 지점에 직접 낸다."""
+def propose_p2p_trade(
+    store_id: str, seller_id: str, sku: str, name: str, qty: int, price_usdc: float,
+    basis: str | None = None,
+) -> dict:
+    """잉여 지점에 재고 직거래를 제안한다. 대금은 구매 지점이 판매 지점에 직접 낸다.
+
+    basis: 제안의 판단 근거(구매한 시세 등) — 문서에 남아 본사 심사와 대시보드가 읽는다.
+    """
     seq = len(db.list_docs("p2p_trades")) + 1
     while db.get("p2p_trades", f"P2P-{seq:02d}"):
         seq += 1
@@ -236,7 +242,7 @@ def propose_p2p_trade(store_id: str, seller_id: str, sku: str, name: str, qty: i
         {
             "sku": sku, "name": name, "qty": qty, "price_usdc": price_usdc,
             "buyer_id": store_id, "seller_id": seller_id,
-            "status": "proposed", "tx_sig": None,
+            "status": "proposed", "tx_sig": None, "basis": basis,
         },
     )
     utils.log(

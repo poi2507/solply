@@ -301,6 +301,7 @@ function renderTrades(trades) {
       <div class="body">
         <div class="head">${esc(t.buyer_id)} ← ${esc(t.seller_id)} · ${esc(t.name ?? t.sku)} ×${t.qty} · ${fmt(t.price_usdc)} USDC</div>
         <div class="why">재고 부족분을 본사 청구 대신 옆 지점에서 조달했습니다${tx}</div>
+        ${t.basis ? `<div class="why">판단 근거 — ${esc(t.basis)}</div>` : ""}
       </div>
       <span class="verdict ${tone}">${STATUS[t.status] ?? esc(t.status)}</span>
     </div>`;
@@ -382,6 +383,8 @@ function eventRow(evt, isNew) {
   if (p.tx) meta += ` · ${short(p.tx, 10, 6)}`;
   if (p.amount != null) meta += ` · ${fmt(p.amount)} USDC`;
   if (p.new_amount != null) meta += ` → ${fmt(p.new_amount)} USDC`;
+  if (p.price_usd != null) meta += ` · ${p.symbol ?? p.sku} ${p.price_usd} USD`;
+  if (p.receipt_ref) meta += ` · 영수증 ${short(p.receipt_ref, 8, 6)}`;
   if (evt.action === "delivery.verified") meta += p.match ? " · 일치" : ` · 불일치 ${p.discrepancies?.length ?? 0}건`;
   return `<li class="${isNew ? "new" : ""}">
     <span class="t">${clock(evt.ts)}</span>
