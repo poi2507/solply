@@ -7,6 +7,7 @@
 from app.agents import utils
 from app.core import market, protocol, x402_client
 from app.core import policy as policy_mod
+from app.core import status as status_mod
 from app.db import store as db
 from app.solana import payments
 
@@ -101,7 +102,7 @@ def execute_payment(
     invoice = utils.get_invoice(invoice_id, store_id=store_id)
     if not invoice:
         return utils.error(f"이 지점의 청구서가 아님: {invoice_id}")
-    if invoice["status"] in ("paid", "settled"):
+    if invoice["status"] in status_mod.ALREADY_PAID:
         # 이중 결제 방지 — 재시도·중복 호출이 와도 돈은 한 번만 나간다
         return utils.error(f"이미 결제된 청구서: {invoice_id} (상태 {invoice['status']})")
 
@@ -242,7 +243,7 @@ def propose_p2p_trade(
         {
             "sku": sku, "name": name, "qty": qty, "price_usdc": price_usdc,
             "buyer_id": store_id, "seller_id": seller_id,
-            "status": "proposed", "tx_sig": None, "basis": basis,
+            "status": status_mod.TradeStatus.PROPOSED, "tx_sig": None, "basis": basis,
         },
     )
     utils.log(
@@ -259,11 +260,13 @@ def respond_p2p_trade(store_id: str, trade_id: str, decision: str, reasoning: st
     trade = utils.get_trade(trade_id)
     if not trade or trade["seller_id"] != store_id:
         return utils.error(f"이 지점 앞으로 온 제안이 아님: {trade_id}")
-    if trade["status"] != "proposed":
+    if trade["status"] != status_mod.TradeStatus.PROPOSED:
         return utils.error(f"응답할 수 있는 상태가 아님: {trade['status']}")
 
     updated = db.update(
-        "p2p_trades", trade_id, {"status": "accepted" if decision == "accept" else "rejected"}
+        "p2p_trades", trade_id,
+        {"status": status_mod.TradeStatus.ACCEPTED if decision == "accept"
+                   else status_mod.TradeStatus.REJECTED},
     )
     utils.log(
         utils.actor_name(store_id),
@@ -282,7 +285,7 @@ def pay_p2p_trade(store_id: str, trade_id: str) -> dict:
     trade = utils.get_trade(trade_id)
     if not trade or trade["buyer_id"] != store_id:
         return utils.error(f"이 지점의 직거래 건이 아님: {trade_id}")
-    if trade["status"] != "approved":
+    if trade["status"] != status_mod.TradeStatus.APPROVED:
         utils.log(
             utils.actor_name(store_id),
             "p2p.blocked_unapproved",

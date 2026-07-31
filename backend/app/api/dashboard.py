@@ -94,6 +94,7 @@ def overview(day: str | None = None) -> dict:
         ],
         "network": config.NETWORK,
         "statusLabels": status_mod.LABELS,
+        "tradeStatusLabels": status_mod.TRADE_LABELS,
         "totals": {
             # 보고 있는 하루
             "invoices": len(invoices),

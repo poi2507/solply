@@ -5,6 +5,7 @@
 """
 
 from app.core import credit, fixtures
+from app.core import status as status_mod
 from app.db import store as db
 
 
@@ -12,7 +13,8 @@ def collect() -> dict:
     invoices = db.list_docs("invoices")
     settled = [i for i in invoices if i["status"] == "settled"]
     negotiations = db.list_docs("negotiations")
-    trades = [t for t in db.list_docs("p2p_trades") if t["status"] == "confirmed"]
+    trades = [t for t in db.list_docs("p2p_trades")
+              if t["status"] == status_mod.TradeStatus.CONFIRMED]
 
     decisions: dict[str, int] = {}
     for n in negotiations:

@@ -14,6 +14,7 @@ from fastapi.responses import JSONResponse
 
 from app import config
 from app.core import fixtures, protocol
+from app.core import status as status_mod
 from app.db import store
 from app.solana import payments
 
@@ -94,7 +95,7 @@ def trade_challenge(trade_id: str) -> JSONResponse:
     trade = store.get("p2p_trades", trade_id)
     if not trade:
         raise HTTPException(404, f"직거래 건 없음: {trade_id}")
-    if trade["status"] == "confirmed":
+    if trade["status"] == status_mod.TradeStatus.CONFIRMED:
         return JSONResponse(
             {"status": "already_settled", "tradeId": trade_id, "txSig": trade.get("tx_sig")}
         )
@@ -137,7 +138,7 @@ def trade_settle(
     verified = bool(tx.get("found") and tx.get("success") and amount_ok and memo_ok)
 
     if verified:
-        store.update("p2p_trades", trade_id, {"status": "confirmed", "tx_sig": signature})
+        store.update("p2p_trades", trade_id, {"status": status_mod.TradeStatus.CONFIRMED, "tx_sig": signature})
         # 인수 확정 = 재고 이동 — 판 쪽은 줄고 산 쪽은 는다 (재고 원장)
         from app.agents import utils as agent_utils
 

@@ -350,6 +350,32 @@ def test_status_labels_cover_every_status():
     from app.core import status
 
     assert set(status.LABELS) == {s.value for s in status.InvoiceStatus}
+    assert set(status.TRADE_LABELS) == {s.value for s in status.TradeStatus}
+
+
+def test_already_paid_is_a_subset_of_declared_statuses():
+    """이중 결제 가드가 보는 목록 — 여기서 상태가 빠지면 재시도 한 번에 돈이 두 번 나간다."""
+    from app.core import status
+
+    assert set(status.ALREADY_PAID) <= set(status.InvoiceStatus)
+    assert status.InvoiceStatus.SETTLED in status.ALREADY_PAID
+    assert status.InvoiceStatus.ISSUED not in status.ALREADY_PAID
+
+
+def test_trade_statuses_the_code_writes_are_declared():
+    import re
+    from pathlib import Path
+
+    from app.core import status
+
+    declared = {s.value for s in status.TradeStatus}
+    app_dir = Path(__file__).resolve().parent.parent / "app"
+    written = set()
+    for py in app_dir.rglob("*.py"):
+        body = py.read_text()
+        for m in re.finditer(r'p2p_trades"[^)]*?"status":\s*"([a-z_]+)"', body, re.S):
+            written.add(m.group(1))
+    assert written <= declared, f"TradeStatus에 없는 직거래 상태: {written - declared}"
 
 
 def test_dashboard_and_assistant_agree_on_what_is_owed():

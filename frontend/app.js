@@ -49,6 +49,11 @@ const ACTION_LABEL = {
 
 // 상태 라벨은 API(`overview.statusLabels`)가 내려준다 — 백엔드와 사본이 갈라지지 않게.
 // 아래는 첫 그림이 오기 전/응답이 없을 때만 쓰는 대비값이다.
+// 직거래 상태 라벨도 API가 내려준다 (`overview.tradeStatusLabels`)
+let TRADE_STATUS_LABEL = {
+  proposed: "제안됨", accepted: "수락", approved: "본사 승인",
+  confirmed: "확정", rejected: "거절",
+};
 let STATUS_LABEL = {
   issued: "발행", paid: "결제됨", settled: "정산완료",
   disputed: "협의중", scheduled: "예약", refused: "거부",
@@ -352,7 +357,7 @@ function renderTrades(trades) {
     head.innerHTML = pagerHtml("trades", cut, "본사가 승인한 지점 간 거래");
     bindPager(head);
   }
-  const STATUS = { proposed: "제안됨", accepted: "수락", approved: "본사 승인", paid: "결제됨", confirmed: "확정", rejected: "거절" };
+  const STATUS = TRADE_STATUS_LABEL;
   el.innerHTML = cut.rows.map((t) => {
     const tx = t.tx_sig
       ? ` · <a class="txlink" href="${explorerUrl(t.tx_sig, currentNetwork)}" target="_blank" rel="noopener">${short(t.tx_sig, 8, 6)}</a>`
@@ -654,6 +659,7 @@ async function refresh() {
     $("network").textContent = ov.network;
     dayMeta = { today: ov.today, firstDay: ov.firstDay };
     if (ov.statusLabels) STATUS_LABEL = ov.statusLabels;
+    if (ov.tradeStatusLabels) TRADE_STATUS_LABEL = ov.tradeStatusLabels;
     renderDayNav(ov);
     renderMetrics(role.metricsFor(me, view, lastWallets));
 

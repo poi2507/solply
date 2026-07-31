@@ -20,6 +20,7 @@ from datetime import UTC, datetime, timedelta
 from app.agents import runner, utils
 from app.core import fixtures
 from app.core import policy as policy_mod
+from app.core import status as status_mod
 from app.db import store as db
 from app.solana import payments
 
@@ -130,10 +131,10 @@ async def _p2p_handshake(trade: dict) -> str:
     responded = await runner.run(
         "store", "p2p.respond", store_id=trade["seller_id"], trade_id=trade_id
     )
-    if (responded.get("trade") or {}).get("status") != "accepted":
+    if (responded.get("trade") or {}).get("status") != status_mod.TradeStatus.ACCEPTED:
         return "rejected_by_seller"
     await runner.run("hq", "p2p.review", trade_id=trade_id)
-    if (db.get("p2p_trades", trade_id) or {}).get("status") != "approved":
+    if (db.get("p2p_trades", trade_id) or {}).get("status") != status_mod.TradeStatus.APPROVED:
         return "rejected_by_hq"
     paid = await runner.run(
         "store", "p2p.pay", store_id=trade["buyer_id"], trade_id=trade_id

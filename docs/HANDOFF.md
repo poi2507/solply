@@ -29,8 +29,19 @@
 **상태가 하나 늘면 한쪽만 고쳐도 에러 없이 미수금 숫자가 갈라진다.**
 지금은 `NOT_RECEIVABLE`만 손으로 적고 `RECEIVABLE`은 파생시킨다. 상태 라벨도
 API(`overview.statusLabels`)가 내려줘 프론트가 사본을 들지 않는다.
-가드 테스트 4개를 붙였고, 상태를 추가하고 라벨을 빼먹는 실수를 실제로 재현해
-테스트가 잡는 것까지 확인했다. (테스트 126개)
+가드 테스트를 붙였고, 상태를 추가하고 라벨을 빼먹는 실수를 실제로 재현해
+테스트가 잡는 것까지 확인했다.
+
+**직거래 상태도 같은 방식으로 정리 (7/31)** — `TradeStatus`(proposed→accepted→approved→
+confirmed, 거절은 rejected) + `TRADE_LABELS`를 `core/status.py`로 모았다. 프론트에 있던
+사본은 **이미 실제와 어긋나 있었다**(쓰지 않는 `paid` 키가 남아 있었다) — 사본은 썩는다는
+증거. 이제 API가 `tradeStatusLabels`로 내려준다.
+**이중 결제 가드도 묶음이라 함께 옮겼다** (`ALREADY_PAID = (paid, settled)`) — 여기서 상태가
+빠지면 재시도 한 번에 돈이 두 번 나간다. 일부러 `settled`를 빼보니 기존 테스트가 잡았다.
+(테스트 128개)
+
+**참고**: `economy.py`의 `return "confirmed"`는 문서 상태가 아니라 핸드셰이크 결과
+문자열이다(`rejected_by_seller`·`payment_failed`와 같은 어휘) — 일부러 그대로 뒀다.
 
 **① 새 기능은 동결한다.** 7/30 하루에 pay.sh 연동 · 품목 8종 확장 · 성능 개선(SSE 전체 스캔
 제거) · 날짜별 화면 · 쪽 넘기기 · 어시스턴트 말투까지 대규모로 바꿨다. 테스트 122개를

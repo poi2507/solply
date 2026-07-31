@@ -4,6 +4,7 @@
 """
 
 from app.agents import utils
+from app.core import status as status_mod
 from app.db import store
 from app.solana import payments
 
@@ -187,7 +188,9 @@ def review_p2p_trade(trade_id: str, decision: str, reasoning: str) -> dict:
     if not trade:
         return utils.error(f"직거래 건 없음: {trade_id}")
     updated = store.update(
-        "p2p_trades", trade_id, {"status": "approved" if decision == "accept" else "rejected"}
+        "p2p_trades", trade_id,
+        {"status": status_mod.TradeStatus.APPROVED if decision == "accept"
+                   else status_mod.TradeStatus.REJECTED},
     )
     utils.log(
         ACTOR, "p2p.reviewed", {"trade_id": trade_id, "decision": decision, "reasoning": reasoning}
@@ -200,7 +203,7 @@ def record_p2p_settlement(trade_id: str) -> dict:
     trade = store.get("p2p_trades", trade_id)
     if not trade:
         return utils.error(f"직거래 건 없음: {trade_id}")
-    if trade["status"] != "confirmed":
+    if trade["status"] != status_mod.TradeStatus.CONFIRMED:
         return utils.error(f"확정 전이라 기록할 수 없음: {trade['status']}")
     utils.log(
         ACTOR,

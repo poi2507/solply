@@ -50,7 +50,39 @@ LABELS: dict[str, str] = {
 }
 
 
+# 이미 돈이 나간 상태 — 이중 결제 방지 가드가 본다.
+# 여기에 상태를 빠뜨리면 재시도 한 번에 돈이 두 번 나간다.
+ALREADY_PAID: tuple[InvoiceStatus, ...] = (
+    InvoiceStatus.PAID,
+    InvoiceStatus.SETTLED,
+)
+
+
 def is_receivable(status: str) -> bool:
     """이 청구서가 아직 받을 돈인가. 모르는 상태는 받을 돈으로 본다 —
     빠뜨려서 미수금이 실제보다 작아 보이는 쪽이 더 위험하다."""
     return status not in NOT_RECEIVABLE
+
+
+class TradeStatus(StrEnum):
+    """지점 간 직거래의 상태 — 아래 순서대로 진행한다.
+
+    proposed → accepted → approved → confirmed
+      (구매측 제안)  (판매측 수락)  (본사 승인)  (온체인 결제 후 확정)
+    수락·승인 어느 단계에서든 거절되면 rejected로 끝난다.
+    """
+
+    PROPOSED = "proposed"    # 구매 지점이 제안
+    ACCEPTED = "accepted"    # 판매 지점이 수락 (안전재고를 지키고도 팔 수 있음)
+    REJECTED = "rejected"    # 판매측 또는 본사가 거절
+    APPROVED = "approved"    # 본사 승인 — 결제의 전제
+    CONFIRMED = "confirmed"  # 온체인 결제·대조까지 끝남
+
+
+TRADE_LABELS: dict[str, str] = {
+    TradeStatus.PROPOSED: "제안됨",
+    TradeStatus.ACCEPTED: "수락",
+    TradeStatus.REJECTED: "거절",
+    TradeStatus.APPROVED: "본사 승인",
+    TradeStatus.CONFIRMED: "확정",
+}
