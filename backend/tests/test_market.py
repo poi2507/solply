@@ -47,6 +47,9 @@ def test_quote_parses_price_receipt_and_logs(paysh_on, monkeypatch):
     assert quote["price_usd"] == 309.85
     assert quote["receipt"]["reference"] == "SIG-REF-123"
     assert "기준 시세" in quote["summary"]
+    # 화면에 나가는 문구는 데모 제공자임을 밝힌다 — 원문 "mpp-demo"만으로는 안 읽힌다
+    assert "pay.sh 데모 시세" in quote["summary"]
+    assert quote["source"] == "mpp-demo", "저장되는 원문은 그대로 둔다 (데이터 충실성)"
     event = [e for e in db.list_events() if e["action"] == "market.quote_purchased"][-1]
     assert event["payload"]["receipt_ref"] == "SIG-REF-123"
     assert "pay.sh" in event["payload"]["paid_via"]
@@ -110,3 +113,10 @@ def test_purchased_quote_lands_in_trade_doc_as_basis():
     assert "75.98" in trade["basis"] and "pay.sh" in trade["basis"], (
         "산 시세가 거래 문서에 남아 본사 심사와 대시보드가 읽을 수 있어야 한다"
     )
+
+
+def test_unknown_provider_is_shown_as_is():
+    """실제 시세 피드를 붙이면 그 제공자 이름이 그대로 화면에 나가야 한다."""
+    from app.core import market
+
+    assert "제공 KAMIS" in market._summary("CHK", 3.2, None, "KAMIS")

@@ -55,12 +55,21 @@ def _parse(raw: str) -> tuple[dict | None, dict | None]:
     return body, receipt
 
 
+# 제공자 표기 — 화면에 그대로 나가는 문구다.
+# `mpp-demo`는 주최 측 결제 디버거의 데모 응답이라 **가격 자체는 의미가 없다**
+# (같은 심볼이 몇 초 만에 153 → 131로 바뀌고, 없는 심볼에도 값을 만들어 준다).
+# 원문 그대로 "제공 mpp-demo"라고 쓰면 보는 사람이 데모인 줄 모르므로 풀어 적는다.
+# 실제 시세 피드를 붙이면 그 제공자 이름이 그대로 나온다.
+PROVIDER_LABELS = {"mpp-demo": "pay.sh 데모 시세"}
+
+
 def _summary(symbol: str, price: float, prev: float | None, source: str) -> str:
     if prev:
         trend = f"직전 구매가 대비 {(price - prev) / prev * 100:+.1f}%"
     else:
         trend = "첫 조회 — 기준 시세로 기록"
-    return f"{symbol} {price} USD ({trend}, 제공 {source})"
+    provider = PROVIDER_LABELS.get(source, source)
+    return f"{symbol} {price} USD ({trend}, 제공 {provider})"
 
 
 def quote(sku: str, actor: str) -> dict | None:
