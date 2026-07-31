@@ -399,3 +399,149 @@ def test_dashboard_and_assistant_agree_on_what_is_owed():
 
     assert from_dashboard == from_assistant == 7.0, "issued 4.0 + scheduled 3.0 만 받을 돈이다"
     assert status.LABELS["split"] == "분할됨"
+
+
+def test_every_logged_action_has_a_korean_label():
+    """실행 증빙 화면은 심사 기준 4의 근거다 — 새 행위를 추가하고 라벨을 빼먹으면
+    로그가 영문 원문으로 보인다. 실제로 경제 루프·직거래가 들어올 때 그렇게 됐다.
+
+    로그 호출 지점 주변에서 행위 이름을 긁어 라벨 누락을 잡는다 (삼항식·여러 줄 포함).
+    """
+    import re
+    from pathlib import Path
+
+    from app.core import events
+
+    app_dir = Path(__file__).resolve().parent.parent / "app"
+    shape = re.compile(r'"([a-z0-9]+\.[a-z0-9_]+)"')
+    logged: set[str] = set()
+    for py in app_dir.rglob("*.py"):
+        lines = py.read_text().splitlines()
+        for i, line in enumerate(lines):
+            if "utils.log(" in line or "log_event(" in line:
+                window = "\n".join(lines[max(0, i - 5): i + 6])
+                logged |= set(shape.findall(window))
+
+    assert len(logged) >= 30, f"추출기가 망가졌다 (찾은 행위 {len(logged)}종)"
+    missing = logged - set(events.ACTION_LABELS)
+    assert not missing, f"라벨 없는 행위: {sorted(missing)}"
+    dead = set(events.ACTION_LABELS) - logged
+    assert not dead, f"코드가 기록하지 않는 죽은 라벨: {sorted(dead)}"
+
+
+def test_readable_ids_and_the_day_view_share_one_definition_of_today():
+    """청구서 번호의 MMDD와 화면의 날짜 구분이 갈라지면, 오늘 만든 청구서가
+    어제 화면에 뜨는 일이 생긴다."""
+    from app.core import kst
+
+    assert kst.mmdd() == kst.today()[5:].replace("-", "")
+
+
+# ── 오늘(7/31) 점검에서 잡은 결함들의 재발 방지 ─────────────────────
+
+def test_installment_offer_matches_the_policy_it_will_actually_split_into():
+    """402가 '2회 분할·절반 금액'을 제시하는데 실제로는 3등분 청구서가 생기면,
+    지점이 어느 청구서와도 맞지 않는 금액을 보내고 그 USDC는 사라진다."""
+    from app.core import protocol
+
+    invoice = {"id": "INV-TEST-1", "amount_usdc": 9.0, "store_id": "store-a",
+               "items": [], "delivery_id": "DEL-TEST-1"}
+    for parts in (2, 3, 4):
+        req = protocol.build_payment_requirements(
+            invoice, "HQADDR", "devnet",
+            store_profile={"policy": {"installment_max": parts, "defer_max_pct": 20}},
+        )
+        term = next(a for a in req["accepts"] if a["extra"]["term"] == "installment")
+        assert term["extra"]["installments"] == parts
+        assert f"{parts}회 분할" in term["extra"]["label"]
+        assert protocol.from_atomic(term["amount"]) == round(9.0 / parts, 2)
+
+
+def test_every_sku_price_resolves_to_one_number():
+    """같은 품목이 발주 조건과 시드 납품에서 다른 단가면, 청구는 비싸게 하고
+    카드정산은 싸게 돌려줘 온체인 총량이 조용히 줄어든다 (economy.py의 설계 전제 위반)."""
+    from app.core import fixtures
+
+    data = fixtures.load()
+    reorder = {sku: t["unit_price_usdc"] for sku, t in data["hq_reorder"].items()}
+    for did, delivery in data["deliveries"].items():
+        for item in delivery["items"]:
+            ref = reorder.get(item["sku"])
+            if ref is None:
+                continue
+            assert item["unit_price_usdc"] == ref, (
+                f"{did} {item['sku']}: 납품 {item['unit_price_usdc']} ≠ 발주조건 {ref}"
+            )
+
+
+def test_every_inventory_move_reason_has_a_label():
+    """`restocked`가 라벨에 없어서 본사 화면에 영문이 그대로 보였다."""
+    import re
+    from pathlib import Path
+
+    from app.core import events
+
+    app_dir = Path(__file__).resolve().parent.parent / "app"
+    reasons = set()
+    for py in app_dir.rglob("*.py"):
+        body = py.read_text()
+        # record_move(store_id, sku, name, qty, reason, ref) — 5번째 인자가 사유다
+        for m in re.finditer(r"record_move\((?:[^()]|\([^()]*\))*?\)", body, re.S):
+            args, depth, cur = [], 0, ""
+            for ch in m.group(0)[m.group(0).index("(") + 1: -1]:
+                if ch in "([{":
+                    depth += 1
+                elif ch in ")]}":
+                    depth -= 1
+                if ch == "," and depth == 0:
+                    args.append(cur.strip()); cur = ""
+                else:
+                    cur += ch
+            args.append(cur.strip())
+            if len(args) >= 5 and args[4].startswith('"'):
+                reasons.add(args[4].strip('"'))
+    known = set(events.MOVE_LABELS)
+    assert reasons, "record_move 호출을 못 찾았다 — 추출기 확인 필요"
+    assert reasons <= known, f"라벨 없는 이동 사유: {sorted(reasons - known)}"
+
+
+def test_open_invoices_does_not_double_count_a_split_parent():
+    """분할된 부모와 자식을 함께 세면 지점이 두 배로 갚아야 하는 것처럼 보인다."""
+    from app.agents import utils
+    from app.db import store as db
+
+    db.reset(keep=("policies",))
+    db.put("invoices", "INV-P", {"store_id": "store-a", "amount_usdc": 8.0, "status": "split"})
+    db.put("invoices", "INV-P-P1", {"store_id": "store-a", "amount_usdc": 4.0,
+                                    "status": "issued", "parent_id": "INV-P"})
+    db.put("invoices", "INV-P-P2", {"store_id": "store-a", "amount_usdc": 4.0,
+                                    "status": "issued", "parent_id": "INV-P"})
+
+    ids = {i["id"] for i in utils.open_invoices("store-a")}
+    assert ids == {"INV-P-P1", "INV-P-P2"}, f"부모까지 셌다: {ids}"
+
+
+def test_health_reports_the_store_backend_actually_in_use():
+    """빠뜨리면 화면이 `?? \"postgres\"`로 떨어져 로컬 실행에도 postgres라고 우긴다."""
+    from fastapi.testclient import TestClient
+
+    from app import config
+    from app.main import app
+
+    body = TestClient(app).get("/api/health").json()
+    assert body["store"] == config.STORE_BACKEND
+
+
+def test_pending_approvals_survive_the_day_view():
+    """어제 멈춘 결제가 오늘 화면에서 사라지면 돈이 묶인 채 아무 표시도 남지 않는다."""
+    from fastapi.testclient import TestClient
+
+    from app.db import store as db
+    from app.main import app
+
+    db.reset(keep=("policies",))
+    db.put("invoices", "INV-OLD-PA", {"store_id": "store-a", "amount_usdc": 12.0,
+                                      "status": "pending_approval"})
+    view = TestClient(app).get("/api/overview?day=2020-01-01").json()
+    assert "INV-OLD-PA" not in {i["id"] for i in view["invoices"]}, "그 날 목록엔 없어야 한다"
+    assert "INV-OLD-PA" in {i["id"] for i in view["openInvoices"]}, "승인 패널 목록엔 있어야 한다"

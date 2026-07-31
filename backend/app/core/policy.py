@@ -49,7 +49,8 @@ class HQPolicy:
     min_credit_score: int = 85
     # 지점 간 직거래 참가 자격 점수 — 즉시 온체인 결제라 여신이 없어 유예보다 완만하다
     p2p_min_credit_score: int = 75
-    # 청구액의 몇 %까지 유예를 허용하는가
+    # 외상 한도의 몇 %까지 유예 잔액을 허용하는가
+    # (주의: 청구액 기준이 아니다 — 엔진은 credit_limit_usdc에 대한 비율로 본다)
     defer_max_pct: float = 20.0
     # 분할 최대 회차
     installment_max: int = 2
@@ -135,7 +136,7 @@ def describe(owner_id: str) -> list[dict[str, Any]]:
         spec = [
             ("min_credit_score", "유예 승인 최소 신용점수", "이 점수 이상이면 유예를 자동 수락합니다", "점", 0, 100),
             ("p2p_min_credit_score", "직거래 참가 신용점수", "지점 간 직거래는 즉시 결제라 유예보다 완만한 기준을 씁니다", "점", 0, 100),
-            ("defer_max_pct", "유예 허용 비율", "청구액의 몇 %까지 유예를 허용할지", "%", 0, 100),
+            ("defer_max_pct", "유예 허용 비율", "외상 한도의 몇 %까지 유예를 허용할지", "%", 0, 100),
             ("installment_max", "분할 최대 회차", "몇 회까지 나눠 받을지", "회", 1, 12),
             ("auto_adjust_limit_usdc", "자동 차감 승인 한도", "이 금액을 넘는 차감은 사람이 확인합니다", "USDC", 0, 1000),
         ]

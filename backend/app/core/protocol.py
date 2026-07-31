@@ -97,13 +97,16 @@ def build_payment_requirements(
                 "memo": invoice["id"],
                 "notBefore": (now + timedelta(days=1)).isoformat(),
                 "requiresApproval": True,
-                "policyHint": f"청구액의 {defer_max_pct}% 이내 & 납부기한 내면 자동 수락",
+                "policyHint": f"외상 한도의 {defer_max_pct}% 이내 & 납부기한 내면 자동 수락",
             },
         }
     )
 
-    # 분할
-    per = round(amount / 2, 2)
+    # 분할 — 회차는 본사 정책(installment_max)이 정한다.
+    # 여기에 2를 박아두면 정책이 3일 때 "2회 분할·절반 금액"을 제시하고 실제로는
+    # 3등분 청구서가 생겨, 지점이 어느 청구서와도 맞지 않는 금액을 보낸다 (USDC 유실).
+    parts = max(1, int(installment_max))
+    per = round(amount / parts, 2)
     accepts.append(
         {
             "scheme": "exact",
@@ -114,11 +117,11 @@ def build_payment_requirements(
             "maxTimeoutSeconds": 60,
             "extra": {
                 "term": "installment",
-                "label": f"2회 분할 (회당 {per} USDC)",
+                "label": f"{parts}회 분할 (회당 {per} USDC)",
                 "memo": invoice["id"],
-                "installments": 2,
+                "installments": parts,
                 "requiresApproval": True,
-                "policyHint": f"최대 {installment_max}회까지 허용",
+                "policyHint": f"본사 정책상 최대 {installment_max}회까지 허용",
             },
         }
     )

@@ -58,6 +58,14 @@ ALREADY_PAID: tuple[InvoiceStatus, ...] = (
 )
 
 
+# 지점이 아직 손을 써야 하는 상태 — 지점 에이전트의 "내 미결 청구서" 도구가 본다.
+#   paid  — 이미 돈을 보내고 본사 대조를 기다리는 중이라 행동할 게 없다
+#   split — 자식 청구서가 대신 받으므로 부모까지 세면 이중 계산이 된다
+ACTIONABLE: tuple[InvoiceStatus, ...] = tuple(
+    s for s in RECEIVABLE if s is not InvoiceStatus.PAID
+)
+
+
 def is_receivable(status: str) -> bool:
     """이 청구서가 아직 받을 돈인가. 모르는 상태는 받을 돈으로 본다 —
     빠뜨려서 미수금이 실제보다 작아 보이는 쪽이 더 위험하다."""

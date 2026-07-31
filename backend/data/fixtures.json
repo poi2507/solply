@@ -236,7 +236,7 @@
       "min_qty": 6
     },
     "SAU-01": {
-      "unit_price_usdc": 0.4,
+      "unit_price_usdc": 0.5,
       "lead_time": "D+3",
       "min_qty": 5
     },

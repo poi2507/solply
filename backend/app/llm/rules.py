@@ -1,3 +1,5 @@
+from app.core.policy import HQPolicy
+
 """mock 모드의 규칙 기반 판단.
 
 LLM을 부르지 않고 정책만으로 같은 결론을 낸다. 판단 기준은 프롬프트의 POLICY 섹션과
@@ -13,7 +15,7 @@ def review_adjustment(facts: dict[str, Any], policy: dict[str, Any]) -> dict[str
     """차감 제안 심사 — 검수 근거가 있고 금액이 맞으면 수락."""
     requested = float(facts.get("deduction_usdc", 0))
     verified = float(facts.get("verified_over_billed", 0))
-    limit = float(policy.get("auto_adjust_limit_usdc", 20))
+    limit = float(policy.get("auto_adjust_limit_usdc", HQPolicy.auto_adjust_limit_usdc))
 
     if requested <= 0:
         return {"decision": "reject", "reasoning": "차감 요청액이 없습니다."}

@@ -4,6 +4,7 @@
 """
 
 from app.agents import utils
+from app.core import kst
 from app.core import status as status_mod
 from app.db import store
 from app.solana import payments
@@ -17,9 +18,8 @@ def _invoice_id(store_id: str) -> str:
     무작위 16진수는 화면·영상·온체인 memo 어디서도 읽히지 않는다.
     번호는 지점별 발행 수에서 나오고, 데모 초기화 시 함께 리셋된다.
     """
-    from datetime import UTC, datetime, timedelta
 
-    day = (datetime.now(UTC) + timedelta(hours=9)).strftime("%m%d")  # KST 기준 날짜
+    day = kst.mmdd()
     initial = store_id.rsplit("-", 1)[-1][:1].upper()
     seq = len(store.list_docs("invoices", store_id=store_id)) + 1
     while store.get("invoices", f"INV-{day}-{initial}{seq:02d}"):

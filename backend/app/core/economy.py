@@ -15,10 +15,9 @@
 """
 
 import random
-from datetime import UTC, datetime, timedelta
 
 from app.agents import runner, utils
-from app.core import fixtures
+from app.core import fixtures, kst
 from app.core import policy as policy_mod
 from app.core import status as status_mod
 from app.db import store as db
@@ -55,7 +54,7 @@ def _sku_price(sku: str) -> float:
 
 
 def _delivery_id(store_id: str) -> str:
-    day = (datetime.now(UTC) + timedelta(hours=9)).strftime("%m%d")
+    day = kst.mmdd()
     initial = store_id.rsplit("-", 1)[-1][:1].upper()
     seq = len(db.list_docs("deliveries", store_id=store_id)) + 1
     while db.get("deliveries", f"DEL-{day}-{initial}{seq:02d}"):

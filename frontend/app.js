@@ -23,29 +23,9 @@ const shiftDay = (day, n) => {
 const dayParam = () => (viewDay ? `day=${viewDay}` : "");
 const timelines = new Map();  // id → 응답 캐시
 
-const ACTION_LABEL = {
-  "invoice.created": "청구서 발행",
-  "invoice.adjusted": "청구 금액 정정",
-  "invoice.split": "분할 청구서 생성",
-  "delivery.verified": "검수 대조",
-  "proposal.adjustment": "차감 제안",
-  "proposal.deferral": "유예 제안",
-  "proposal.installment": "분할 제안",
-  "proposal.reviewed": "본사 심사",
-  "payment.executed": "결제 실행",
-  "payment.verified": "수금 검증",
-  "payment.mismatch": "검증 불일치",
-  "payment.refused": "결제 거부",
-  "payment.blocked_over_limit": "한도 초과 차단",
-  "payment.needs_approval": "사람 승인 요청",
-  "human.approved": "사람이 승인",
-  "human.rejected": "사람이 반려",
-  "market.quote_purchased": "시세 데이터 구매 (pay.sh)",
-  "x402.payment_required": "x402 결제 요구 (402)",
-  "x402.terms_received": "x402 조건 수신",
-  "x402.settled": "x402 정산 완료",
-  "x402.verification_failed": "x402 검증 실패",
-};
+// 행위 라벨은 API(`overview.actionLabels`)가 내려준다 — 백엔드가 단일 출처다.
+// 새 행위를 추가하고 라벨을 빼먹으면 백엔드 테스트가 잡는다.
+let ACTION_LABEL = {};
 
 // 상태 라벨은 API(`overview.statusLabels`)가 내려준다 — 백엔드와 사본이 갈라지지 않게.
 // 아래는 첫 그림이 오기 전/응답이 없을 때만 쓰는 대비값이다.
@@ -448,12 +428,17 @@ function eventRow(evt, isNew) {
   const p = evt.payload ?? {};
   let meta = "";
   if (p.invoice_id) meta = p.invoice_id;
+  else if (p.trade_id) meta = p.trade_id;
   if (p.tx) meta += ` · ${short(p.tx, 10, 6)}`;
-  if (p.amount != null) meta += ` · ${fmt(p.amount)} USDC`;
+  // 같은 뜻을 두 이름으로 보내는 곳이 있다 (amount / amount_usdc / price_usdc)
+  const amt = p.amount ?? p.amount_usdc ?? p.price_usdc;
+  if (amt != null) meta += ` · ${fmt(amt)} USDC`;
   if (p.new_amount != null) meta += ` → ${fmt(p.new_amount)} USDC`;
   if (p.price_usd != null) meta += ` · ${p.symbol ?? p.sku} ${p.price_usd} USD`;
   if (p.receipt_ref) meta += ` · 영수증 ${short(p.receipt_ref, 8, 6)}`;
   if (evt.action === "delivery.verified") meta += p.match ? " · 일치" : ` · 불일치 ${p.discrepancies?.length ?? 0}건`;
+  if (p.sku && p.qty != null) meta += ` · ${esc(p.sku)} ${p.qty > 0 ? "+" : ""}${p.qty}`;
+  if (p.reason) meta += ` · ${p.reason}`;
   return `<li class="${isNew ? "new" : ""}">
     <span class="t">${clock(evt.ts)}</span>
     <span class="what">
@@ -547,7 +532,8 @@ let lastWallets = [];   // 지표에서 재사용
 let lastView = null;    // 지갑이 늦게 도착하면 지표만 다시 그린다
 
 // ── 재고 원장 ────────────────────────────────────────────────────────
-const MOVE_LABEL = { received: "입고", shipped: "출고", sold: "판매", p2p_in: "직거래 입고", p2p_out: "직거래 출고" };
+// 이동 사유 라벨도 API(`overview.moveLabels`)가 내려준다
+let MOVE_LABEL = {};
 const storeLabel = (id) => (id === "hq" ? "본사 창고" : id);
 
 function stockBar(qty, safety) {
@@ -660,6 +646,8 @@ async function refresh() {
     dayMeta = { today: ov.today, firstDay: ov.firstDay };
     if (ov.statusLabels) STATUS_LABEL = ov.statusLabels;
     if (ov.tradeStatusLabels) TRADE_STATUS_LABEL = ov.tradeStatusLabels;
+    if (ov.actionLabels) ACTION_LABEL = ov.actionLabels;
+    if (ov.moveLabels) MOVE_LABEL = ov.moveLabels;
     renderDayNav(ov);
     renderMetrics(role.metricsFor(me, view, lastWallets));
 
@@ -691,8 +679,10 @@ async function refresh() {
     renderInventory(stockRows, stockMoves);
     renderNegotiations(view.negotiations);
     renderTrades(view.trades);
-    renderSchedules(view.invoices);
-    renderApprovals(view.invoices);
+    // 날짜로 자르지 않은 목록을 쓴다 — 어제 멈춘 결제가 오늘 사라지면 안 된다
+    const openList = view.openInvoices ?? ov.openInvoices ?? view.invoices;
+    renderSchedules(openList);
+    renderApprovals(openList);
     renderSysInfo(ov, health);
 
     // 펼쳐둔 행은 최신 과정으로 다시 채운다

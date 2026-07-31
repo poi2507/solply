@@ -7,12 +7,14 @@
 from typing import Any
 
 from app.core import fixtures
+from app.core import status as status_mod
 from app.db import store
 
 # ── 조회 ──────────────────────────────────────────────────────────────
 
-OPEN_STATUSES = ("issued", "disputed", "scheduled")
-CLOSED_STATUSES = ("paid", "settled", "refused")
+# 어느 상태가 "아직 손 쓸 것"인지는 core/status.py 한 곳에서만 정한다.
+# 예전에는 여기 두 목록을 손으로 적었는데 둘이 8개 상태를 다 덮지 못해
+# split 부모가 미결로 잡혔다 (자식과 이중 계산).
 
 
 def actor_name(store_id: str | None = None) -> str:
@@ -33,7 +35,7 @@ def get_invoice(invoice_id: str, *, store_id: str | None = None) -> dict | None:
 def open_invoices(store_id: str | None = None) -> list[dict]:
     """미결 청구서 목록. store_id를 주면 해당 지점 것만."""
     docs = store.list_docs("invoices", store_id=store_id) if store_id else store.list_docs("invoices")
-    return [d for d in docs if d["status"] not in CLOSED_STATUSES]
+    return [d for d in docs if d["status"] in status_mod.ACTIONABLE]
 
 
 def store_profile(store_id: str) -> dict | None:

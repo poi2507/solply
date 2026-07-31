@@ -63,6 +63,7 @@ export function scope(role, overview) {
       (t) => t.buyer_id === role.id || t.seller_id === role.id,
     ),
     inventoryMoves: (overview.inventoryMoves ?? []).filter((m) => m.store_id === role.id),
+    openInvoices: (overview.openInvoices ?? []).filter((i) => i.store_id === role.id),
   };
 }
 
@@ -76,7 +77,10 @@ export function metricsFor(role, scoped, wallets) {
     const me = scoped.stores[0] ?? {};
     // 납부할 금액은 그날치가 아니라 전체 미결 — 어제 밀린 돈이 사라지면 안 된다
     const owed = Number(me.outstandingUsdc ?? sum(open));
-    const wallet = (wallets ?? []).find((w) => w.wallet === role.id);
+    // 조회 실패 응답에는 usdc가 없다 — 그대로 쓰면 0.00을 "결제 가능액"으로 우긴다
+    const found = (wallets ?? []).find((w) => w.wallet === role.id);
+    const wallet = found && !found.error ? found : null;
+    const walletFoot = found?.error ? "결제 서비스 연결 안 됨" : wallet ? "결제 가능액" : "조회 중…";
     const basis = me.creditBasis
       ? `정시납 ${me.creditBasis.onTime} · 연체 ${me.creditBasis.late}`
       : "납부 이력 기준";
@@ -84,7 +88,8 @@ export function metricsFor(role, scoped, wallets) {
       { label: "납부 완료", value: sum(settled), unit: "USDC", foot: `이 날 ${settled.length}건`, accent: true },
       { label: "납부할 금액", value: owed, unit: "USDC", foot: "미결 전체", warn: owed > 0 },
       { label: "내 신용점수", value: me.creditScore ?? 0, unit: "점", foot: basis, plain: true },
-      { label: "지갑 잔액", value: wallet?.usdc, unit: "USDC", foot: wallet ? "결제 가능액" : "조회 중…" },
+      { label: "지갑 잔액", value: wallet ? wallet.usdc : "—", unit: wallet ? "USDC" : "",
+        foot: walletFoot, plain: !wallet, warn: !!found?.error },
     ];
   }
 

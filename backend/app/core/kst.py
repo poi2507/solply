@@ -40,6 +40,15 @@ def day_of(moment: str | datetime) -> str:
     return moment.astimezone(KST).strftime("%Y-%m-%d")
 
 
+def mmdd() -> str:
+    """읽히는 번호에 쓰는 오늘의 MMDD (KST) — INV-0731-A03, DEL-0731-B01.
+
+    ID 접두사와 화면의 날짜 구분이 **같은 하루 정의**를 쓰게 하려고 여기에 둔다.
+    각자 `datetime.now(UTC) + timedelta(hours=9)`를 하면 정의가 갈라질 수 있다.
+    """
+    return datetime.now(KST).strftime("%m%d")
+
+
 def shift(day: str, days: int) -> str:
     start = datetime.strptime(day, "%Y-%m-%d").replace(tzinfo=KST) + timedelta(days=days)
     return start.strftime("%Y-%m-%d")

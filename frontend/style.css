@@ -233,6 +233,7 @@ td.r { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 .mv-chip.received { background: color-mix(in srgb, var(--good-vivid) 12%, transparent); color: var(--good); }
 .mv-chip.sold, .mv-chip.shipped { background: var(--raise); color: var(--ink-2); border: 1px solid var(--line-soft); }
 .mv-chip.p2p_in, .mv-chip.p2p_out { background: color-mix(in srgb, var(--info-vivid) 12%, transparent); color: var(--info); }
+.mv-chip.restocked { background: color-mix(in srgb, var(--good-vivid) 12%, transparent); color: var(--good); }
 .mv-what { color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mv-what b { color: var(--ink); font-weight: 600; }
 .mv-qty { font-family: var(--mono); font-weight: 700; font-variant-numeric: tabular-nums; }

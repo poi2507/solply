@@ -9,6 +9,7 @@ from fastapi.responses import StreamingResponse
 from app import config
 from app.agents import utils as agent_utils
 from app.core import credit, fixtures, kst
+from app.core import events as events_mod
 from app.core import policy as policy_mod
 from app.core import status as status_mod
 from app.db import store
@@ -19,7 +20,9 @@ router = APIRouter(prefix="/api", tags=["dashboard"])
 
 @router.get("/health")
 def health() -> dict:
-    return {"ok": True, "network": config.NETWORK, "llm": config.LLM_PROVIDER}
+    # store를 빼먹으면 화면이 `?? "postgres"`로 떨어져 로컬 실행에도 postgres라고 우긴다
+    return {"ok": True, "network": config.NETWORK, "llm": config.LLM_PROVIDER,
+            "store": config.STORE_BACKEND}
 
 
 @router.get("/overview")
@@ -95,6 +98,8 @@ def overview(day: str | None = None) -> dict:
         "network": config.NETWORK,
         "statusLabels": status_mod.LABELS,
         "tradeStatusLabels": status_mod.TRADE_LABELS,
+        "actionLabels": events_mod.ACTION_LABELS,
+        "moveLabels": events_mod.MOVE_LABELS,
         "totals": {
             # 보고 있는 하루
             "invoices": len(invoices),
@@ -109,6 +114,9 @@ def overview(day: str | None = None) -> dict:
             "allTrades": store.count_docs("p2p_trades"),
         },
         "stores": stores,
+        # 승인·예약 패널은 날짜로 자르지 않는다 — 어제 멈춘 결제가
+        # 오늘 화면에서 사라지면 돈이 묶인 채로 아무 표시도 남지 않는다
+        "openInvoices": sorted(open_invoices, key=lambda i: i.get("updated_at", ""), reverse=True),
         "invoices": sorted(invoices, key=lambda i: i.get("updated_at", ""), reverse=True),
         "negotiations": sorted(negotiations, key=lambda n: n.get("updated_at", ""), reverse=True),
         "trades": sorted(trades, key=lambda t: t.get("updated_at", ""), reverse=True),
