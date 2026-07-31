@@ -312,3 +312,64 @@ def test_event_log_is_scoped_to_a_day():
 
     empty = TestClient(app).get(f"/api/events?day={kst.shift(kst.today(), -30)}").json()
     assert empty["events"] == [] and empty["total"] == 0
+
+
+# ── 청구서 상태의 단일 출처 ────────────────────────────────────────
+# 실제로 있었던 결함: "받을 돈"의 정의가 대시보드와 어시스턴트에 서로 반대 방향으로
+# 손으로 적혀 있었다. 상태가 하나 늘면 한쪽만 고쳐도 에러 없이 숫자가 갈라진다.
+
+def test_receivable_and_not_receivable_are_exact_complements():
+    from app.core import status
+
+    assert set(status.RECEIVABLE) | set(status.NOT_RECEIVABLE) == set(status.InvoiceStatus)
+    assert not set(status.RECEIVABLE) & set(status.NOT_RECEIVABLE)
+    assert all(status.is_receivable(s) for s in status.RECEIVABLE)
+    assert not any(status.is_receivable(s) for s in status.NOT_RECEIVABLE)
+
+
+def test_every_status_the_code_writes_is_declared():
+    """코드가 실제로 쓰는 상태 문자열이 enum에 빠지면 미수금 판정에서 조용히 새어나간다."""
+    import re
+    from pathlib import Path
+
+    from app.core import status
+
+    declared = {s.value for s in status.InvoiceStatus}
+    app_dir = Path(__file__).resolve().parent.parent / "app"
+    written = set()
+    for py in app_dir.rglob("*.py"):
+        for m in re.finditer(r'"status":\s*"([a-z_]+)"', py.read_text()):
+            written.add(m.group(1))
+    # 청구서가 아닌 문서(직거래·도구 반환값)의 상태는 제외한다
+    others = {"proposed", "accepted", "approved", "confirmed", "rejected",
+              "needs_human_approval", "already_settled", "hq_out_of_stock"}
+    assert (written - others) <= declared, f"enum에 없는 청구서 상태: {written - others - declared}"
+
+
+def test_status_labels_cover_every_status():
+    from app.core import status
+
+    assert set(status.LABELS) == {s.value for s in status.InvoiceStatus}
+
+
+def test_dashboard_and_assistant_agree_on_what_is_owed():
+    """같은 데이터에서 화면과 대화가 다른 미수금을 말하면 안 된다 — 이게 이 파일의 요점."""
+    from fastapi.testclient import TestClient
+
+    from app.assistant import tools as assistant_tools
+    from app.core import status
+    from app.db import store as db
+    from app.main import app
+
+    db.reset(keep=("policies",))
+    db.put("invoices", "INV-T1", {"store_id": "store-a", "amount_usdc": 4.0, "status": "issued"})
+    db.put("invoices", "INV-T2", {"store_id": "store-a", "amount_usdc": 3.0, "status": "scheduled"})
+    db.put("invoices", "INV-T3", {"store_id": "store-b", "amount_usdc": 9.0, "status": "settled"})
+    db.put("invoices", "INV-T4", {"store_id": "store-b", "amount_usdc": 8.0, "status": "split"})
+    db.put("invoices", "INV-T5", {"store_id": "store-c", "amount_usdc": 5.0, "status": "refused"})
+
+    from_dashboard = TestClient(app).get("/api/overview").json()["totals"]["outstandingUsdc"]
+    from_assistant = assistant_tools.get_settlement_overview()["outstanding_usdc"]
+
+    assert from_dashboard == from_assistant == 7.0, "issued 4.0 + scheduled 3.0 만 받을 돈이다"
+    assert status.LABELS["split"] == "분할됨"

@@ -47,7 +47,9 @@ const ACTION_LABEL = {
   "x402.verification_failed": "x402 검증 실패",
 };
 
-const STATUS_LABEL = {
+// 상태 라벨은 API(`overview.statusLabels`)가 내려준다 — 백엔드와 사본이 갈라지지 않게.
+// 아래는 첫 그림이 오기 전/응답이 없을 때만 쓰는 대비값이다.
+let STATUS_LABEL = {
   issued: "발행", paid: "결제됨", settled: "정산완료",
   disputed: "협의중", scheduled: "예약", refused: "거부",
   pending_approval: "승인 대기", split: "분할됨",
@@ -651,6 +653,7 @@ async function refresh() {
 
     $("network").textContent = ov.network;
     dayMeta = { today: ov.today, firstDay: ov.firstDay };
+    if (ov.statusLabels) STATUS_LABEL = ov.statusLabels;
     renderDayNav(ov);
     renderMetrics(role.metricsFor(me, view, lastWallets));
 

@@ -10,6 +10,7 @@ from app import config
 from app.agents import utils as agent_utils
 from app.core import credit, fixtures, kst
 from app.core import policy as policy_mod
+from app.core import status as status_mod
 from app.db import store
 from app.solana import payments
 
@@ -34,13 +35,12 @@ def overview(day: str | None = None) -> dict:
     negotiations = store.list_docs("negotiations", day=day)
     profiles = fixtures.load()["stores"]
 
-    settled = [i for i in invoices if i["status"] == "settled"]
-    # 미수금 = 아직 받을 돈. 분할 원본(split)은 자식이 대신하므로 빼고(이중 계산),
-    # 거부(refused)는 분쟁 확인 대기지 수취 채권이 아니다.
+    settled = [i for i in invoices if i["status"] == status_mod.InvoiceStatus.SETTLED]
+    # 미수금 = 아직 받을 돈. 어느 상태가 받을 돈인지는 core/status.py 한 곳에서만 정한다.
     # 상태별로 따로 물어본다 — 전체 청구서를 읽지 않고도 미결 건만 모인다.
     open_invoices = [
         inv
-        for status in ("issued", "paid", "disputed", "scheduled", "pending_approval")
+        for status in status_mod.RECEIVABLE
         for inv in store.list_docs("invoices", status=status)
     ]
 
@@ -73,7 +73,8 @@ def overview(day: str | None = None) -> dict:
                 # 미수금은 전체 기간, 정산액은 보고 있는 하루
                 "outstandingUsdc": round(sum(i["amount_usdc"] for i in my_open), 2),
                 "settledUsdc": round(
-                    sum(i["amount_usdc"] for i in mine if i["status"] == "settled"), 2
+                    sum(i["amount_usdc"] for i in mine
+                        if i["status"] == status_mod.InvoiceStatus.SETTLED), 2
                 ),
             }
         )
@@ -92,6 +93,7 @@ def overview(day: str | None = None) -> dict:
             for sku, entry in agent_utils.effective_inventory("hq").items()
         ],
         "network": config.NETWORK,
+        "statusLabels": status_mod.LABELS,
         "totals": {
             # 보고 있는 하루
             "invoices": len(invoices),

@@ -9,24 +9,26 @@
 from fastapi import HTTPException
 
 from app.core import report
+from app.core import status as status_mod
 from app.db import store as db
 
 
 def get_settlement_overview() -> dict:
     """정산 현황 요약을 조회한다 — 청구서 상태별 건수·금액, 미수금, 지점 간 직거래."""
     invoices = db.list_docs("invoices")
-    not_receivable = ("settled", "split", "refused")
     by_status: dict[str, int] = {}
     for inv in invoices:
         by_status[inv["status"]] = by_status.get(inv["status"], 0) + 1
     trades = db.list_docs("p2p_trades")
     return {
         "invoices_by_status": by_status,
+        # 받을 돈의 정의는 core/status.py 하나에서만 온다 — 대시보드와 숫자가 갈라지지 않게
         "outstanding_usdc": round(
-            sum(i["amount_usdc"] for i in invoices if i["status"] not in not_receivable), 2
+            sum(i["amount_usdc"] for i in invoices if status_mod.is_receivable(i["status"])), 2
         ),
         "settled_usdc": round(
-            sum(i["amount_usdc"] for i in invoices if i["status"] == "settled"), 2
+            sum(i["amount_usdc"] for i in invoices
+                if i["status"] == status_mod.InvoiceStatus.SETTLED), 2
         ),
         "recent_invoices": [
             {"id": i["id"], "store_id": i["store_id"], "amount_usdc": i["amount_usdc"],
