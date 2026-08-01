@@ -381,16 +381,16 @@
         <p>물대 정산이 왜 아직 사람의 일인지 — 그리고 에이전트가 그 판단을 어디까지 대신하는지</p></div>
         <div class="pg">04 – 06</div></div>
       <div class="row"><div class="rn">Ⅱ</div><div><h3>기술 — 에이전트가 협상하고, 체인이 증명합니다</h3>
-        <p>아키텍처 · 판단 흐름 그래프 · x402 · 협상 실제 화면 · 판단 4관문 · 자율의 경계</p></div>
-        <div class="pg">08 – 13</div></div>
+        <p>아키텍처 · 기술 스택 · 판단 흐름 그래프 · x402 · 협상 실제 화면 · 판단 4관문 · 자율의 경계</p></div>
+        <div class="pg">08 – 14</div></div>
       <div class="row"><div class="rn">Ⅲ</div><div><h3>증거 — 지금도 거래 중입니다</h3>
         <p>라이브 실측 숫자 · 대시보드 화면 · 결제 레일 셋(USDC · x402 · pay.sh)과 그 증빙</p></div>
-        <div class="pg">15 – 18</div></div>
+        <div class="pg">16 – 19</div></div>
       <div class="row"><div class="rn">Ⅳ</div><div><h3>사업 — 구독에서 여신까지</h3>
         <p>3층 수익모델과 시장 크기 · 본선 2주 개발 계획 · 마무리</p></div>
-        <div class="pg">20 – 22</div></div>
+        <div class="pg">21 – 23</div></div>
     </div>
-    <div class="band">시간이 없으시면 세 장이면 됩니다 — <b>04 한 장 요약 · 11 협상 실제 화면 · 15 실제 구동.</b>
+    <div class="band">시간이 없으시면 세 장이면 됩니다 — <b>04 한 장 요약 · 12 협상 실제 화면 · 16 실제 구동.</b>
       본문의 숫자는 전부 라이브 API에서 받은 실측값입니다.</div>
   </div>
   <div class="foot">Solply</div><span class="pageno">02</span>
@@ -450,7 +450,7 @@
       <div class="s"><div class="n">1.1<small>초</small></div><div class="c">x402 왕복 평균<br>요구 → 지불 → 정산 확정</div></div>
       <div class="s"><div class="n">9<small>건</small></div><div class="c">사람이 개입한 결정<br>정산·직거래 936건 중</div></div>
     </div>
-    <div class="band"><b>발표용 시연이 아닙니다.</b> Cloud Scheduler가 10분마다 라이브를 깨우고, 위 숫자는 그 결과가
+    <div class="band">Cloud Scheduler가 10분마다 라이브를 깨우고, 위 숫자는 그 결과가
       실제로 쌓인 것입니다. 심사위원도 <span class="mono">/shop</span>에서 버튼 하나로 이 경제에 참여할 수 있습니다.</div>
   </div>
   <div class="foot">Solply · 프랜차이즈 식자재 대금 자율 정산</div><span class="pageno">04</span>
@@ -477,7 +477,7 @@
         <div class="tops"><span class="stamp">대법원 확정</span><span class="yr">2026. 1. · 상고 기각으로 종결</span></div>
         <h4>“피자헛은 차액가맹금을 반환하라”</h4>
         <p>물대에 얹힌 마진이 계약서에 없었다는 이유 — 1심 75억, 2심 210억. 항소심 두 달 뒤 회사는
-          회생절차를 신청했습니다. <b>정산 기록이 불투명하면 본사가 무너집니다.</b></p></div>
+          회생절차를 신청했습니다. <b>정산 기록의 불투명함이 회사 전체의 위기로 이어졌습니다.</b></p></div>
         <div class="amt"><b>210억</b><s>반환 확정액</s></div></div>
       <div class="case"><div class="cb">
         <div class="tops"><span class="stamp">검찰 구속 기소</span><span class="yr">2017. 7. · 서울중앙지검</span></div>
@@ -553,11 +553,12 @@
   </div>
   <div class="items">
     <div class="it"><b>08</b>아키텍처</div>
-    <div class="it"><b>09</b>판단 흐름</div>
-    <div class="it"><b>10</b>x402 프로토콜</div>
-    <div class="it"><b>11</b>협상 실제 화면</div>
-    <div class="it"><b>12</b>판단 4관문</div>
-    <div class="it"><b>13</b>자율의 경계</div>
+    <div class="it"><b>09</b>기술 구성</div>
+    <div class="it"><b>10</b>판단 흐름</div>
+    <div class="it"><b>11</b>x402 프로토콜</div>
+    <div class="it"><b>12</b>협상 실제 화면</div>
+    <div class="it"><b>13</b>판단 4관문</div>
+    <div class="it"><b>14</b>자율의 경계</div>
   </div>
   <div class="wmw"><div class="wm">Ⅱ</div></div>
   <span class="pageno">07</span>
@@ -600,11 +601,38 @@
   <div class="foot">Solply</div><span class="pageno">08</span>
 </section>
 
+<!-- 기술 구성 -->
+<section class="slide">
+  <div class="hd"><div class="mark"></div><h2>기술 구성 — 무엇으로, 왜 이렇게 만들었나</h2><div class="ctx">Ⅱ 기술 · <b>스택</b></div></div>
+  <p class="lede">역할이 다른 것은 <b>서비스와 프레임워크도 나눴습니다</b> — 판단·결제·저장이 서로를 침범하지 않는 것이
+    이 구성의 원칙입니다.</p>
+  <div class="canvas">
+    <table>
+      <tr><th>영역</th><th>선택</th><th>이렇게 나눈 이유</th></tr>
+      <tr><td class="t">백엔드</td><td><b>Python 3.13 · FastAPI</b><span class="sub">라우터 8개 · SSE 실시간 스트림</span></td>
+        <td>API · 대시보드 · 손님 페이지를 한 서비스로 — 빌드 없는 정적 프런트엔드를 그대로 서빙합니다</td></tr>
+      <tr><td class="t">에이전트</td><td><b>LangGraph + ADK</b><span class="sub">지점 15노드 · 본사 9노드 · 어시스턴트</span></td>
+        <td>돈을 움직이는 판단은 <b>경로가 코드로 드러나는 그래프</b>, 사람과의 대화는 도구를 고르는 에이전트 — 둘을 섞지 않았습니다</td></tr>
+      <tr><td class="t">AI</td><td><b>Vertex AI Gemini</b><span class="sub">본사 2.5 Flash · 지점 2.5 Flash-Lite</span></td>
+        <td>역할 무게에 맞춰 모델을 나눴고, <b>LLM 없는 규칙 모드</b>를 따로 두어 API 키 없이도 같은 흐름이 완주합니다</td></tr>
+      <tr><td class="t">결제</td><td><b>TypeScript · Solana SDK</b><span class="sub">x402 직접 구현 · pay.sh CLI</span></td>
+        <td>지갑 키를 드는 <b>유일한 서비스</b>로 분리 — Cloud Run에서 인터넷에 노출되지 않게 잠갔습니다</td></tr>
+      <tr><td class="t">데이터</td><td><b>Cloud SQL (PostgreSQL)</b><span class="sub">테이블 2개 · 로컬 JSON 전환 가능</span></td>
+        <td>문서는 JSONB, 실행 증빙은 <b>추가만 되는(append-only) 이벤트</b>로 — 지나간 판단 기록은 고칠 수 없습니다</td></tr>
+      <tr><td class="t">인프라</td><td><b>Cloud Run ×2 · Scheduler · Secret Manager</b><span class="sub">Docker · make 워크플로</span></td>
+        <td>10분 경제 틱과 지갑 키 4개를 관리형으로 — 운영에 사람 손이 들지 않습니다</td></tr>
+    </table>
+    <div class="band"><span class="mono">make demo-mock</span> 한 줄이면 <b>API 키 없이도 협상 6종이 온체인 결제까지 완주</b>합니다
+      (테스트 137개) — 심사 재현성을 위해 규칙 기반 판단을 별도 경로로 두었습니다.</div>
+  </div>
+  <div class="foot">Solply</div><span class="pageno">09</span>
+</section>
+
 <!-- 판단 흐름 -->
 <section class="slide">
   <div class="hd"><div class="mark"></div><h2>판단 흐름 — 갈림길이 그래프로 드러납니다</h2><div class="ctx">Ⅱ 기술 · <b>LangGraph</b></div></div>
-  <p class="lede">프롬프트 안에 숨은 판단이 아닙니다. 청구서 한 장이 지나는 관문과 갈림길이 <b>LangGraph 노드로
-    코드에 박혀 있습니다</b> — 아래 실선 하나하나가 <span class="mono">agents/*/graph.py</span>의 엣지입니다.</p>
+  <p class="lede">청구서 한 장이 지나는 관문과 갈림길이 <b>LangGraph 노드로
+    코드에 적혀 있습니다</b> — 아래 실선 하나하나가 <span class="mono">agents/*/graph.py</span>의 엣지입니다.</p>
   <div class="canvas">
     <div class="flow">
       <div class="flane" style="top:0; height:96px; background:#F2F8FA"><em style="color:#4396A3">본사 에이전트 — hq graph · 9노드</em></div>
@@ -645,10 +673,10 @@
       <div class="fe ok" style="left:600px; top:268px">승인 후 재개</div>
       <div class="fe ok" style="left:652px; top:162px">한도 내</div>
     </div>
-    <div class="band">같은 배선이 <b>실행 로그와 1:1</b>로 대응합니다 — 16장 라이브 화면의 로그에서 이 갈림길들을
-      그대로 따라갈 수 있고, <b>여기 없는 경로로는 돈이 나가지 않습니다.</b></div>
+    <div class="band">같은 배선이 <b>실행 로그와 1:1</b>로 대응합니다 — 17장 라이브 화면의 로그에서 이 갈림길들을
+      그대로 따라갈 수 있습니다 — <b>돈이 움직이는 경로는 전부 이 도식 안에 있습니다.</b></div>
   </div>
-  <div class="foot">Solply</div><span class="pageno">09</span>
+  <div class="foot">Solply</div><span class="pageno">10</span>
 </section>
 
 <!-- 06 · x402 -->
@@ -709,7 +737,7 @@
         금액·메모·성공을 함께 봐야 그 구멍이 막힙니다.</p></div>
     </div>
   </div>
-  <div class="foot">Solply</div><span class="pageno">10</span>
+  <div class="foot">Solply</div><span class="pageno">11</span>
 </section>
 
 <!-- 07 · 협상 (실제 화면) -->
@@ -729,13 +757,13 @@
       <div class="point"><b>4</b><p>청구서가 <em>6.50으로 재발행</em>되고, 그제서야 온체인 결제가 나갑니다.</p></div>
     </div>
   </div>
-  <div class="foot">Solply</div><span class="pageno">11</span>
+  <div class="foot">Solply</div><span class="pageno">12</span>
 </section>
 
 <!-- 08 · 협상 유형 + P2P -->
 <section class="slide">
   <div class="hd"><div class="mark"></div><h2>막히면 멈추지 않고, 대안을 만듭니다</h2><div class="ctx">Ⅱ 기술 · <b>협상 · 직거래</b></div></div>
-  <p class="lede">지점 에이전트는 청구서를 받으면 <b>네 개의 관문</b>을 차례로 지납니다 — 09장 도식의 갈림길들입니다.
+  <p class="lede">지점 에이전트는 청구서를 받으면 <b>네 개의 관문</b>을 차례로 지납니다 — 10장 도식의 갈림길들입니다.
     막히는 자리마다 대응이 달라, 결과가 네 가지로 갈립니다.</p>
   <div class="canvas">
     <div class="cols c4" style="gap:13px">
@@ -766,7 +794,7 @@
         그리고 그 판단 근거가 전부 기록으로 남습니다.</div>
     </div>
   </div>
-  <div class="foot">Solply</div><span class="pageno">12</span>
+  <div class="foot">Solply</div><span class="pageno">13</span>
 </section>
 
 <!-- 09 · 자율성과 통제 -->
@@ -814,7 +842,7 @@
       </div>
     </div>
   </div>
-  <div class="foot">Solply</div><span class="pageno">13</span>
+  <div class="foot">Solply</div><span class="pageno">14</span>
 </section>
 
 
@@ -823,22 +851,22 @@
   <div class="brand"><div class="m"></div><span>Solply</span></div>
   <div class="mid">
     <div class="rom">SECTION III</div>
-    <h2>증거 — 발표용 화면이 아니라,<br>돌아가는 시스템입니다</h2>
+    <h2>증거 — 지금도 돌아가고 있는<br>시스템입니다</h2>
     <p class="desc">2026년 7월 29일부터 10분마다 스스로 거래해 왔습니다. 이 장의 숫자는 전부 라이브 API 실측값이고, 결제는 devnet 익스플로러에서 누구나 검증할 수 있습니다.</p>
   </div>
   <div class="items">
-    <div class="it"><b>15</b>실제 구동</div>
-    <div class="it"><b>16</b>라이브 화면</div>
-    <div class="it"><b>17</b>결제 레일 셋</div>
-    <div class="it"><b>18</b>pay.sh 증빙</div>
+    <div class="it"><b>16</b>실제 구동</div>
+    <div class="it"><b>17</b>라이브 화면</div>
+    <div class="it"><b>18</b>결제 레일 셋</div>
+    <div class="it"><b>19</b>pay.sh 증빙</div>
   </div>
   <div class="wmw"><div class="wm">Ⅲ</div></div>
-  <span class="pageno">14</span>
+  <span class="pageno">15</span>
 </section>
 
 <!-- 10 · 실제 구동 -->
 <section class="slide">
-  <div class="hd"><div class="mark"></div><h2>발표용 화면이 아닙니다 — 지금도 거래 중입니다</h2><div class="ctx">Ⅲ 증거 · <b>심사 기준 4</b></div></div>
+  <div class="hd"><div class="mark"></div><h2>실제 구동 — 지금 이 순간에도 거래하고 있습니다</h2><div class="ctx">Ⅲ 증거 · <b>심사 기준 4</b></div></div>
   <p class="lede">Cloud Scheduler가 <b>10분마다</b> 라이브를 깨웁니다 — 판매 → 카드정산 → 조달 → 창고 재입고 → 예약 납부.
     <b>2026-07-29부터 멈춘 적이 없습니다.</b></p>
   <div class="canvas">
@@ -869,9 +897,9 @@
       <div class="card"><h4>날짜로 되짚기</h4><p>정산은 날짜 단위 업무 — 기본은 오늘, 화살표로
         <b>지난 날의 거래</b>를 확인합니다.</p></div>
     </div>
-    <div class="band">목업으로는 만들 수 없는 종류의 증거입니다. <b>지금 접속하셔도 이 시스템은 거래하고 있습니다.</b></div>
+    <div class="band"><b>지금 접속하셔도 이 시스템은 거래하고 있습니다</b> — 모든 결제는 익스플로러에서 바로 검증됩니다.</div>
   </div>
-  <div class="foot mono">solply-api-965647250280.us-central1.run.app</div><span class="pageno">15</span>
+  <div class="foot mono">solply-api-965647250280.us-central1.run.app</div><span class="pageno">16</span>
 </section>
 
 <!-- 11 · 라이브 화면 -->
@@ -890,7 +918,7 @@
           <div class="point"><b>2</b><p>가맹점별 <em>신용점수</em>는 상수가 아니라 온체인 납부 이력에서 계산됩니다.</p></div>
           <div class="point"><b>3</b><p>품목별 재고가 <em>안전 수량</em>과 함께 — 미달이 곧 조달의 방아쇠입니다.</p></div>
           <div class="point"><b>4</b><p>청구서 행을 누르면 그 한 건의 <em>협상 전 과정</em>이 펼쳐집니다.</p></div>
-          <div class="point"><b>5</b><p>오른쪽 <em>거래 정책</em>은 읽기용 표시가 아니라 <em>입력란</em>입니다 —
+          <div class="point"><b>5</b><p>오른쪽 <em>거래 정책</em>은 점주가 직접 고치는 <em>입력란</em>입니다 —
             여기 적힌 숫자가 곧 에이전트의 판단 경계가 됩니다.</p></div>
         </div>
         <div class="band" style="margin-top:14px">본사는 <b>자기 창고만</b> 봅니다. 지점 재고는 지점 화면에서만 —
@@ -898,14 +926,14 @@
       </div>
     </div>
   </div>
-  <div class="foot">Solply</div><span class="pageno">16</span>
+  <div class="foot">Solply</div><span class="pageno">17</span>
 </section>
 
 <!-- 세 레일 -->
 <section class="slide">
   <div class="hd"><div class="mark"></div><h2>결제 레일 셋이, 서로 다른 일을 합니다</h2><div class="ctx">Ⅲ 증거 · <b>심사 기준 3</b></div></div>
   <p class="lede">한 번의 조달 안에서 세 레일이 이어집니다 — <b>판단 재료를 사고</b>(pay.sh), <b>조건을 주고받고</b>(x402),
-    <b>돈을 보냅니다</b>(USDC). 장식으로 붙인 연동이 아니라 각자 맡은 일이 있습니다.</p>
+    <b>돈을 보냅니다</b>(USDC). 각 레일이 맡은 역할은 아래에 정리했습니다.</p>
   <div class="canvas">
     <div class="rails">
       <div></div>
@@ -935,7 +963,7 @@
     <div class="band"><b>물건값만 낸 게 아닙니다.</b> 판단에 쓴 데이터값까지 에이전트가 자기 지갑에서 냈습니다.
       다음 단계는 <span class="mono">pay server</span>로 <b>우리가 시세를 파는 쪽</b>이 되는 것입니다.</div>
   </div>
-  <div class="foot">Solply</div><span class="pageno">17</span>
+  <div class="foot">Solply</div><span class="pageno">18</span>
 </section>
 
 <!-- pay.sh 증빙 -->
@@ -966,7 +994,7 @@
         <p>pay.sh 결제는 공개 체인 밖, 시세도 데모 API 값입니다 — 화면에 그대로 표기했습니다</p></div>
     </div>
   </div>
-  <div class="foot">Solply</div><span class="pageno">18</span>
+  <div class="foot">Solply</div><span class="pageno">19</span>
 </section>
 
 <!-- 간지 Ⅳ -->
@@ -978,18 +1006,18 @@
     <p class="desc">정산 SaaS 구독으로 시작해 직거래 중개 수수료, 그리고 온체인 납부 이력이 만드는 여신까지 — 기록이 자산이 되는 구조입니다.</p>
   </div>
   <div class="items">
-    <div class="it"><b>20</b>수익모델</div>
-    <div class="it"><b>21</b>본선 계획</div>
-    <div class="it"><b>22</b>마무리</div>
+    <div class="it"><b>21</b>수익모델</div>
+    <div class="it"><b>22</b>본선 계획</div>
+    <div class="it"><b>23</b>마무리</div>
   </div>
   <div class="wmw"><div class="wm">Ⅳ</div></div>
-  <span class="pageno">19</span>
+  <span class="pageno">20</span>
 </section>
 
 <!-- 13 · 수익모델 -->
 <section class="slide">
   <div class="hd"><div class="mark"></div><h2>구독으로 시작해, 거래가 커지면 함께 자랍니다</h2><div class="ctx">Ⅳ 사업 · <b>수익모델</b></div></div>
-  <p class="lede">수수료를 낮춰 이기는 사업이 아닙니다. <b>정산을 대신 처리해 사람의 시간을 돌려주고</b>,
+  <p class="lede"><b>정산을 대신 처리해 사람의 시간을 돌려주고</b>,
     그 과정에서 쌓인 <b>기록을 자산으로</b> 바꿉니다. 에이전트가 일하므로 <b>지점이 늘어도 원가는 거의 늘지 않습니다.</b></p>
   <div class="canvas">
     <table>
@@ -1024,13 +1052,13 @@
         라이브 3개 지점은 나흘 만에 <b>50 → 100점</b>에 도달했습니다 — 3층 여신의 근거가 여기서 만들어집니다.</div>
     </div>
   </div>
-  <div class="foot">Solply</div><span class="pageno">20</span>
+  <div class="foot">Solply</div><span class="pageno">21</span>
 </section>
 
 <!-- 본선 계획 -->
 <section class="slide">
   <div class="hd"><div class="mark"></div><h2>본선 2주 — 지금의 한계를 순서대로 없앱니다</h2><div class="ctx">Ⅳ 사업 · <b>본선 계획</b></div></div>
-  <p class="lede">과제로 미룬 것이 아니라 <b>순서를 정해 둔 것</b>입니다. 셋 다 지금 구조 위에 바로 얹힙니다 —
+  <p class="lede">본선 2주의 <b>우선순위는 미리 정해 두었습니다.</b> 셋 다 지금 구조 위에 바로 얹힙니다 —
     에이전트 사이 경계를 처음부터 프로토콜(x402)로 잘라 두었기 때문입니다.</p>
   <div class="canvas">
     <div class="tl">
@@ -1047,12 +1075,12 @@
         우리 정산·신용 데이터를 <b>x402 유료 API로 판매</b>합니다. 샌드박스라는 지금의 한계를 없애면서
         3층 수익모델의 첫 매출 라인이 됩니다.</p></div>
       <div class="card"><h4>③ 신용 점수 API</h4><p>온체인 납부 이력 → 점수 산식을 <b>코드로 공개</b>하는 시제품.
-        여신(3층)의 근거를 말이 아니라 <b>검증 가능한 계산</b>으로 만듭니다.</p></div>
+        여신(3층)의 근거를 <b>검증 가능한 계산</b>으로 만듭니다.</p></div>
     </div>
     <div class="band"><b>데모데이 시연 —</b> 심사위원이 <span class="mono">/shop</span>에서 산 물건이 10분 안에
-      조달·협상·온체인 정산으로 이어지는 것을 라이브로 봅니다. 무대용 영상이 아니라 <b>돌고 있는 시스템</b>을 보여드립니다.</div>
+      조달·협상·온체인 정산으로 이어지는 것을 라이브로 봅니다. <b>돌고 있는 시스템</b>을 그대로 보여드립니다.</div>
   </div>
-  <div class="foot">Solply</div><span class="pageno">21</span>
+  <div class="foot">Solply</div><span class="pageno">22</span>
 </section>
 
 <!-- 마무리 -->
@@ -1063,8 +1091,8 @@
   <div class="canvas">
     <div class="cols c3" style="gap:14px">
       <div class="card"><h4>지금 — 검증 끝</h4><p>devnet 실거래 · Cloud Run 라이브 · 협상 6종 ·
-        10분마다 도는 경제 루프. <b>주장한 것은 전부 라이브에서 확인됩니다.</b></p></div>
-      <div class="card"><h4>본선 2주 — 21장</h4><p><b>A2A 전환 · pay server · 신용 점수 API.</b>
+        10분마다 도는 경제 루프. <b>모든 내용은 라이브에서 직접 확인하실 수 있습니다.</b></p></div>
+      <div class="card"><h4>본선 2주 — 22장</h4><p><b>A2A 전환 · pay server · 신용 점수 API.</b>
         지금의 한계 세 가지를 순서대로 없앱니다.</p></div>
       <div class="card"><h4>그 후 — 실물</h4><p>단일 본사 파일럿으로 현장 검증하고, 온체인 신용을 근거로
         <b>실물 B2B 정산과 여신 시장</b>으로 갑니다.</p></div>
@@ -1078,9 +1106,9 @@
         <p class="mono" style="font-size:10.5px; line-height:1.6">제출물에 첨부</p></div>
     </div>
     <div class="band">에이전트에게 지갑을 주는 일은 결국 <b>경계를 설계하는 일</b>이었습니다. 그 경계가 이 소개서의
-      13장이고, 이 제품이 파는 것도 결국 <b>그 경계에 대한 신뢰</b>입니다.</div>
+      14장이고, 이 제품이 파는 것도 결국 <b>그 경계에 대한 신뢰</b>입니다.</div>
   </div>
-  <div class="foot">Solply · Settle On Ledger, for supply</div><span class="pageno">22</span>
+  <div class="foot">Solply · Settle On Ledger, for supply</div><span class="pageno">23</span>
 </section>
 
 <!-- 백커버 -->
@@ -1098,7 +1126,7 @@
     <div class="it"><b>영상</b>데모 2분 55초 — 제출물 첨부</div>
   </div>
   <div class="wmw"><div class="wm">S</div></div>
-  <span class="pageno">23</span>
+  <span class="pageno">24</span>
 </section>
 
 </body>
