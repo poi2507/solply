@@ -190,6 +190,23 @@
   .slide.dark .kv .i { border-color: #2A3A33; } .slide.dark .kv .i p { color: #8A968F; }
   .slide.dark .kv .i b { color: #57D3A6; }
 
+  /* ── 도식: 판단 흐름 ── */
+  .flow { position: relative; height: 384px; }
+  .flow .flane { position: absolute; left: 0; right: 0; border-radius: 11px; }
+  .flow .flane em { position: absolute; left: 13px; top: 7px; font-style: normal; font-family: var(--mono);
+    font-size: 10px; letter-spacing: .12em; font-weight: 700; }
+  .flow svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .fn { position: absolute; border: 1.5px solid var(--hair); border-radius: 9px; background: #fff;
+    padding: 8px 11px; box-shadow: 0 1px 4px rgba(16,24,21,.05); }
+  .fn b { display: block; font-size: 12.4px; font-weight: 800; word-break: keep-all; }
+  .fn s { display: block; text-decoration: none; font-size: 10.2px; color: var(--faint); margin-top: 2px; word-break: keep-all; }
+  .fn.dec { border-color: var(--mint); background: var(--tint); }
+  .fn.hu  { border-color: #E0C08D; background: #FBF6EA; }
+  .fn.no  { border-color: #DDAFA8; background: #FBF1EF; }
+  .fe { position: absolute; font-size: 10.6px; font-weight: 700; color: #7C8B83;
+    background: rgba(255,255,255,.92); padding: 1px 6px; border-radius: 4px; white-space: nowrap; }
+  .fe.ok { color: var(--mint); } .fe.warn { color: #B26A1B; } .fe.bad { color: #A6423A; }
+
   /* ── 표 ── */
   table { width: 100%; border-collapse: collapse; }
   th { font-size: 10.8px; letter-spacing: .06em; color: var(--faint); text-align: left;
@@ -308,16 +325,16 @@
         <p>물대 정산이 왜 아직 사람의 일인지 — 그리고 에이전트가 그 판단을 어디까지 대신하는지</p></div>
         <div class="pg">04 – 06</div></div>
       <div class="row"><div class="rn">Ⅱ</div><div><h3>기술 — 에이전트가 협상하고, 체인이 증명합니다</h3>
-        <p>아키텍처 · x402 프로토콜 · 협상 한 건의 실제 화면 · 판단 4관문 · 자율이 멈추는 경계</p></div>
-        <div class="pg">08 – 12</div></div>
+        <p>아키텍처 · 판단 흐름 그래프 · x402 · 협상 실제 화면 · 판단 4관문 · 자율의 경계</p></div>
+        <div class="pg">08 – 13</div></div>
       <div class="row"><div class="rn">Ⅲ</div><div><h3>증거 — 지금도 거래 중입니다</h3>
         <p>라이브 실측 숫자 · 대시보드 화면 · 결제 레일 셋(USDC · x402 · pay.sh)과 그 증빙</p></div>
-        <div class="pg">14 – 17</div></div>
+        <div class="pg">15 – 18</div></div>
       <div class="row"><div class="rn">Ⅳ</div><div><h3>사업 — 구독에서 여신까지</h3>
-        <p>3층 수익모델 · 온체인 납부 이력이 만드는 신용 · 데모데이까지의 로드맵</p></div>
-        <div class="pg">19 – 20</div></div>
+        <p>3층 수익모델과 시장 크기 · 본선 2주 개발 계획 · 마무리</p></div>
+        <div class="pg">20 – 22</div></div>
     </div>
-    <div class="band">시간이 없으시면 세 장이면 됩니다 — <b>04 한 장 요약 · 10 협상 실제 화면 · 14 실제 구동.</b>
+    <div class="band">시간이 없으시면 세 장이면 됩니다 — <b>04 한 장 요약 · 11 협상 실제 화면 · 15 실제 구동.</b>
       본문의 숫자는 전부 라이브 API에서 받은 실측값입니다.</div>
   </div>
   <div class="foot">Solply</div><span class="pageno">02</span>
@@ -478,10 +495,11 @@
   </div>
   <div class="items">
     <div class="it"><b>08</b>아키텍처</div>
-    <div class="it"><b>09</b>x402 프로토콜</div>
-    <div class="it"><b>10</b>협상 실제 화면</div>
-    <div class="it"><b>11</b>판단 4관문</div>
-    <div class="it"><b>12</b>자율의 경계</div>
+    <div class="it"><b>09</b>판단 흐름</div>
+    <div class="it"><b>10</b>x402 프로토콜</div>
+    <div class="it"><b>11</b>협상 실제 화면</div>
+    <div class="it"><b>12</b>판단 4관문</div>
+    <div class="it"><b>13</b>자율의 경계</div>
   </div>
   <div class="wmw"><div class="wm">Ⅱ</div></div>
   <span class="pageno">07</span>
@@ -522,6 +540,57 @@
       않게 잠갔습니다 — 사고가 나도 어디서 났는지 알 수 있는 구조입니다.</div>
   </div>
   <div class="foot">Solply</div><span class="pageno">08</span>
+</section>
+
+<!-- 판단 흐름 -->
+<section class="slide">
+  <div class="hd"><div class="mark"></div><h2>판단 흐름 — 갈림길이 그래프로 드러납니다</h2><div class="ctx">Ⅱ 기술 · <b>LangGraph</b></div></div>
+  <p class="lede">프롬프트 안에 숨은 판단이 아닙니다. 청구서 한 장이 지나는 관문과 갈림길이 <b>LangGraph 노드로
+    코드에 박혀 있습니다</b> — 아래 실선 하나하나가 <span class="mono">agents/*/graph.py</span>의 엣지입니다.</p>
+  <div class="canvas">
+    <div class="flow">
+      <div class="flane" style="top:0; height:96px; background:#F2F8FA"><em style="color:#4396A3">본사 에이전트 — hq graph · 9노드</em></div>
+      <div class="flane" style="top:128px; height:116px; background:#F2FAF6"><em style="color:var(--mint)">지점 에이전트 — store graph · 15노드</em></div>
+      <div class="flane" style="top:272px; height:100px; background:#FAF6EC"><em style="color:#A5834B">사람 — 경계에서만</em></div>
+      <svg viewBox="0 0 1164 384">
+        <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7"
+          orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#93ACA0"/></marker></defs>
+        <g fill="none" stroke="#93ACA0" stroke-width="1.6" marker-end="url(#ah)">
+          <path d="M139 76 L130 156"/><path d="M196 182 L252 182"/>
+          <path d="M310 156 L358 76"/><path d="M428 76 L382 156"/>
+          <path d="M322 208 L330 296"/><path d="M400 182 L462 182"/>
+          <path d="M520 156 L600 76"/><path d="M682 76 L768 156"/>
+          <path d="M552 208 L570 296"/><path d="M682 322 L790 208"/>
+          <path d="M642 182 L712 182"/><path d="M908 182 L964 182"/>
+          <path d="M1032 156 L906 76"/><path d="M964 50 L1016 50"/>
+        </g>
+      </svg>
+      <div class="fn" style="left:64px; top:24px; width:150px"><b>청구서 발행</b><s>납품 기록에서 품목·금액</s></div>
+      <div class="fn" style="left:300px; top:24px; width:178px"><b>재검증 · 재발행</b><s>검수 기록으로 차감 검증</s></div>
+      <div class="fn" style="left:556px; top:24px; width:186px"><b>유예 · 분할 심사</b><s>신용점수 · 외상 한도</s></div>
+      <div class="fn" style="left:806px; top:24px; width:158px"><b>3중 대조</b><s>금액 · 메모 · 성공</s></div>
+      <div class="fn" style="left:1016px; top:24px; width:138px"><b>정산 확정</b><s>SETTLED</s></div>
+      <div class="fn" style="left:64px; top:156px; width:132px"><b>청구 수신</b><s>402 조건 목록</s></div>
+      <div class="fn dec" style="left:252px; top:156px; width:148px"><b>검수 대조</b><s>입고 기록과 대조</s></div>
+      <div class="fn dec" style="left:462px; top:156px; width:180px"><b>자금 · 정책 점검</b><s>잔액 · 자동결제 한도</s></div>
+      <div class="fn" style="left:712px; top:156px; width:196px"><b>조건 선택 · USDC 전송</b><s>메모에 청구서 번호</s></div>
+      <div class="fn" style="left:964px; top:156px; width:150px"><b>서명 제출</b><s>PAYMENT-SIGNATURE</s></div>
+      <div class="fn hu" style="left:486px; top:296px; width:196px"><b>사람 승인 대기</b><s>버튼 · 어시스턴트 대화</s></div>
+      <div class="fn no" style="left:236px; top:296px; width:196px"><b>거부 — 사람 검토로</b><s>발주 기록에 없는 청구</s></div>
+      <div class="fe warn" style="left:150px; top:106px">수량 불일치 · 차감 제안</div>
+      <div class="fe" style="left:436px; top:88px">재발행</div>
+      <div class="fe bad" style="left:342px; top:244px">발주 기록에 없음</div>
+      <div class="fe ok" style="left:412px; top:162px">일치</div>
+      <div class="fe warn" style="left:470px; top:134px">잔액 부족</div>
+      <div class="fe" style="left:784px; top:132px">납부일 확정 · 분할 역제안</div>
+      <div class="fe warn" style="left:582px; top:244px">자동결제 상한 초과</div>
+      <div class="fe ok" style="left:600px; top:268px">승인 후 재개</div>
+      <div class="fe ok" style="left:652px; top:162px">한도 내</div>
+    </div>
+    <div class="band">같은 배선이 <b>실행 로그와 1:1</b>로 대응합니다 — 16장 라이브 화면의 로그에서 이 갈림길들을
+      그대로 따라갈 수 있고, <b>여기 없는 경로로는 돈이 나가지 않습니다.</b></div>
+  </div>
+  <div class="foot">Solply</div><span class="pageno">09</span>
 </section>
 
 <!-- 06 · x402 -->
@@ -577,7 +646,7 @@
       </div>
     </div>
   </div>
-  <div class="foot">Solply</div><span class="pageno">09</span>
+  <div class="foot">Solply</div><span class="pageno">10</span>
 </section>
 
 <!-- 07 · 협상 (실제 화면) -->
@@ -597,7 +666,7 @@
       <div class="point"><b>4</b><p>청구서가 <em>6.50으로 재발행</em>되고, 그제서야 온체인 결제가 나갑니다.</p></div>
     </div>
   </div>
-  <div class="foot">Solply</div><span class="pageno">10</span>
+  <div class="foot">Solply</div><span class="pageno">11</span>
 </section>
 
 <!-- 08 · 협상 유형 + P2P -->
@@ -640,7 +709,7 @@
         그리고 그 판단 근거가 전부 기록으로 남습니다.</div>
     </div>
   </div>
-  <div class="foot">Solply</div><span class="pageno">11</span>
+  <div class="foot">Solply</div><span class="pageno">12</span>
 </section>
 
 <!-- 09 · 자율성과 통제 -->
@@ -688,7 +757,7 @@
       </div>
     </div>
   </div>
-  <div class="foot">Solply</div><span class="pageno">12</span>
+  <div class="foot">Solply</div><span class="pageno">13</span>
 </section>
 
 
@@ -701,13 +770,13 @@
     <p class="desc">2026년 7월 29일부터 10분마다 스스로 거래해 왔습니다. 이 장의 숫자는 전부 라이브 API 실측값이고, 결제는 devnet 익스플로러에서 누구나 검증할 수 있습니다.</p>
   </div>
   <div class="items">
-    <div class="it"><b>14</b>실제 구동</div>
-    <div class="it"><b>15</b>라이브 화면</div>
-    <div class="it"><b>16</b>결제 레일 셋</div>
-    <div class="it"><b>17</b>pay.sh 증빙</div>
+    <div class="it"><b>15</b>실제 구동</div>
+    <div class="it"><b>16</b>라이브 화면</div>
+    <div class="it"><b>17</b>결제 레일 셋</div>
+    <div class="it"><b>18</b>pay.sh 증빙</div>
   </div>
   <div class="wmw"><div class="wm">Ⅲ</div></div>
-  <span class="pageno">13</span>
+  <span class="pageno">14</span>
 </section>
 
 <!-- 10 · 실제 구동 -->
@@ -744,7 +813,7 @@
     </div>
     <div class="band">목업으로는 만들 수 없는 종류의 증거입니다. <b>지금 접속하셔도 이 시스템은 거래하고 있습니다.</b></div>
   </div>
-  <div class="foot mono">solply-api-965647250280.us-central1.run.app</div><span class="pageno">14</span>
+  <div class="foot mono">solply-api-965647250280.us-central1.run.app</div><span class="pageno">15</span>
 </section>
 
 <!-- 11 · 라이브 화면 -->
@@ -771,7 +840,7 @@
       </div>
     </div>
   </div>
-  <div class="foot">Solply</div><span class="pageno">15</span>
+  <div class="foot">Solply</div><span class="pageno">16</span>
 </section>
 
 <!-- 세 레일 -->
@@ -802,7 +871,7 @@
     <div class="band"><b>물건값만 낸 게 아닙니다.</b> 판단에 쓴 데이터값까지 에이전트가 자기 지갑에서 냈습니다.
       다음 단계는 <span class="mono">pay server</span>로 <b>우리가 시세를 파는 쪽</b>이 되는 것입니다.</div>
   </div>
-  <div class="foot">Solply</div><span class="pageno">16</span>
+  <div class="foot">Solply</div><span class="pageno">17</span>
 </section>
 
 <!-- pay.sh 증빙 -->
@@ -833,7 +902,7 @@
         <p>pay.sh 결제는 공개 체인 밖, 시세도 데모 API 값입니다 — 화면에 그대로 표기했습니다</p></div>
     </div>
   </div>
-  <div class="foot">Solply</div><span class="pageno">17</span>
+  <div class="foot">Solply</div><span class="pageno">18</span>
 </section>
 
 <!-- 간지 Ⅳ -->
@@ -845,18 +914,19 @@
     <p class="desc">정산 SaaS 구독으로 시작해 직거래 중개 수수료, 그리고 온체인 납부 이력이 만드는 여신까지 — 기록이 자산이 되는 구조입니다.</p>
   </div>
   <div class="items">
-    <div class="it"><b>19</b>수익모델</div>
-    <div class="it"><b>20</b>마무리 · 로드맵</div>
+    <div class="it"><b>20</b>수익모델</div>
+    <div class="it"><b>21</b>본선 계획</div>
+    <div class="it"><b>22</b>마무리</div>
   </div>
   <div class="wmw"><div class="wm">Ⅳ</div></div>
-  <span class="pageno">18</span>
+  <span class="pageno">19</span>
 </section>
 
 <!-- 13 · 수익모델 -->
 <section class="slide">
   <div class="hd"><div class="mark"></div><h2>구독으로 시작해, 거래가 커지면 함께 자랍니다</h2><div class="ctx">Ⅳ 사업 · <b>수익모델</b></div></div>
   <p class="lede">수수료를 낮춰 이기는 사업이 아닙니다. <b>정산을 대신 처리해 사람의 시간을 돌려주고</b>,
-    그 과정에서 쌓인 <b>기록을 자산으로</b> 바꿉니다.</p>
+    그 과정에서 쌓인 <b>기록을 자산으로</b> 바꿉니다. 에이전트가 일하므로 <b>지점이 늘어도 원가는 거의 늘지 않습니다.</b></p>
   <div class="canvas">
     <table>
       <tr><th>층</th><th>모델</th><th>무엇에 대한 대가</th><th>가격</th></tr>
@@ -871,14 +941,14 @@
         <td class="mono"><b>여신 스프레드</b></td></tr>
     </table>
     <div class="kv">
-      <div class="i"><s>100개 지점 프랜차이즈</s><b>월 290<span style="font-size:12px">만원</span></b>
-        <p>1층 구독만으로. 경리 담당자 한 명의 인건비 수준입니다</p></div>
-      <div class="i"><s>지점당 월 직거래액 가정</s><b>200<span style="font-size:12px">만원</span></b>
-        <p>본사 발주보다 싸게 조달한 만큼만 오가는 금액입니다</p></div>
-      <div class="i"><s>2층 중개 수수료</s><b>월 200<span style="font-size:12px">만원</span></b>
-        <p>거래액 1% — 정산 건수가 늘수록 함께 커집니다</p></div>
-      <div class="i"><s>합계</s><b>월 490<span style="font-size:12px">만원</span></b>
-        <p>지점이 늘어도 담당 인력은 늘지 않는 구조입니다</p></div>
+      <div class="i"><s>국내 프랜차이즈 가맹점</s><b>약 35<span style="font-size:12px">만 개</span></b>
+        <p>공정거래위원회 가맹사업 현황 기준 — 절반가량이 외식업입니다</p></div>
+      <div class="i"><s>침투 1% 시나리오</s><b>3,500<span style="font-size:12px">지점</span></b>
+        <p>지점 100~300개 규모의 본사 15~20곳이면 닿는 숫자입니다</p></div>
+      <div class="i"><s>1층 구독만으로</s><b>연 12.2<span style="font-size:12px">억 원</span></b>
+        <p>3,500지점 × 월 29,000원 — 본사 쪽 대체 인건비보다 쌉니다</p></div>
+      <div class="i"><s>2층 중개까지 더하면</s><b>연 20.6<span style="font-size:12px">억 원</span></b>
+        <p>지점당 월 직거래 200만 원 가정 × 수수료 1% 기준</p></div>
     </div>
     <div class="cols c-53" style="align-items:center">
       <div class="bars">
@@ -890,46 +960,63 @@
         라이브 3개 지점은 나흘 만에 <b>50 → 100점</b>에 도달했습니다 — 3층 여신의 근거가 여기서 만들어집니다.</div>
     </div>
   </div>
-  <div class="foot">Solply</div><span class="pageno">19</span>
+  <div class="foot">Solply</div><span class="pageno">20</span>
 </section>
 
-<!-- 14 · 마무리 -->
-<section class="slide dark">
-  <div class="hd"><div class="mark"></div><h2>본사 경리팀의 엑셀과 사장님의 새벽 정산을 대신합니다</h2><div class="ctx">Ⅳ 사업 · <b>마무리</b></div></div>
+<!-- 본선 계획 -->
+<section class="slide">
+  <div class="hd"><div class="mark"></div><h2>본선 2주 — 지금의 한계를 순서대로 없앱니다</h2><div class="ctx">Ⅳ 사업 · <b>본선 계획</b></div></div>
+  <p class="lede">과제로 미룬 것이 아니라 <b>순서를 정해 둔 것</b>입니다. 셋 다 지금 구조 위에 바로 얹힙니다 —
+    에이전트 사이 경계를 처음부터 프로토콜(x402)로 잘라 두었기 때문입니다.</p>
   <div class="canvas">
     <div class="tl">
-      <div class="n"><div class="d">2026. 8. 3</div><h5>제출</h5>
-        <p>라이브 · 데모 영상 · 코드 공개</p></div>
-      <div class="n"><div class="d">2026. 8. 7</div><h5>본선 발표</h5>
-        <p>A2A 전환과 pay.sh 심화를 본선 주간 과제로</p></div>
-      <div class="n"><div class="d">2026. 8. 21</div><h5>데모데이</h5>
-        <p>심사위원이 직접 <span class="mono">/shop</span>에서 경제를 움직이는 시연</p></div>
-      <div class="n"><div class="d">이후</div><h5>실물 파일럿</h5>
-        <p>단일 프랜차이즈 본사와 지점 소수로 현장 검증</p></div>
+      <div class="n"><div class="d">8/7</div><h5>본선 발표</h5><p>이 계획을 갖고 시작합니다</p></div>
+      <div class="n"><div class="d">1주차</div><h5>A2A 전환 + pay server</h5><p>에이전트 분리 · 시세 판매 라인</p></div>
+      <div class="n"><div class="d">2주차</div><h5>신용 API + 리허설</h5><p>점수 산식 공개 · 시연 동선 담금질</p></div>
+      <div class="n"><div class="d">8/21</div><h5>데모데이</h5><p>심사위원이 직접 경제를 움직이는 시연</p></div>
     </div>
     <div class="cols c3" style="gap:14px">
-      <div class="card"><h4>지금 (해커톤)</h4><p>devnet 실거래 · Cloud Run 라이브 · 협상 6종 ·
-        경제 루프가 10분마다 자율 순환</p></div>
-      <div class="card"><h4>다음 (파이널 주간)</h4><p><b>A2A 전환</b> — 에이전트를 독립 서비스로 분리하고
-        표준 프로토콜로 왕복 · <b>pay.sh 심화</b> — 우리가 시세를 파는 쪽으로</p></div>
-      <div class="card"><h4>이후</h4><p>온체인 신용 스코어링 API — 프랜차이즈를 넘어
-        <b>실물 B2B 정산과 여신 시장</b>으로</p></div>
+      <div class="card"><h4>① A2A 전환</h4><p>지금은 두 그래프가 한 서버 안에서 만납니다. 에이전트를
+        <b>독립 서비스로 분리</b>하고 왕복을 표준 A2A 프로토콜로 — 본사와 지점이 <b>정말 다른 회사여도 되는</b>
+        구조를 시연합니다.</p></div>
+      <div class="card"><h4>② pay server — 파는 쪽으로</h4><p>시세를 사기만 하던 pay.sh 레일을 뒤집어,
+        우리 정산·신용 데이터를 <b>x402 유료 API로 판매</b>합니다. 샌드박스라는 지금의 한계를 없애면서
+        3층 수익모델의 첫 매출 라인이 됩니다.</p></div>
+      <div class="card"><h4>③ 신용 점수 API</h4><p>온체인 납부 이력 → 점수 산식을 <b>코드로 공개</b>하는 시제품.
+        여신(3층)의 근거를 말이 아니라 <b>검증 가능한 계산</b>으로 만듭니다.</p></div>
     </div>
-    <div class="cols c3" style="gap:14px">
-      <div class="card tint" style="background:#16211C; border-color:#2A3A33">
-        <h4 style="color:#57D3A6">라이브 대시보드</h4>
-        <p class="mono" style="font-size:10.5px; color:#9AA79F">solply-api-965647250280<br>.us-central1.run.app</p></div>
-      <div class="card tint" style="background:#16211C; border-color:#2A3A33">
-        <h4 style="color:#57D3A6">GitHub</h4>
-        <p class="mono" style="font-size:10.5px; color:#9AA79F">github.com/poi2507/solply</p></div>
-      <div class="card tint" style="background:#16211C; border-color:#2A3A33">
-        <h4 style="color:#57D3A6">데모 영상 (2분 55초)</h4>
-        <p class="mono" style="font-size:10.5px; color:#9AA79F">제출물에 첨부</p></div>
-    </div>
-    <div class="band">"실물 B2B 정산은 왜 아직 온체인이 아닌가" — 실물 이행과 분쟁 리스크 때문입니다.
-      <b>그래서 검수 대조·차감 협상·거부가 이 시스템의 중심입니다.</b></div>
+    <div class="band"><b>데모데이 시연 —</b> 심사위원이 <span class="mono">/shop</span>에서 산 물건이 10분 안에
+      조달·협상·온체인 정산으로 이어지는 것을 라이브로 봅니다. 무대용 영상이 아니라 <b>돌고 있는 시스템</b>을 보여드립니다.</div>
   </div>
-  <div class="foot">Solply · Settle On Ledger, for supply</div><span class="pageno">20</span>
+  <div class="foot">Solply</div><span class="pageno">21</span>
+</section>
+
+<!-- 마무리 -->
+<section class="slide">
+  <div class="hd"><div class="mark"></div><h2>본사 경리팀의 엑셀과 사장님의 새벽 정산을 대신합니다</h2><div class="ctx">Ⅳ 사업 · <b>마무리</b></div></div>
+  <p class="lede">해커톤 내내 물었던 질문은 하나였습니다 — <b>"실물 B2B 정산은 왜 아직 온체인이 아닌가."</b>
+    답은 실물 이행과 분쟁 리스크였고, 그래서 검수 대조·차감 협상·거부가 이 시스템의 중심이 됐습니다.</p>
+  <div class="canvas">
+    <div class="cols c3" style="gap:14px">
+      <div class="card"><h4>지금 — 검증 끝</h4><p>devnet 실거래 · Cloud Run 라이브 · 협상 6종 ·
+        10분마다 도는 경제 루프. <b>주장한 것은 전부 라이브에서 확인됩니다.</b></p></div>
+      <div class="card"><h4>본선 2주 — 21장</h4><p><b>A2A 전환 · pay server · 신용 점수 API.</b>
+        지금의 한계 세 가지를 순서대로 없앱니다.</p></div>
+      <div class="card"><h4>그 후 — 실물</h4><p>단일 본사 파일럿으로 현장 검증하고, 온체인 신용을 근거로
+        <b>실물 B2B 정산과 여신 시장</b>으로 갑니다.</p></div>
+    </div>
+    <div class="cols c3" style="gap:14px">
+      <div class="card tint"><h4>라이브 대시보드</h4>
+        <p class="mono" style="font-size:10.5px; line-height:1.6">solply-api-965647250280<br>.us-central1.run.app</p></div>
+      <div class="card tint"><h4>GitHub</h4>
+        <p class="mono" style="font-size:10.5px; line-height:1.6">github.com/poi2507/solply</p></div>
+      <div class="card tint"><h4>데모 영상 (2분 55초)</h4>
+        <p class="mono" style="font-size:10.5px; line-height:1.6">제출물에 첨부</p></div>
+    </div>
+    <div class="band">에이전트에게 지갑을 주는 일은 결국 <b>경계를 설계하는 일</b>이었습니다. 그 경계가 이 소개서의
+      13장이고, 이 제품이 파는 것도 결국 <b>그 경계에 대한 신뢰</b>입니다.</div>
+  </div>
+  <div class="foot">Solply · Settle On Ledger, for supply</div><span class="pageno">22</span>
 </section>
 
 </body>
