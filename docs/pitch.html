@@ -7,7 +7,7 @@
   소개서 초안 (WBS 4.7) — 16:9, 12장.
   PDF 내보내기: Chrome에서 열기 → 인쇄 → 대상 'PDF로 저장',
   용지 방향 자동, 여백 '없음', '배경 그래픽' 체크. 벡터 PDF로 저장된다.
-  다듬을 곳: 표지·마지막 장의 팀명과 URL 자리.
+  팀 Solply · 라이브 URL 반영 완료 (2026-08-01). 영상 URL만 업로드 후 채우면 된다.
 -->
 <style>
   :root {
@@ -119,7 +119,7 @@
     <div class="mono" style="font-size:15px; color:#57BE95; margin-top:14px; letter-spacing:.04em">Settle On Ledger, for supply</div>
     <h1 style="margin-top:52px; font-size:34px; max-width:860px">프랜차이즈 식자재 대금,<br>에이전트가 정산을 끝냅니다.</h1>
   </div>
-  <div class="foot" style="color:#55605A">팀명 · 2026. 8. <span class="mono">github.com/poi2507/solply</span></div>
+  <div class="foot" style="color:#55605A">팀 Solply · 2026. 8. <span class="mono">github.com/poi2507/solply</span></div>
 </section>
 
 <!-- 2 · 문제 -->
@@ -288,10 +288,60 @@
   </div>
 </section>
 
+
+<!-- 9.5 · 지금도 거래 중 -->
+<section class="slide">
+  <div class="kicker">실제 구동 — 지금 이 순간</div>
+  <span class="pageno">10</span>
+  <h1>발표용 화면이 아닙니다. 지금도 거래하고 있습니다.</h1>
+  <div class="body">
+    <div class="rows">
+      <div class="row"><h3>사람 없이 10분마다</h3><p>Cloud Scheduler가 라이브를 깨웁니다 — 판매 → 카드정산 → 조달 → 창고 재입고 → 예약 납부.
+        <b>2026-07-29부터 멈춘 적이 없습니다.</b></p></div>
+      <div class="row"><h3>누적 청구서 423건 · 지점 간 직거래 439건</h3><p>실행 로그 9458건이 쌓였습니다.
+        전부 <b>devnet 실제 트랜잭션</b>이고, 화면의 서명을 누르면 솔라나 익스플로러로 열립니다.</p></div>
+      <div class="row"><h3>심사위원도 참여할 수 있습니다</h3><p><span class="mono">/shop</span>에서 구매 버튼을 한 번 누르면
+        재고가 줄고, <b>10분 안에 에이전트가 조달을 시작</b>합니다. 목업으로는 불가능한 검증입니다.</p></div>
+      <div class="row"><h3>날짜로 넘겨 과거를 봅니다</h3><p>정산은 날짜 단위 업무 — 기본은 오늘, 화살표로 지난 날의 거래를 확인합니다.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 9.6 · 세 레일 -->
+<section class="slide">
+  <div class="kicker">인프라 연동 — 셋을 각각 다른 역할로</div>
+  <span class="pageno">11</span>
+  <h1>결제 레일 셋이, 서로 다른 일을 합니다.</h1>
+  <div class="body">
+    <table>
+      <tr><th>레일</th><th>맡은 역할</th><th>우리 구현</th></tr>
+      <tr>
+        <td class="t">USDC</td>
+        <td>정산 통화<span class="sub">물대 · 지점 간 직거래 · 카드매출 정산</span></td>
+        <td>Solana devnet 실거래. 메모에 청구서 번호를 새겨 대조한다</td>
+      </tr>
+      <tr>
+        <td class="t">x402</td>
+        <td>정산 프로토콜<span class="sub">402 응답의 조건 목록이 곧 협상 테이블</span></td>
+        <td><b>판매자·구매자 양쪽을 직접 구현</b> — 402 발행, 조건 제시, 온체인 3중 대조(금액·메모·성공)</td>
+      </tr>
+      <tr>
+        <td class="t">pay.sh</td>
+        <td>판단 재료를 사는 레일<span class="sub">에이전트가 유료 데이터를 그 자리에서 결제</span></td>
+        <td>조달 판단 직전 시세를 구매하고 <b>영수증의 온체인 참조를 증빙으로 기록</b>한다</td>
+      </tr>
+    </table>
+    <p style="margin-top:26px; font-size:15px; color:var(--muted); line-height:1.6">
+      물건값만 낸 게 아닙니다 — <b style="color:var(--ink)">판단에 쓴 데이터값까지 에이전트가 자기 지갑에서 냈습니다.</b>
+      다음 단계는 우리가 <span class="mono">pay server</span>로 <b style="color:var(--ink)">시세를 파는 쪽</b>이 되는 것입니다.
+    </p>
+  </div>
+</section>
+
 <!-- 10 · 수익모델 -->
 <section class="slide">
   <div class="kicker">수익모델</div>
-  <span class="pageno">10</span>
+  <span class="pageno">12</span>
   <h1>구독으로 시작해, 거래가 커지면 함께 자랍니다.</h1>
   <div class="body">
     <table>
@@ -323,7 +373,7 @@
 <!-- 11 · 시장과 다음 -->
 <section class="slide">
   <div class="kicker">시장과 다음 단계</div>
-  <span class="pageno">11</span>
+  <span class="pageno">13</span>
   <h1>실물 B2B 정산은 아직 <span class="em">비어 있습니다.</span></h1>
   <p class="lead">현재 x402 트래픽은 데이터·API 같은 디지털 재화에 몰려 있습니다. 실물 상거래의 이행 리스크 — 검수, 분쟁, 품질 — 를 다룰 장치가 없었기 때문입니다. Solply는 그 장치(검수 대조·협상·본사 승인·에스컬레이션)를 갖추고 첫 사례를 만듭니다.</p>
   <div class="body">
@@ -342,7 +392,7 @@
   </div>
   <div class="foot mono" style="color:#55605A; display:flex; gap:28px">
     <span>github.com/poi2507/solply</span>
-    <span>라이브 대시보드 — URL</span>
+    <span>라이브 대시보드 — solply-api-965647250280.us-central1.run.app</span>
     <span>데모 영상 — URL</span>
   </div>
 </section>
