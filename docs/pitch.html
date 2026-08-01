@@ -207,6 +207,51 @@
     background: rgba(255,255,255,.92); padding: 1px 6px; border-radius: 4px; white-space: nowrap; }
   .fe.ok { color: var(--mint); } .fe.warn { color: #B26A1B; } .fe.bad { color: #A6423A; }
 
+  /* ── 실제 사례 ── */
+  .case { border: 1px solid #EBD6D1; background: #FBF4F1; border-radius: 11px; padding: 15px 18px; }
+  .case .yr { font-family: var(--mono); font-size: 10.5px; font-weight: 700; letter-spacing: .08em; color: #A6423A; }
+  .case h4 { font-size: 14.5px; font-weight: 800; margin: 6px 0 7px; word-break: keep-all; }
+  .case p { font-size: 12.8px; color: var(--muted); line-height: 1.6; word-break: keep-all; }
+  .case p b { color: var(--ink); font-weight: 750; }
+  .card .q { margin-top: 11px; border-left: 2px solid var(--mint); padding: 2px 0 2px 10px;
+    font-family: var(--mono); font-size: 10.6px; color: #48705F; line-height: 1.55; word-break: keep-all; }
+
+  /* ── 시퀀스 다이어그램(사다리) ── */
+  .ladder { position: relative; height: 252px; }
+  .ladder svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .ladder .lh { position: absolute; top: 0; transform: translateX(-50%); font-size: 11.8px; font-weight: 800;
+    background: var(--tint-2); color: var(--mint); padding: 4px 14px; border-radius: 999px; white-space: nowrap; }
+  .ladder .fe { transform: translateX(-50%); }
+  .ladder .self { position: absolute; transform: translateX(-50%); border: 1.5px solid var(--mint);
+    background: var(--tint); border-radius: 8px; padding: 5px 11px; font-size: 10.8px; font-weight: 700; white-space: nowrap; }
+
+  /* ── 루프 귀환선 ── */
+  .loopback { height: 30px; border: 1.7px solid #93ACA0; border-top: none; border-radius: 0 0 16px 16px;
+    margin: 0 70px; position: relative; }
+  .loopback::before { content: "▲"; position: absolute; left: -7px; top: -9px; font-size: 11px; color: #93ACA0; }
+  .loopback span { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -32%); background: #fff;
+    padding: 2px 13px; font-size: 11.3px; font-weight: 700; color: #7C8B83; white-space: nowrap; }
+
+  /* ── 레일 노선도 ── */
+  .rails { display: grid; grid-template-columns: 96px repeat(4, 1fr); align-items: center; }
+  .rails .rh { padding: 0 16px 10px 16px; }
+  .rails .rh h5 { font-size: 13.2px; font-weight: 800; word-break: keep-all; }
+  .rails .rh s { display: block; text-decoration: none; font-size: 10.8px; color: var(--faint); margin-top: 3px; }
+  .rails .rl { font-family: var(--mono); font-size: 12.5px; font-weight: 800; padding-right: 8px; }
+  .rails .rc { position: relative; height: 42px; }
+  .rails .rc::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 2.5px;
+    transform: translateY(-50%); background: currentColor; opacity: .2; }
+  .rails .rc.on::before { opacity: .85; }
+  .rails .rc.on::after { content: ""; position: absolute; left: 50%; top: 50%; width: 13px; height: 13px;
+    border-radius: 50%; background: #fff; border: 3.5px solid currentColor; transform: translate(-50%, -50%); }
+
+  /* ── 화살 체인 ── */
+  .chain { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .chain .ck { border: 1px solid var(--hair); border-radius: 9px; padding: 9px 14px; background: #FCFDFC; flex: 1; }
+  .chain .ck b { display: block; font-size: 12.6px; font-weight: 800; word-break: keep-all; }
+  .chain .ck s { display: block; text-decoration: none; font-size: 10.6px; color: var(--faint); margin-top: 2px; }
+  .chain i { font-style: normal; color: #93ACA0; font-weight: 800; font-size: 15px; }
+
   /* ── 표 ── */
   table { width: 100%; border-collapse: collapse; }
   th { font-size: 10.8px; letter-spacing: .06em; color: var(--faint); text-align: left;
@@ -416,17 +461,13 @@
       <div class="card"><h4>④ 얼마나 봐줄까</h4><p>본사는 매번 판단합니다.
         <b>기준이 담당자마다 다릅니다.</b></p></div>
     </div>
-    <div class="seq">
-      <div class="st"><div class="who">본사 경리</div><div class="no">1</div><h5>청구서 작성</h5>
-        <p>납품전표를 보고 엑셀에 옮겨 적습니다.</p></div>
-      <div class="st"><div class="who">점주</div><div class="no">2</div><h5>눈으로 대조</h5>
-        <p>창고를 세어보고 청구서와 맞춰봅니다.</p></div>
-      <div class="st"><div class="who">양쪽</div><div class="no">3</div><h5>전화 협의</h5>
-        <p>기억이 엇갈리면 목소리 큰 쪽이 이깁니다.</p></div>
-      <div class="st"><div class="who">점주</div><div class="no">4</div><h5>계좌이체</h5>
-        <p>이체하고 캡처를 보냅니다.</p></div>
-      <div class="st"><div class="who">본사 경리</div><div class="no">5</div><h5>입금 확인</h5>
-        <p>통장을 열어 대조하고 장부에 표시합니다.</p></div>
+    <div class="cols c2" style="gap:15px">
+      <div class="case"><div class="yr">2024 · 서울고등법원</div><h4>피자헛, 차액가맹금 약 210억 원 반환 판결</h4>
+        <p>물대에 얹힌 마진(차액가맹금)의 합의 근거가 계약서에 없었다는 이유로 가맹점주들에게 반환 판결 —
+          두 달 뒤 회사는 회생절차를 신청했습니다. <b>정산 기록이 불투명하면 본사가 무너집니다.</b></p></div>
+      <div class="case"><div class="yr">2017 · 공정거래위원회</div><h4>미스터피자 ‘치즈 통행세’</h4>
+        <p>치즈 유통에 친인척 회사를 끼워 마진을 얹은 사실이 드러나 수사와 불매로 이어졌습니다.
+          <b>무엇을 얼마에 샀는지가 감춰질 때 생기는 일입니다.</b></p></div>
     </div>
     <div class="cols c-53" style="align-items:center">
       <div class="kv" style="grid-template-columns:repeat(3,1fr)">
@@ -599,19 +640,31 @@
   <p class="lede">HTTP에는 <b>402 Payment Required</b>가 30년 넘게 비어 있었습니다. x402는 그 빈 칸을 채운 규약이고,
     우리는 <b>판매자와 구매자 양쪽을 직접 구현</b>했습니다.</p>
   <div class="canvas">
-    <div class="seq">
-      <div class="st"><div class="who">지점 → 본사</div><div class="no">1</div><h5>정산 요청</h5>
-        <p>청구서 결제를 요청합니다.</p></div>
-      <div class="st"><div class="who">본사 → 지점</div><div class="no">2</div><h5>402 + 조건 목록</h5>
-        <p><b>즉시 · 유예 · 분할</b> 세 조건을 <span class="mono">accepts[]</span>에 담아 돌려줍니다.</p></div>
-      <div class="st"><div class="who">지점</div><div class="no">3</div><h5>조건 선택</h5>
-        <p>잔액·정책 상한·검수 결과를 보고 하나를 고르거나 역제안합니다.</p></div>
-      <div class="st"><div class="who">지점 → 체인</div><div class="no">4</div><h5>USDC 전송</h5>
-        <p>메모에 청구서 번호를 새겨 보냅니다.</p></div>
-      <div class="st"><div class="who">본사 → 체인</div><div class="no">5</div><h5>3중 대조 후 확정</h5>
-        <p><b>금액 · 메모 · 성공 여부</b>를 직접 확인해야 정산이 닫힙니다.</p></div>
-    </div>
-    <div class="cols c-53" style="gap:16px; align-items:center">
+    <div class="cols" style="grid-template-columns:1fr 1.12fr; gap:18px; align-items:center">
+      <div class="ladder">
+        <div class="lh" style="left:88px">지점 에이전트</div>
+        <div class="lh" style="left:300px">본사 에이전트</div>
+        <div class="lh" style="left:470px; background:#EAF6F8; color:#2E8794">Solana</div>
+        <svg viewBox="0 0 533 252">
+          <defs><marker id="lh-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7"
+            orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#93ACA0"/></marker></defs>
+          <g stroke="#C6D4CC" stroke-width="1.3" stroke-dasharray="4 4">
+            <line x1="88" y1="30" x2="88" y2="248"/><line x1="300" y1="30" x2="300" y2="248"/>
+            <line x1="470" y1="30" x2="470" y2="248"/>
+          </g>
+          <g fill="none" stroke="#93ACA0" stroke-width="1.7" marker-end="url(#lh-ah)">
+            <path d="M88 64 L296 64"/><path d="M300 104 L92 104"/>
+            <path d="M88 168 L466 168"/><path d="M88 200 L296 200"/>
+            <path d="M300 232 L466 232"/>
+          </g>
+        </svg>
+        <div class="fe" style="left:194px; top:48px">① 정산 요청</div>
+        <div class="fe" style="left:194px; top:88px">② 402 + 조건 셋 <span class="mono">accepts[]</span></div>
+        <div class="self" style="left:88px; top:122px">③ 조건 선택 · 역제안</div>
+        <div class="fe" style="left:279px; top:152px">④ USDC 전송 · 메모=청구서 번호</div>
+        <div class="fe" style="left:194px; top:184px">⑤ 서명 제출</div>
+        <div class="fe" style="left:385px; top:216px">⑥ 3중 대조 → 정산 확정</div>
+      </div>
       <div class="code">
 <span class="c">// 본사가 돌려주는 402 — 조건 세 개가 한 배열에 담긴다</span><br>
 { <span class="k">"x402Version"</span>: <span class="v">1</span>, <span class="k">"accepts"</span>: [<br>
@@ -622,12 +675,8 @@
 &nbsp;&nbsp;{ <span class="k">"term"</span>: <em>"installment"</em>, <span class="k">"installments"</span>: <span class="v">2</span>,<br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"amount"</span>: <span class="v">"3250000"</span> } ] }
       </div>
-      <div class="card"><h4>이 배열이 곧 메뉴판입니다</h4>
-        <p><span class="mono">accepts</span>의 <b>세 항목이 세 가지 결제 조건</b>입니다. 지점 에이전트는 잔액과
-          정책 상한을 보고 하나를 고르거나, 어느 것도 맞지 않으면 <b>역제안</b>합니다.
-          <span class="mono">policyHint</span>는 본사 정책에서 그때그때 채워집니다 — 숫자가 코드에 박혀 있지 않습니다.</p></div>
     </div>
-    <div class="cols c-35" style="align-items:center">
+    <div class="cols" style="grid-template-columns:auto 1fr 1fr; gap:18px; align-items:center">
       <div class="donut">
         <div class="ring"><i><b>1.1초</b><s>왕복 평균</s></i></div>
         <div class="legend">
@@ -636,14 +685,11 @@
           <div style="margin-top:6px; color:var(--faint); font-size:11.5px">라이브 최근 20건 실측</div>
         </div>
       </div>
-      <div>
-        <div class="cols c2" style="gap:12px">
-          <div class="card"><h4>표준 안에서 협상</h4><p>x402의 <span class="mono">accepts</span>는 배열입니다.
-            원래는 결제 수단 선택용이지만, 여기에 <b>결제 조건</b>을 담아 규약을 벗어나지 않고 협상을 표현했습니다.</p></div>
-          <div class="card"><h4>왜 3중 대조인가</h4><p>서명만 확인하면 <b>다른 청구서의 결제를 재사용</b>할 수 있습니다.
-            금액·메모·성공을 함께 봐야 그 구멍이 막힙니다.</p></div>
-        </div>
-      </div>
+      <div class="card"><h4>이 배열이 곧 메뉴판입니다</h4><p><span class="mono">accepts</span>의 <b>세 항목이
+        세 가지 결제 조건</b>입니다. 하나를 고르거나 역제안하고, <span class="mono">policyHint</span>는 본사 정책에서
+        그때그때 채워집니다 — 숫자가 코드에 박혀 있지 않습니다.</p></div>
+      <div class="card"><h4>왜 3중 대조인가</h4><p>서명만 확인하면 <b>다른 청구서의 결제를 재사용</b>할 수 있습니다.
+        금액·메모·성공을 함께 봐야 그 구멍이 막힙니다.</p></div>
     </div>
   </div>
   <div class="foot">Solply</div><span class="pageno">10</span>
@@ -672,37 +718,31 @@
 <!-- 08 · 협상 유형 + P2P -->
 <section class="slide">
   <div class="hd"><div class="mark"></div><h2>막히면 멈추지 않고, 대안을 만듭니다</h2><div class="ctx">Ⅱ 기술 · <b>협상 · 직거래</b></div></div>
-  <p class="lede">지점 에이전트는 청구서를 받으면 <b>네 개의 관문</b>을 순서대로 지납니다.
-    막히는 자리마다 대응이 다릅니다 — 그래서 결과가 네 가지로 갈립니다.</p>
+  <p class="lede">지점 에이전트는 청구서를 받으면 <b>네 개의 관문</b>을 차례로 지납니다 — 09장 도식의 갈림길들입니다.
+    막히는 자리마다 대응이 달라, 결과가 네 가지로 갈립니다.</p>
   <div class="canvas">
-    <div class="seq">
-      <div class="st"><div class="who">관문 1</div><div class="no">1</div><h5>시킨 물건인가</h5>
-        <p>발주 목록에 없으면 여기서 <b>거부</b>입니다.</p></div>
-      <div class="st"><div class="who">관문 2</div><div class="no">2</div><h5>수량이 맞는가</h5>
-        <p>입고 기록과 다르면 <b>차감</b>을 제안합니다.</p></div>
-      <div class="st"><div class="who">관문 3</div><div class="no">3</div><h5>낼 돈이 있는가</h5>
-        <p>최소 보유액을 깨면 <b>유예</b>를 요청합니다.</p></div>
-      <div class="st"><div class="who">관문 4</div><div class="no">4</div><h5>내가 정할 금액인가</h5>
-        <p>자동결제 한도를 넘으면 <b>사람</b>에게 넘깁니다.</p></div>
-    </div>
     <div class="cols c4" style="gap:13px">
       <div class="card tint"><h4>① 검수 불일치</h4><p>수량이 다르면 차액을 빼달라고 제안. 본사가 검수 기록으로
-        재검증하고 청구서를 재발행한다.</p></div>
+        재검증하고 청구서를 재발행한다.</p>
+        <div class="q">차감 요청 0.5 USDC가 검증된<br>과청구액과 일치 — 수락</div></div>
       <div class="card tint"><h4>② 잔액 부족</h4><p>예상 입금 일정을 근거로 유예를 요청. 신용점수가 기준을 넘으면
-        본사가 납부일을 잡아준다.</p></div>
+        본사가 납부일을 잡아준다.</p>
+        <div class="q">신용점수 100 ≥ 기준 85<br>— 납부일 확정</div></div>
       <div class="card tint"><h4>③ 전액 유예 불가</h4><p>본사가 <b>분할을 역제안</b>. 말로 끝내지 않고 분할 청구서를
-        실제로 발행해 테이블에 올린다.</p></div>
+        실제로 발행해 테이블에 올린다.</p>
+        <div class="q">유예 한도 초과<br>— 2회 분할 역제안</div></div>
       <div class="card"><h4>④ 발주 없는 청구</h4><p>깎을 문제가 아니다. <b>거부하고 사람에게</b> 넘긴다 —
-        낼 이유가 없는 돈이므로.</p></div>
+        낼 이유가 없는 돈이므로.</p>
+        <div class="q" style="border-left-color:#B0483C; color:#8A5049">발주 기록 없음 — 결제 거부,<br>사람 검토로 전환</div></div>
     </div>
     <div class="cols c-53" style="align-items:center">
       <div>
         <div class="pill" style="margin-bottom:11px"><span class="n">A2A</span>지점끼리도 거래합니다 — 본사는 심판으로</div>
-        <div class="seq" style="margin-top:4px">
-          <div class="st"><div class="no">1</div><h5>재고 미달</h5><p>B지점 치킨무 부족</p></div>
-          <div class="st"><div class="no">2</div><h5>잉여 탐색</h5><p>시세를 사서 본사 발주와 비교</p></div>
-          <div class="st"><div class="no">3</div><h5>본사 승인</h5><p>위생·품질 책임이 본사에 있으므로</p></div>
-          <div class="st"><div class="no">4</div><h5>온체인 결제</h5><p>지점 → 지점 직접 정산</p></div>
+        <div class="chain" style="margin-top:6px">
+          <span class="ck"><b>재고 미달</b><s>B지점 치킨무 부족</s></span><i>→</i>
+          <span class="ck"><b>잉여 탐색</b><s>시세 사서 발주와 비교</s></span><i>→</i>
+          <span class="ck"><b>본사 승인</b><s>위생·품질 책임</s></span><i>→</i>
+          <span class="ck"><b>온체인 결제</b><s>지점 → 지점 직접</s></span>
         </div>
       </div>
       <div class="band">자동 이체는 “된다 / 안 된다” 둘뿐입니다. <b>에이전트 상거래는 그 사이에 대안을 만듭니다</b> —
@@ -797,6 +837,7 @@
       <div class="st"><div class="who">지점</div><div class="no">5</div><h5>예약 납부 실행</h5>
         <p>유예로 잡아둔 납부일이 오면 스스로 냅니다.</p></div>
     </div>
+    <div class="loopback" style="margin-top:-8px"><span>Cloud Scheduler — 10분마다 이 바퀴가 다시 돕니다</span></div>
     <div class="stats">
       <div class="s"><div class="n">472<small>건</small></div><div class="c">누적 청구서<br>정산 완료 468건</div></div>
       <div class="s"><div class="n">489<small>건</small></div><div class="c">지점 간 직거래<br>그중 승인 468건</div></div>
@@ -849,15 +890,21 @@
   <p class="lede">한 번의 조달 안에서 세 레일이 이어집니다 — <b>판단 재료를 사고</b>(pay.sh), <b>조건을 주고받고</b>(x402),
     <b>돈을 보냅니다</b>(USDC). 장식으로 붙인 연동이 아니라 각자 맡은 일이 있습니다.</p>
   <div class="canvas">
-    <div class="seq">
-      <div class="st"><div class="who">pay.sh</div><div class="no">1</div><h5>시세 구매</h5>
-        <p>조달 판단 직전, 재료 시세를 0.01 USDC에 삽니다.</p></div>
-      <div class="st"><div class="who">x402</div><div class="no">2</div><h5>402 조건 왕복</h5>
-        <p>즉시·유예·분할 조건을 주고받고 하나로 합의합니다.</p></div>
-      <div class="st"><div class="who">USDC</div><div class="no">3</div><h5>대금 전송</h5>
-        <p>메모에 청구서 번호를 새겨 devnet으로 보냅니다.</p></div>
-      <div class="st"><div class="who">x402</div><div class="no">4</div><h5>3중 대조 확정</h5>
-        <p>금액·메모·성공을 체인에서 확인하고 닫습니다.</p></div>
+    <div class="rails">
+      <div></div>
+      <div class="rh"><h5>① 시세 구매</h5><s>0.01 USDC — 판단 재료</s></div>
+      <div class="rh"><h5>② 402 조건 왕복</h5><s>즉시 · 유예 · 분할 합의</s></div>
+      <div class="rh"><h5>③ 대금 전송</h5><s>메모에 청구서 번호</s></div>
+      <div class="rh"><h5>④ 3중 대조 확정</h5><s>금액 · 메모 · 성공</s></div>
+      <div class="rl" style="color:#C98A3E">pay.sh</div>
+      <div class="rc on" style="color:#C98A3E"></div><div class="rc" style="color:#C98A3E"></div>
+      <div class="rc" style="color:#C98A3E"></div><div class="rc" style="color:#C98A3E"></div>
+      <div class="rl" style="color:#0E8C62">x402</div>
+      <div class="rc" style="color:#0E8C62"></div><div class="rc on" style="color:#0E8C62"></div>
+      <div class="rc" style="color:#0E8C62"></div><div class="rc on" style="color:#0E8C62"></div>
+      <div class="rl" style="color:#12A9B4">USDC</div>
+      <div class="rc" style="color:#12A9B4"></div><div class="rc" style="color:#12A9B4"></div>
+      <div class="rc on" style="color:#12A9B4"></div><div class="rc" style="color:#12A9B4"></div>
     </div>
     <table>
       <tr><th>레일</th><th>맡은 역할</th><th>증빙이 남는 곳</th></tr>
