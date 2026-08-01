@@ -437,6 +437,9 @@ macOS `say`로 내레이션을 만들고, ffmpeg가 자막 PNG를 얹어 조립�
 ### 5. public 전환 전 점검 ⏱️30분 (4.10 + DB 백로그 3)
 
 - `.env` 커밋 이력 재확인 — 실제 키 값으로 그렙할 것. `AIza`로 찾으면 안 걸린다(키가 `AQ.`로 시작).
+- **제출 직전 실측 숫자 갱신** — 라이브가 10분마다 거래해서 숫자가 하루에 수십 건씩 민다.
+  `/api/report`(누적 정산·직거래·human_actions)와 `/api/overview`(totals.allInvoices/allTrades)를 받아
+  덱 04·14장, README 심사 기준 ④ 줄을 맞출 것. "0회" 같은 절대 주장 금지 — 분모를 함께 쓴다.
 - `db/postgres_store.py`의 `list_docs` 필터 **키** f-string 삽입 → 화이트리스트 한 줄.
   내부 호출뿐이라 실제 위험은 없지만 public 레포에서 인젝션 모양으로 읽힌다.
 
