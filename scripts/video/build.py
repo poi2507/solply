@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Solply 영상 조립 — 클립 + macOS TTS 내레이션 + 자막 오버레이.
+"""Solply 영상 조립 — 클립 + Google Cloud TTS 내레이션 + 자막 오버레이.
 
 산출물:
   out/solply-subtitles.mp4  자막판 (무음)
@@ -9,13 +9,21 @@
 클립 footage가 남거나 부족하면 배속으로 맞춘다 — 화면 녹화는 배속에 잘 견딘다.
 """
 
+import base64
 import json
 import subprocess
 from pathlib import Path
 
 FF, FP = "/opt/homebrew/bin/ffmpeg", "/opt/homebrew/bin/ffprobe"
+GCLOUD = str(Path.home() / ".local/google-cloud-sdk/bin/gcloud")
 W, H, FPS = 1600, 900, 30
-VOICE, RATE = "Yuna", 190
+
+# 내레이션은 Google Cloud TTS. 맥 내장 `say`보다 확연히 자연스럽고, 우리 GCP 크레딧으로 돈다.
+# 목소리를 바꾸려면 이 한 줄만 — ko-KR-Chirp3-HD-* (최신 생성형) / Neural2 / Wavenet 중에서.
+PROJECT = "gen-lang-client-0014864033"
+VOICE = "ko-KR-Chirp3-HD-Achernar"
+# 제출 한도가 3분이다. 1.12배면 또박또박함을 잃지 않으면서 10% 남짓 줄어든다.
+SPEAKING_RATE = 1.12
 GAP = 0.55       # 내레이션 앞뒤 여백 (초)
 MAX_SPEED = 1.3  # 화면 녹화 배속 상한 — 이보다 빠르면 심사위원이 로그를 못 읽는다
 
@@ -36,16 +44,38 @@ def dur(path):
                       "-of", "csv=p=0", str(path)]).stdout.strip())
 
 
-# ── 1. 내레이션 (macOS say) ───────────────────────────────────────────
-print("① 내레이션 생성")
+# ── 1. 내레이션 (Google Cloud TTS) ────────────────────────────────────
+def synthesize(text: str, out_mp3: Path) -> None:
+    """한 장면의 내레이션을 합성한다. 실패하면 원인을 그대로 보여준다."""
+    token = run([GCLOUD, "auth", "print-access-token"]).stdout.strip()
+    body = json.dumps({
+        "input": {"text": text},
+        "voice": {"languageCode": "ko-KR", "name": VOICE},
+        "audioConfig": {"audioEncoding": "MP3", "speakingRate": SPEAKING_RATE},
+    })
+    req = Path("work/tts-req.json")
+    req.write_text(body)
+    res = run(["curl", "-s", "-X", "POST",
+               "https://texttospeech.googleapis.com/v1/text:synthesize",
+               "-H", f"Authorization: Bearer {token}",
+               "-H", f"x-goog-user-project: {PROJECT}",
+               "-H", "Content-Type: application/json",
+               "-d", f"@{req}"]).stdout
+    payload = json.loads(res)
+    if "audioContent" not in payload:
+        raise RuntimeError(f"TTS 실패: {str(payload)[:300]}")
+    out_mp3.write_bytes(base64.b64decode(payload["audioContent"]))
+
+
+print(f"① 내레이션 생성 (Google Cloud TTS · {VOICE})")
 for s in plan["scenes"]:
     wav = Path(f"work/{s['id']}.wav")
     if not s["narration"]:
         s["narr_dur"] = 0.0
         continue
-    aiff = Path(f"work/{s['id']}.aiff")
-    run(["say", "-v", VOICE, "-r", str(RATE), "-o", str(aiff), s["narration"]])
-    run([FF, "-y", "-loglevel", "error", "-i", str(aiff), "-ar", "48000", "-ac", "2", str(wav)])
+    mp3 = Path(f"work/{s['id']}-tts.mp3")
+    synthesize(s["narration"], mp3)
+    run([FF, "-y", "-loglevel", "error", "-i", str(mp3), "-ar", "48000", "-ac", "2", str(wav)])
     s["narr_dur"] = dur(wav)
     print(f"   {s['id']}: {s['narr_dur']:.1f}s")
 
