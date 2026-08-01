@@ -4,550 +4,781 @@
 <meta charset="utf-8">
 <title>Solply — 프로덕트 소개서</title>
 <!--
-  소개서 초안 (WBS 4.7) — 16:9, 12장.
-  PDF 내보내기: Chrome에서 열기 → 인쇄 → 대상 'PDF로 저장',
-  용지 방향 자동, 여백 '없음', '배경 그래픽' 체크. 벡터 PDF로 저장된다.
-  팀 Solply · 라이브 URL 반영 완료 (2026-08-01). 영상 URL만 업로드 후 채우면 된다.
+  Solply 소개서 · 14장 · 16:9 (13.333 × 7.5 in)
+  PDF: node scripts/video/deck.mjs  (슬라이드 넘침 검사 포함)
+       또는 Chrome에서 열고 인쇄 → PDF로 저장 (여백 없음 · 배경 그래픽 켜기)
+  화면 캡처: docs/shots/*.jpg — node scripts/video/shots.mjs 로 재촬영
+  팀 Solply · 라이브 URL 반영 완료. 영상 URL만 업로드 후 마지막 장에 채우면 된다.
 -->
 <style>
   :root {
-    --ink: #131A16;
-    --muted: #5A6560;
-    --faint: #8A948E;
-    --hair: #DFE4E0;
-    --mint: #0E8C62;
-    --paper: #FFFFFF;
+    --ink: #101815; --ink-2: #38443E; --muted: #5A6560; --faint: #97A09B;
+    --hair: #E2E7E3; --hair-2: #EFF2F0;
+    --mint: #0E8C62; --mint-2: #16B57E; --cyan: #12A9B4;
+    --tint: #F2F9F6; --tint-2: #E7F4EE; --paper: #FFFFFF; --dark: #0E1512;
     --mono: ui-monospace, "SF Mono", Menlo, monospace;
   }
   * { box-sizing: border-box; margin: 0; }
   body {
     background: #E9ECEA;
     font-family: -apple-system, "Apple SD Gothic Neo", Pretendard, "Noto Sans KR", sans-serif;
-    color: var(--ink);
-    display: flex; flex-direction: column; align-items: center; gap: 28px; padding: 28px 0;
-    -webkit-font-smoothing: antialiased;
+    color: var(--ink); -webkit-font-smoothing: antialiased;
+    display: flex; flex-direction: column; align-items: center; gap: 26px; padding: 26px 0;
   }
   .slide {
     width: 1280px; height: 720px; background: var(--paper);
-    padding: 66px 84px 58px; position: relative; overflow: hidden;
-    box-shadow: 0 1px 8px rgba(0,0,0,.10);
-    display: flex; flex-direction: column;
+    padding: 44px 58px 40px; position: relative; overflow: hidden;
+    box-shadow: 0 1px 8px rgba(0,0,0,.10); display: flex; flex-direction: column;
   }
-  .slide.dark { background: #101713; color: #F2F5F3; }
-  .slide.dark .kicker { color: #57BE95; }
-  .slide.dark .pageno { color: #55605A; }
 
-  .kicker {
-    font-family: var(--mono); font-size: 12.5px; letter-spacing: .18em;
-    color: var(--mint); margin-bottom: 22px;
-  }
-  .pageno {
-    position: absolute; right: 84px; top: 70px;
-    font-family: var(--mono); font-size: 12px; color: var(--faint);
-  }
-  h1 { font-size: 40px; font-weight: 800; letter-spacing: -0.015em; line-height: 1.3; word-break: keep-all; }
-  h1 .em { color: var(--mint); }
-  .lead { margin-top: 14px; font-size: 17.5px; color: var(--muted); line-height: 1.65; max-width: 900px; word-break: keep-all; }
-  .body { flex: 1; display: flex; flex-direction: column; justify-content: center; }
-  .foot { font-size: 13px; color: var(--faint); }
+  /* ── 사업계획서 문법: 모든 장에 같은 머리띠 ── */
+  .hd { display: flex; align-items: center; gap: 13px; padding-bottom: 13px; border-bottom: 2px solid var(--mint); }
+  .hd .mark { width: 26px; height: 26px; border-radius: 7px; flex: none; position: relative;
+    background: linear-gradient(135deg, var(--mint-2), var(--cyan)); }
+  .hd .mark::after { content: ""; position: absolute; inset: 7px 6px;
+    border-left: 2px solid #fff; border-bottom: 2px solid #fff; border-radius: 0 0 0 2px; }
+  .hd h2 { font-size: 24px; font-weight: 800; letter-spacing: -.02em; }
+  .hd .ctx { margin-left: auto; font-size: 11.5px; color: var(--faint); }
+  .hd .ctx b { color: var(--mint); font-weight: 700; }
+  .lede { margin-top: 15px; font-size: 14.5px; color: var(--muted); line-height: 1.6; word-break: keep-all; }
+  .lede b { color: var(--ink); font-weight: 750; }
+  .canvas { flex: 1; display: flex; flex-direction: column; justify-content: space-evenly; gap: 20px; padding: 16px 0 2px; }
+  .pageno { position: absolute; right: 58px; bottom: 24px; font-family: var(--mono); font-size: 11px; color: var(--faint); }
+  .foot { position: absolute; left: 58px; bottom: 24px; font-size: 11px; color: var(--faint); }
+
+  /* ── 공통 조각 ── */
+  .pill { display: inline-flex; align-items: center; gap: 9px; padding: 7px 15px; border-radius: 999px;
+    background: linear-gradient(90deg, var(--mint), var(--cyan)); color: #fff; font-size: 13px; font-weight: 700; }
+  .pill .n { font-family: var(--mono); font-size: 10.5px; opacity: .85; }
+  .cols { display: grid; gap: 18px; }
+  .c2 { grid-template-columns: 1fr 1fr; }
+  .c3 { grid-template-columns: repeat(3, 1fr); }
+  .c4 { grid-template-columns: repeat(4, 1fr); }
+  .c-53 { grid-template-columns: 1.3fr 1fr; }
+  .c-35 { grid-template-columns: 1fr 1.3fr; }
+  .card { border: 1px solid var(--hair); border-radius: 11px; padding: 17px 19px; display: flex; flex-direction: column; }
+  .card.tint { background: var(--tint); border-color: #DDEDE5; }
+  .card h4 { font-size: 15px; font-weight: 800; margin-bottom: 8px; word-break: keep-all; }
+  .card p { font-size: 13.2px; color: var(--muted); line-height: 1.62; word-break: keep-all; }
+  .card p b { color: var(--ink); font-weight: 700; }
+
+  /* ── 도식: 층 구조 ── */
+  .layers { display: flex; flex-direction: column; gap: 9px; flex: 1; }
+  .layers .layer { flex: 1; }
+  .layer { display: grid; grid-template-columns: 112px 1fr; border-radius: 9px; overflow: hidden; border: 1px solid var(--hair); }
+  .layer .tag { background: var(--tint-2); color: var(--mint); font-size: 12px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center; text-align: center; padding: 0 8px; line-height: 1.35; }
+  .layer .items { display: flex; gap: 9px; padding: 12px 14px; flex-wrap: wrap; align-items: center; }
+  .layer.on { border-color: var(--mint); }
+  .layer.on .tag { background: linear-gradient(135deg, var(--mint), var(--cyan)); color: #fff; }
+  .chip { border: 1px solid var(--hair); border-radius: 8px; padding: 9px 13px; background: #FCFDFC; word-break: keep-all; }
+  .chip b { display: block; font-weight: 800; font-size: 13px; }
+  .chip s { display: block; text-decoration: none; color: var(--faint); font-size: 11.3px; margin-top: 3px; }
+  .chip.key { border-color: var(--mint); background: var(--tint); }
+  .chip.key b { color: var(--mint); }
+
+  /* ── 도식: 가로 시퀀스 ── */
+  .seq { display: flex; }
+  .seq .st { flex: 1; position: relative; padding: 0 12px; }
+  .seq .st:first-child { padding-left: 0; }
+  .seq .st .who { font-family: var(--mono); font-size: 9.8px; color: var(--faint); letter-spacing: .08em; margin-bottom: 4px; }
+  .seq .st .no { width: 20px; height: 20px; border-radius: 50%; background: var(--mint); color: #fff;
+    font-family: var(--mono); font-size: 10.5px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center; margin-bottom: 8px; }
+  .seq .st h5 { font-size: 14px; font-weight: 800; word-break: keep-all; }
+  .seq .st p { font-size: 12.3px; color: var(--muted); margin-top: 5px; line-height: 1.55; word-break: keep-all; }
+  .seq .st::after { content: ""; position: absolute; left: 20px; right: 12px; top: 24px; height: 1.5px;
+    background: linear-gradient(90deg, var(--mint), #BFE3D4); }
+  .seq .st:last-child::after { display: none; }
+
+  /* ── 도식: 자율성 게이지 ── */
+  .gauge .track { display: flex; height: 42px; border-radius: 6px; overflow: hidden; }
+  .gauge .seg { display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; color: #fff; }
+  .gauge .marks { display: flex; margin-top: 11px; font-size: 12.2px; color: var(--muted); line-height: 1.5; }
+  .gauge .marks span { padding-right: 10px; word-break: keep-all; }
+  .gauge .marks b { color: var(--ink); display: block; }
+
+  /* ── 차트 ── */
+  .donut { display: flex; align-items: center; gap: 16px; }
+  .donut .ring { width: 134px; height: 134px; border-radius: 50%; flex: none;
+    background: conic-gradient(var(--mint) 0 99.92%, #DDE4E0 99.92% 100%);
+    display: flex; align-items: center; justify-content: center; }
+  .donut .ring i { width: 96px; height: 96px; border-radius: 50%; background: #fff; font-style: normal;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .donut .ring i b { font-size: 25px; font-weight: 800; color: var(--mint); letter-spacing: -.02em; }
+  .donut .ring i s { text-decoration: none; font-size: 10px; color: var(--faint); margin-top: 1px; }
+  .donut .legend { font-size: 12.9px; color: var(--muted); line-height: 1.75; }
+  .donut .legend div { display: flex; align-items: center; gap: 7px; }
+  .donut .legend em { width: 9px; height: 9px; border-radius: 2px; background: var(--mint); display: block; flex: none; }
+  .donut .legend em.g { background: #DDE4E0; }
+  .bars { display: flex; flex-direction: column; gap: 12px; }
+  .bar { display: grid; grid-template-columns: 106px 1fr 66px; gap: 10px; align-items: center; }
+  .bar span { font-size: 12.8px; font-weight: 700; word-break: keep-all; }
+  .bar .t { height: 18px; border-radius: 5px; background: var(--hair-2); overflow: hidden; }
+  .bar .t i { display: block; height: 100%; background: linear-gradient(90deg, var(--mint), var(--cyan)); }
+  .bar .v { font-family: var(--mono); font-size: 11.5px; color: var(--mint); font-weight: 700; text-align: right; }
+
+  /* ── 큰 숫자 ── */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); }
+  .stats .s { padding: 2px 18px; border-left: 1px solid var(--hair); }
+  .stats .s:first-child { padding-left: 0; border-left: none; }
+  .stats .n { font-size: 44px; font-weight: 800; letter-spacing: -.03em; line-height: 1.05; font-variant-numeric: tabular-nums;
+    background: linear-gradient(96deg, var(--mint), var(--cyan)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .stats .n small { font-size: 14px; -webkit-text-fill-color: var(--faint); margin-left: 2px; }
+  .stats .c { margin-top: 7px; font-size: 12.3px; color: var(--muted); line-height: 1.45; word-break: keep-all; }
+  .slide.dark .stats .s { border-left-color: #2A3A33; }
+  .slide.dark .stats .n { background: linear-gradient(96deg, #57D3A6, #4FC9D6); -webkit-background-clip: text; background-clip: text; }
+  .slide.dark .stats .c { color: #8A968F; }
+
+  /* ── 짚어주기 ── */
+  .points { display: flex; flex-direction: column; gap: 15px; }
+  .point { display: grid; grid-template-columns: 21px 1fr; gap: 11px; align-items: start; }
+  .point b { width: 21px; height: 21px; border-radius: 50%; background: var(--mint); color: #fff;
+    font-family: var(--mono); font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+  .point p { font-size: 13.4px; color: var(--muted); line-height: 1.6; word-break: keep-all; }
+  .point p em { font-style: normal; color: var(--ink); font-weight: 750; }
+
+  /* ── 제품 화면 ── */
+  .screen { border-radius: 9px; overflow: hidden; border: 1px solid var(--hair); box-shadow: 0 12px 30px rgba(16,24,21,.11); }
+  .screen .bar2 { display: flex; align-items: center; gap: 6px; padding: 7px 11px; background: #F4F6F5; border-bottom: 1px solid var(--hair); }
+  .screen .bar2 i { width: 8px; height: 8px; border-radius: 50%; background: #D6DBD8; }
+  .screen .bar2 span { margin-left: 6px; font-family: var(--mono); font-size: 9.8px; color: var(--faint);
+    background: #fff; border: 1px solid var(--hair); border-radius: 4px; padding: 2px 9px; }
+  .screen img { display: block; width: 100%; }
+  .screen.clip img { max-height: 392px; object-fit: cover; object-position: top; }
+
+  /* ── 도식: 코드 발췌 ── */
+  .code { background: #0F1A16; border-radius: 10px; padding: 16px 19px; font-family: var(--mono);
+    font-size: 11.7px; line-height: 1.78; color: #C3D0C9; overflow: hidden; }
+  .code .k { color: #7FE0B6; } .code .v { color: #9AD7E8; } .code .c { color: #5C6B64; }
+  .code em { font-style: normal; color: #fff; font-weight: 700; }
+
+  /* ── 도식: 지금 vs Solply ── */
+  .vs { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+  .vs .side { border: 1px solid var(--hair); border-radius: 11px; overflow: hidden; }
+  .vs .side.on { border-color: var(--mint); }
+  .vs .cap { padding: 10px 16px; font-size: 12.8px; font-weight: 800; background: var(--hair-2); }
+  .vs .side.on .cap { background: linear-gradient(90deg, var(--mint), var(--cyan)); color: #fff; }
+  .vs .row { display: flex; align-items: center; gap: 11px; padding: 10px 16px;
+    border-top: 1px solid var(--hair); font-size: 12.7px; color: var(--muted); word-break: keep-all; }
+  .vs .row i { font-style: normal; font-family: var(--mono); font-size: 10.4px; color: var(--faint); flex: none; }
+  .vs .row b { color: var(--ink); font-weight: 700; }
+  .vs .row .who { margin-left: auto; flex: none; font-size: 10.6px; border-radius: 999px;
+    padding: 3px 10px; background: #F2EEE5; color: #93805A; }
+  .vs .side.on .row .who { background: var(--tint-2); color: var(--mint); }
+
+  /* ── 도식: 로드맵 ── */
+  .tl { display: grid; grid-template-columns: repeat(4, 1fr); }
+  .tl .n { position: relative; padding: 27px 18px 0 0; }
+  .tl .n::before { content: ""; position: absolute; left: 0; top: 7px; width: 12px; height: 12px;
+    border-radius: 50%; background: var(--mint); }
+  .tl .n::after { content: ""; position: absolute; left: 12px; right: 0; top: 12px; height: 1.5px;
+    background: linear-gradient(90deg, var(--mint), #BFE3D4); }
+  .tl .n:last-child::after { display: none; }
+  .tl .d { font-family: var(--mono); font-size: 11px; font-weight: 700; color: var(--mint); }
+  .tl h5 { font-size: 13.8px; font-weight: 800; margin-top: 5px; }
+  .tl p { font-size: 12.1px; color: var(--muted); line-height: 1.55; margin-top: 5px; word-break: keep-all; }
+  .slide.dark .tl h5 { color: #F1F5F3; } .slide.dark .tl p { color: #96A29B; }
+
+  /* ── 도식: 수치 카드 ── */
+  .kv { display: grid; grid-template-columns: repeat(4, 1fr); gap: 11px; }
+  .kv .i { border: 1px solid var(--hair); border-radius: 10px; padding: 13px 15px; }
+  .kv .i s { display: block; text-decoration: none; font-size: 11.6px; color: var(--faint); }
+  .kv .i b { display: block; font-family: var(--mono); font-size: 20px; font-weight: 800;
+    color: var(--mint); margin-top: 6px; letter-spacing: -.02em; }
+  .kv .i p { font-size: 11.7px; color: var(--muted); margin-top: 6px; line-height: 1.5; word-break: keep-all; }
+  .slide.dark .kv .i { border-color: #2A3A33; } .slide.dark .kv .i p { color: #8A968F; }
+  .slide.dark .kv .i b { color: #57D3A6; }
+
+  /* ── 표 ── */
+  table { width: 100%; border-collapse: collapse; }
+  th { font-size: 10.8px; letter-spacing: .06em; color: var(--faint); text-align: left;
+    padding: 0 12px 8px 0; border-bottom: 1.5px solid var(--ink); font-weight: 700; }
+  td { font-size: 13.2px; padding: 13px 12px 13px 0; border-bottom: 1px solid var(--hair);
+    vertical-align: top; line-height: 1.5; color: var(--muted); word-break: keep-all; }
+  td.t { font-weight: 800; color: var(--ink); white-space: nowrap; }
+  td b { color: var(--ink); font-weight: 700; }
+  td .sub { display: block; font-size: 11.8px; color: var(--faint); margin-top: 2px; }
+  tr:last-child td { border-bottom: none; }
+
+  .band { padding: 15px 18px; border-left: 3px solid var(--mint); background: var(--tint);
+    font-size: 13.4px; color: var(--muted); line-height: 1.65; word-break: keep-all; }
+  .band b { color: var(--ink); font-weight: 750; }
   .mono { font-family: var(--mono); }
 
-  /* 행 목록 (카드 대신 괘선) */
-  .rows { border-top: 1.5px solid var(--ink); }
-  .row { display: grid; grid-template-columns: 250px 1fr; gap: 32px; padding: 22px 0; border-bottom: 1px solid var(--hair); align-items: baseline; }
-  .row h3 { font-size: 19px; font-weight: 800; word-break: keep-all; }
-  .row p { font-size: 15.5px; color: var(--muted); line-height: 1.62; word-break: keep-all; }
-  .row p b { color: var(--ink); font-weight: 700; }
+  /* ── 표지 ── */
+  .cover { padding: 0; flex-direction: row; }
+  .cover .left { width: 45%; background: linear-gradient(160deg, var(--mint) 0%, var(--cyan) 100%);
+    padding: 50px 44px; display: flex; flex-direction: column; justify-content: space-between; color: #fff; }
+  .cover .brand { display: flex; align-items: center; gap: 11px; }
+  .cover .brand .m { width: 30px; height: 30px; border-radius: 8px; background: rgba(255,255,255,.22); position: relative; }
+  .cover .brand .m::after { content: ""; position: absolute; inset: 8px 7px;
+    border-left: 2px solid #fff; border-bottom: 2px solid #fff; border-radius: 0 0 0 2px; }
+  .cover .brand span { font-size: 19px; font-weight: 800; }
+  .cover .left h1 { font-size: 36px; font-weight: 800; line-height: 1.34; letter-spacing: -.025em; word-break: keep-all; }
+  .cover .left .tag { font-family: var(--mono); font-size: 12px; opacity: .92; margin-top: 13px; }
+  .cover .left .meta { font-size: 11.5px; opacity: .85; line-height: 1.7; }
+  .cover .right { flex: 1; padding: 50px 46px; display: flex; flex-direction: column; justify-content: center; gap: 18px; }
+  .cover .right .kicker { font-family: var(--mono); font-size: 11px; letter-spacing: .16em; color: var(--mint); }
+  .cover .right h3 { font-size: 20px; font-weight: 800; line-height: 1.45; word-break: keep-all; }
+  .cover .right p { font-size: 13px; color: var(--muted); line-height: 1.7; word-break: keep-all; }
 
-  /* 숫자 밴드 */
-  .stats { display: flex; border-top: 1.5px solid var(--ink); }
-  .stat { flex: 1; padding: 24px 26px 0 0; }
-  .stat + .stat { padding-left: 26px; border-left: 1px solid var(--hair); }
-  .stat .n { font-family: var(--mono); font-size: 42px; font-weight: 700; letter-spacing: -0.02em; }
-  .stat .n small { font-size: 19px; font-weight: 500; color: var(--muted); margin-left: 2px; }
-  .stat .d { margin-top: 6px; font-size: 13.5px; color: var(--muted); line-height: 1.5; word-break: keep-all; }
-
-  /* 플로우 라인 */
-  .flow { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 0; font-size: 16.5px; font-weight: 700; }
-  .flow span { padding: 7px 14px; border: 1px solid var(--hair); }
-  .flow span.hot { border-color: var(--mint); color: var(--mint); }
-  .flow i { font-style: normal; color: var(--faint); padding: 0 9px; }
-
-  /* 로그 인용 */
-  .log {
-    font-family: var(--mono); font-size: 13.5px; line-height: 1.6; color: var(--muted);
-    border-left: 2px solid var(--mint); padding: 4px 0 4px 16px; word-break: break-all;
-  }
-  .log b { color: var(--ink); font-weight: 600; }
-
-  /* 계층 다이어그램 */
-  .stack { border: 1.5px solid var(--ink); }
-  .layer { display: grid; grid-template-columns: 190px 1fr; border-bottom: 1px solid var(--hair); }
-  .layer:last-child { border-bottom: 0; }
-  .layer .t { padding: 17px 20px; font-size: 14px; font-weight: 800; border-right: 1px solid var(--hair); }
-  .layer .c { padding: 17px 22px; font-size: 14.5px; color: var(--muted); line-height: 1.55; word-break: keep-all; }
-  .layer .c b { color: var(--ink); }
-
-  /* 2단 목록 */
-  .cols2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 56px; border-top: 1.5px solid var(--ink); }
-  .cols2 .item { padding: 17px 0; border-bottom: 1px solid var(--hair); }
-  .cols2 .item h4 { font-size: 15.5px; font-weight: 800; margin-bottom: 3px; }
-  .cols2 .item p { font-size: 13.5px; color: var(--muted); line-height: 1.55; word-break: keep-all; }
-
-  /* 표 */
-  table { width: 100%; border-collapse: collapse; border-top: 1.5px solid var(--ink); }
-  th { text-align: left; font-size: 12.5px; font-weight: 700; color: var(--faint); letter-spacing: .06em; padding: 12px 18px 8px 0; border-bottom: 1px solid var(--hair); }
-  td { font-size: 15px; padding: 16px 18px 16px 0; border-bottom: 1px solid var(--hair); vertical-align: top; line-height: 1.55; word-break: keep-all; }
-  td.t { font-weight: 800; white-space: nowrap; }
-  td .sub { display: block; font-size: 13px; color: var(--muted); margin-top: 3px; }
-  td.num { font-family: var(--mono); white-space: nowrap; }
+  .slide.dark { background: var(--dark); color: #F1F5F3; }
+  .slide.dark .hd { border-bottom-color: #2A3A33; }
+  .slide.dark .hd .ctx { color: #6D7A74; }
+  .slide.dark .lede { color: #96A29B; }
+  .slide.dark .lede b { color: #F1F5F3; }
+  .slide.dark .band { background: #16211C; border-left-color: var(--mint-2); color: #A7B3AD; }
+  .slide.dark .band b { color: #F1F5F3; }
+  .slide.dark .pageno, .slide.dark .foot { color: #55605A; }
+  .slide.dark .card { border-color: #2A3A33; }
+  .slide.dark .card p { color: #96A29B; }
+  .slide.dark .card p b, .slide.dark .card h4 { color: #F1F5F3; }
 
   @media print {
     @page { size: 13.333in 7.5in; margin: 0; }
     body { background: none; padding: 0; gap: 0; display: block; }
     .slide { box-shadow: none; page-break-after: always; }
   }
-
-  /* ── 디자인 확장 (8/1) — 화면 캡처·도식·큰 숫자로 레이아웃을 다양화한다 ── */
-
-  /* 제품 화면을 브라우저 창에 담는다 — "문서 속 그림"이 아니라 "제품"으로 읽히게 */
-  .screen {
-    border-radius: 10px; overflow: hidden; background: var(--paper);
-    border: 1px solid var(--hair); box-shadow: 0 18px 44px rgba(19,26,22,.13), 0 2px 6px rgba(19,26,22,.06);
-  }
-  .screen .bar {
-    display: flex; align-items: center; gap: 7px; padding: 9px 13px;
-    background: #F3F5F4; border-bottom: 1px solid var(--hair);
-  }
-  .screen .bar i { width: 9px; height: 9px; border-radius: 50%; background: #D6DBD8; display: block; }
-  .screen .bar span {
-    margin-left: 8px; font-family: var(--mono); font-size: 10.5px; color: var(--faint);
-    background: #FFF; border: 1px solid var(--hair); border-radius: 5px; padding: 2px 10px;
-  }
-  .screen img { display: block; width: 100%; }
-  .screen.clip img { max-height: 452px; object-fit: cover; object-position: top; }
-  .slide.dark .screen { border-color: #26302B; box-shadow: 0 18px 50px rgba(0,0,0,.45); }
-  .slide.dark .screen .bar { background: #1A211D; border-bottom-color: #26302B; }
-  .slide.dark .screen .bar i { background: #333E38; }
-  .slide.dark .screen .bar span { background: #101713; border-color: #26302B; color: #6E7A73; }
-
-  /* 좌 텍스트 · 우 화면 (또는 반대) */
-  .split { display: grid; grid-template-columns: 1fr 1.15fr; gap: 46px; align-items: center; flex: 1; }
-  .split.wide { grid-template-columns: 1fr 1.45fr; }
-  .split.flip { grid-template-columns: 1.15fr 1fr; }
-  .split .note { font-size: 15px; color: var(--muted); line-height: 1.7; word-break: keep-all; }
-  .split .note + .note { margin-top: 14px; }
-  .split .note b { color: var(--ink); font-weight: 750; }
-  .slide.dark .split .note b { color: #F2F5F3; }
-
-  /* 번호 붙은 짚어주기 — 화면의 어디를 보라고 말한다 */
-  .points { margin-top: 20px; display: flex; flex-direction: column; gap: 13px; }
-  .point { display: grid; grid-template-columns: 24px 1fr; gap: 12px; align-items: start; }
-  .point b {
-    width: 22px; height: 22px; border-radius: 50%; background: var(--mint); color: #fff;
-    font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center;
-    font-family: var(--mono);
-  }
-  .point p { font-size: 14.5px; color: var(--muted); line-height: 1.6; word-break: keep-all; }
-  .point p em { font-style: normal; color: var(--ink); font-weight: 700; }
-
-  /* 큰 숫자 */
-  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; }
-  .stats .stat { padding: 4px 26px; border-left: 1px solid var(--hair); }
-  .stats .stat:first-child { padding-left: 0; border-left: none; }
-  .slide.dark .stats .stat { border-left-color: #26302B; }
-  .stat .n {
-    font-size: 52px; font-weight: 800; letter-spacing: -.03em; line-height: 1;
-    font-variant-numeric: tabular-nums;
-    background: linear-gradient(96deg, var(--mint), #16B57E); -webkit-background-clip: text;
-    background-clip: text; color: transparent;
-  }
-  .slide.dark .stat .n { background: linear-gradient(96deg, #57BE95, #7FD8B4); -webkit-background-clip: text; background-clip: text; }
-  .stat .n small { font-size: 20px; font-weight: 700; margin-left: 3px; -webkit-text-fill-color: var(--faint); }
-  .stat .cap { margin-top: 9px; font-size: 13.5px; color: var(--muted); line-height: 1.5; word-break: keep-all; }
-  .slide.dark .stat .cap { color: #8E9A93; }
-
-  /* 가로 흐름 도식 */
-  .flow { display: flex; align-items: stretch; gap: 0; margin-top: 4px; }
-  .flow .step { flex: 1; padding: 16px 16px 15px; border-top: 2px solid var(--hair); }
-  .flow .step.on { border-top-color: var(--mint); }
-  .flow .step .t { font-size: 11px; font-family: var(--mono); color: var(--faint); letter-spacing: .1em; }
-  .flow .step h4 { font-size: 15.5px; font-weight: 800; margin-top: 7px; word-break: keep-all; }
-  .flow .step p { font-size: 13px; color: var(--muted); margin-top: 5px; line-height: 1.55; word-break: keep-all; }
-  .flow .step.on h4 { color: var(--mint); }
-
-  /* 강조 문장 띠 */
-  .band {
-    margin-top: 26px; padding: 17px 22px; border-left: 3px solid var(--mint);
-    background: #F1F8F5; font-size: 15.5px; line-height: 1.65; color: var(--muted); word-break: keep-all;
-  }
-  .band b { color: var(--ink); font-weight: 750; }
-  .slide.dark .band { background: #14201A; border-left-color: #57BE95; color: #A9B5AE; }
-  .slide.dark .band b { color: #F2F5F3; }
 </style>
 </head>
 <body>
 
-<!-- 1 · 표지 -->
-<section class="slide dark">
-  <div class="body" style="justify-content:center">
-    <div class="kicker">GCP × SOLANA AI AGENTIC HACKATHON 2026</div>
-    <div style="font-size:96px; font-weight:800; letter-spacing:-0.03em; line-height:1.05">Solply</div>
-    <div class="mono" style="font-size:15px; color:#57BE95; margin-top:14px; letter-spacing:.04em">Settle On Ledger, for supply</div>
-    <h1 style="margin-top:52px; font-size:34px; max-width:860px">프랜차이즈 식자재 대금,<br>에이전트가 정산을 끝냅니다.</h1>
+<!-- 01 · 표지 -->
+<section class="slide cover">
+  <div class="left">
+    <div class="brand"><div class="m"></div><span>Solply</span></div>
+    <div>
+      <h1>프랜차이즈 식자재 대금,<br>에이전트가 정산을<br>끝냅니다.</h1>
+      <div class="tag">Settle On Ledger, for supply</div>
+    </div>
+    <div class="meta">GCP × Solana AI Agentic Hackathon 2026<br>팀 Solply · 2026. 8.</div>
   </div>
-  <div class="foot" style="color:#55605A">팀 Solply · 2026. 8. <span class="mono">github.com/poi2507/solply</span></div>
-</section>
-
-<!-- 2 · 문제 -->
-<section class="slide">
-  <div class="kicker">문제 — 프랜차이즈 본사와 가맹점 사이</div>
-  <span class="pageno">02</span>
-  <h1>물대 정산은 아직 사람의 일입니다.</h1>
-  <div class="body">
-    <div class="rows">
-      <div class="row">
-        <h3>외상 30–60일</h3>
-        <p>납품은 오늘, 돈은 다음 달. 본사 경리팀은 <b>미수금 관리와 수금 독촉</b>에 사람을 씁니다.</p>
-      </div>
-      <div class="row">
-        <h3>매주 반복되는 검수 분쟁</h3>
-        <p>발주 10에 입고 9. 누구 말이 맞는지부터 다투고, <b>차감 정산 협상</b>이 전화와 엑셀로 오갑니다.</p>
-      </div>
-      <div class="row">
-        <h3>서로 못 믿는 장부</h3>
-        <p>가맹점은 본사의 정산 내역을 검증할 수 없습니다. <b>본사–가맹점 갈등의 뿌리</b>가 여기 있습니다.</p>
-      </div>
+  <div class="right">
+    <div class="kicker">PRODUCT PROPOSAL</div>
+    <h3>납품 이벤트 하나로 청구·검수·협상·온체인 정산까지,<br>사람 개입 없이 완결합니다.</h3>
+    <p>본사와 가맹점의 에이전트가 서로 협상합니다. 수량이 틀리면 깎아달라 하고, 발주한 적 없는 품목은
+      거부하고, 점주가 정한 한도를 넘으면 멈춰서 사람을 부릅니다.</p>
+    <div class="cols c2" style="gap:12px">
+      <div class="card tint"><h4>지금도 거래 중</h4>
+        <p class="mono" style="font-size:10.5px; line-height:1.5">solply-api-965647250280<br>.us-central1.run.app</p></div>
+      <div class="card tint"><h4>실행 증빙</h4>
+        <p>Solana devnet 실거래 ·<br>익스플로러에서 검증 가능</p></div>
     </div>
   </div>
-  <div class="foot">발주–납품–외상–정산의 구조는 업계 공통이지만, 그 사이의 노동과 불신은 각자 감당하고 있습니다.</div>
 </section>
 
-<!-- 3 · 솔루션 -->
+<!-- 02 · 한 장 요약 -->
 <section class="slide">
-  <div class="kicker">솔루션</div>
-  <span class="pageno">03</span>
-  <h1>납품 이벤트 하나로, 개입 없이 <span class="em">정산까지.</span></h1>
-  <p class="lead">본사 1대, 지점 3대 — 에이전트 넷이 서로 청구하고, 검증하고, 협상하고, 온체인으로 결제합니다.</p>
-  <div class="body">
-    <div class="flow" style="margin-bottom:44px">
-      <span>납품 완료</span><i>→</i><span>청구서 발행</span><i>→</i><span>검수 대조</span><i>→</i><span class="hot">협상</span><i>→</i><span class="hot">온체인 결제</span><i>→</i><span>정산 확정</span>
+  <div class="hd"><div class="mark"></div><h2>한 장 요약</h2><div class="ctx">Solply · <b>프로덕트 소개서</b></div></div>
+  <div class="canvas">
+    <div class="cols c3">
+      <div class="card"><h4>① 무엇을 푸는가</h4>
+        <p>프랜차이즈 <b>물대 정산</b>은 아직 전화와 엑셀의 일입니다. 청구서 대조, 수량 분쟁, 수금 독촉에
+          본사 경리팀과 점주의 시간이 들어갑니다.</p></div>
+      <div class="card"><h4>② 어떻게 푸는가</h4>
+        <p>양쪽에 에이전트를 세웁니다. <b>x402</b>로 결제 조건을 주고받고, 합의되면 <b>Solana USDC</b>로
+          정산합니다. 판단은 <b>Gemini</b>, 경로는 <b>LangGraph</b>가 드러냅니다.</p></div>
+      <div class="card"><h4>③ 무엇이 다른가</h4>
+        <p>결제만 하지 않습니다 — <b>협상합니다.</b> 차감·유예·분할 역제안·거부, 그리고 지점끼리의 직거래까지.
+          모든 판단 근거가 기록으로 남습니다.</p></div>
+    </div>
+    <div class="vs">
+      <div class="side"><div class="cap">지금 — 사람이 다섯 번 손을 댑니다</div>
+        <div class="row"><i>01</i>본사가 청구서를 <b>엑셀로</b> 만든다<span class="who">사람</span></div>
+        <div class="row"><i>02</i>점주가 입고 기록과 <b>눈으로</b> 맞춰본다<span class="who">사람</span></div>
+        <div class="row"><i>03</i>수량이 다르면 <b>전화로</b> 따진다<span class="who">사람</span></div>
+        <div class="row"><i>04</i>합의되면 <b>계좌이체</b>하고 캡처를 보낸다<span class="who">사람</span></div>
+        <div class="row"><i>05</i>경리팀이 입금을 확인해 <b>장부에 표시</b><span class="who">사람</span></div>
+      </div>
+      <div class="side on"><div class="cap">Solply — 경계에서만 사람을 부릅니다</div>
+        <div class="row"><i>01</i>납품 기록에서 청구서가 <b>자동 발행</b><span class="who">에이전트</span></div>
+        <div class="row"><i>02</i>지점 에이전트가 <b>입고 기록과 대조</b><span class="who">에이전트</span></div>
+        <div class="row"><i>03</i>차액을 <b>x402로 역제안</b>하고 재검증<span class="who">에이전트</span></div>
+        <div class="row"><i>04</i>합의 조건으로 <b>USDC 온체인 결제</b><span class="who">에이전트</span></div>
+        <div class="row"><i>05</i>정책 상한 초과·미발주일 때만 <b>승인 요청</b><span class="who">사람</span></div>
+      </div>
     </div>
     <div class="stats">
-      <div class="stat"><div class="n">6<small>시나리오</small></div><div class="d">정상 · 차감 협상 · 지점 간 직거래 · 이상 청구 거부 · 유예–예약 실행 · 분할 역제안</div></div>
-      <div class="stat"><div class="n">0<small>회</small></div><div class="d">전 과정에서 사람이 누른 버튼</div></div>
-      <div class="stat"><div class="n">0.4<small>초</small></div><div class="d">외상 30–60일이 블록 확정 시간으로</div></div>
-      <div class="stat"><div class="n">46<small>건</small></div><div class="d">한 회차 데모가 남기는 실행 증빙 이벤트</div></div>
+      <div class="s"><div class="n">461<small>건</small></div><div class="c">누적 청구서<br>전부 devnet 실거래</div></div>
+      <div class="s"><div class="n">479<small>건</small></div><div class="c">지점 간 직거래<br>에이전트끼리 합의</div></div>
+      <div class="s"><div class="n">1.1<small>초</small></div><div class="c">x402 왕복 평균<br>요구 → 지불 → 정산 확정</div></div>
+      <div class="s"><div class="n">9<small>건</small></div><div class="c">사람이 개입한 결정<br>정산·직거래 915건 중</div></div>
     </div>
+    <div class="band"><b>발표용 시연이 아닙니다.</b> Cloud Scheduler가 10분마다 라이브를 깨우고, 위 숫자는 그 결과가
+      실제로 쌓인 것입니다. 심사위원도 <span class="mono">/shop</span>에서 버튼 하나로 이 경제에 참여할 수 있습니다.</div>
   </div>
-  <div class="foot">모든 결제는 로컬넷/데브넷에서 실제 트랜잭션으로 실행됩니다 — 목업 아님.</div>
+  <div class="foot">Solply · 프랜차이즈 식자재 대금 자율 정산</div><span class="pageno">02</span>
 </section>
 
-<!-- 4 · 아키텍처 -->
+<!-- 03 · 문제 -->
 <section class="slide">
-  <div class="kicker">아키텍처</div>
-  <span class="pageno">04</span>
-  <h1>판단은 Gemini, 거래는 그래프,<br>정산은 x402, 결제는 USDC.</h1>
-  <div class="body">
-    <div class="stack">
-      <div class="layer"><div class="t">사람 창구</div><div class="c"><b>ADK 어시스턴트</b>(자연어 조회·승인) · 대시보드(정책 설정, 승인/반려, 예약 실행, 실시간 증빙 피드)</div></div>
-      <div class="layer"><div class="t">거래 두뇌</div><div class="c"><b>LangGraph 그래프 4대</b> — 검수→협상→결제의 판단 경로가 코드로 드러나 감사 가능. 판단 모델은 <b>Gemini</b>(Vertex AI)</div></div>
-      <div class="layer"><div class="t">정산 프로토콜</div><div class="c"><b>x402</b>(HTTP 402 Payment Required) — 결제 조건 제시·선택·서명 검증까지 한 왕복. 본사↔지점과 지점↔지점이 <b>같은 규약</b></div></div>
-      <div class="layer"><div class="t">결제·인프라</div><div class="c"><b>Solana USDC</b> + memo 증빙 · PostgreSQL(→Cloud SQL) · <b>Cloud Run</b> 단일 컨테이너 배포</div></div>
+  <div class="hd"><div class="mark"></div><h2>문제 — 물대 정산은 아직 사람의 일입니다</h2><div class="ctx">본사와 가맹점 사이 · <b>타깃</b></div></div>
+  <p class="lede">가맹점은 본사에서 식자재를 받아 쓰고 값은 나중에 냅니다. 이 돈이 나가려면
+    <b>네 가지 질문</b>을 매번 통과해야 하고, 그 판단을 지금은 사람이 합니다.</p>
+  <div class="canvas">
+    <div class="cols c4" style="gap:13px">
+      <div class="card"><h4>① 진짜 왔는가</h4><p>청구서엔 닭 10마리, 냉장고엔 9마리.
+        <b>누구 기록이 맞는지</b>를 전화로 맞춥니다.</p></div>
+      <div class="card"><h4>② 시킨 물건인가</h4><p>발주한 적 없는 품목이 섞입니다.
+        깎을 문제가 아니라 <b>내면 안 되는 돈</b>입니다.</p></div>
+      <div class="card"><h4>③ 낼 여력이 있는가</h4><p>지금 내면 다음 주 인건비가 모자랍니다.
+        <b>미룰 수 있는지</b>를 사람이 설명해야 합니다.</p></div>
+      <div class="card"><h4>④ 얼마나 봐줄까</h4><p>본사는 매번 판단합니다.
+        <b>기준이 담당자마다 다릅니다.</b></p></div>
     </div>
-    <p class="lead" style="font-size:14.5px; margin-top:26px">돈을 움직이는 판단은 결정적인 그래프가, 사람과의 대화는 도구 호출 에이전트가 — 두 프레임워크의 역할 분담이 설계의 핵심입니다.</p>
-  </div>
-</section>
-
-<!-- 5 · 차별화: 협상 -->
-<section class="slide">
-  <div class="kicker">차별화 1 — 실제 화면</div>
-  <span class="pageno">05</span>
-  <h1>결제만 하지 않습니다 — <span class="em">협상합니다.</span></h1>
-  <div class="split wide">
-    <div>
-      <p class="note">청구서 한 건이 <b>발행부터 정산까지</b> 어떻게 합의됐는지가 한 흐름으로 남습니다.
-        오른쪽은 라이브에서 그대로 가져온 화면입니다.</p>
-      <div class="points">
-        <div class="point"><b>1</b><p>본사가 <em>7.00 USDC</em>를 청구했습니다.</p></div>
-        <div class="point"><b>2</b><p>지점 에이전트가 입고 기록과 대조 — <em>닭 10마리 청구, 9마리 입고</em>.
-          결제를 멈추고 차감을 제안합니다.</p></div>
-        <div class="point"><b>3</b><p>본사 에이전트가 검수 기록으로 재검증합니다.
-          <em>“차감 요청액 0.5가 검증된 과청구액 0.5와 일치합니다.”</em></p></div>
-        <div class="point"><b>4</b><p>청구서가 <em>6.50으로 재발행</em>되고, 그제서야 온체인 결제가 나갑니다.</p></div>
+    <div class="seq">
+      <div class="st"><div class="who">본사 경리</div><div class="no">1</div><h5>청구서 작성</h5>
+        <p>납품전표를 보고 엑셀에 옮겨 적습니다.</p></div>
+      <div class="st"><div class="who">점주</div><div class="no">2</div><h5>눈으로 대조</h5>
+        <p>창고를 세어보고 청구서와 맞춰봅니다.</p></div>
+      <div class="st"><div class="who">양쪽</div><div class="no">3</div><h5>전화 협의</h5>
+        <p>기억이 엇갈리면 목소리 큰 쪽이 이깁니다.</p></div>
+      <div class="st"><div class="who">점주</div><div class="no">4</div><h5>계좌이체</h5>
+        <p>이체하고 캡처를 보냅니다.</p></div>
+      <div class="st"><div class="who">본사 경리</div><div class="no">5</div><h5>입금 확인</h5>
+        <p>통장을 열어 대조하고 장부에 표시합니다.</p></div>
+    </div>
+    <div class="cols c-53" style="align-items:center">
+      <div class="kv" style="grid-template-columns:repeat(3,1fr)">
+        <div class="i"><s>물대 외상 기간</s><b>30–60<span style="font-size:12px">일</span></b>
+          <p>받아 쓰고 값은 한두 달 뒤에 냅니다</p></div>
+        <div class="i"><s>수량 분쟁 처리</s><b style="font-size:17px">며칠</b>
+          <p>전화와 사진으로 서로의 기록을 맞춥니다</p></div>
+        <div class="i"><s>경리 1인당 담당</s><b style="font-size:17px">수십 지점</b>
+          <p>지점이 늘면 사람을 더 뽑아야 합니다</p></div>
       </div>
-      <div class="band">근거가 사람의 기억이 아니라 <b>양쪽 시스템의 기록</b>에 있습니다.
-        그래서 협상이 성립하고, 결과가 검증됩니다.</div>
+      <div class="band">단골 가게의 <b>외상 장부</b>와 구조가 같습니다 — 서로의 기억에 기대고, 숫자가 어긋나면
+        목소리 큰 쪽이 이깁니다. <b>둘 다 고칠 수 없는 장부</b>가 필요한 이유입니다.</div>
     </div>
+  </div>
+  <div class="foot">Solply</div><span class="pageno">03</span>
+</section>
+
+<!-- 04 · 솔루션 -->
+<section class="slide">
+  <div class="hd"><div class="mark"></div><h2>솔루션 — 납품 이벤트 하나로, 정산까지</h2><div class="ctx">에이전트 상거래 · <b>해법</b></div></div>
+  <p class="lede">발주 버튼은 없습니다. <b>사건이 트리거</b>입니다 — 납품이 등록되거나 재고가 최소 수량을 깨면
+    거기서부터 에이전트가 스스로 움직입니다.</p>
+  <div class="canvas">
+    <div class="seq">
+      <div class="st"><div class="who">본사</div><div class="no">1</div><h5>청구서 발행</h5>
+        <p>납품 기록에서 품목·수량·금액을 만들어 청구합니다.</p></div>
+      <div class="st"><div class="who">지점</div><div class="no">2</div><h5>검수 대조</h5>
+        <p>자기 입고 기록과 맞춰봅니다. 수량 불일치와 <b>미발주 품목</b>을 구분합니다.</p></div>
+      <div class="st"><div class="who">양쪽</div><div class="no">3</div><h5>협상</h5>
+        <p>차감·유예·분할을 주고받습니다. 판단 근거에 수치가 들어갑니다.</p></div>
+      <div class="st"><div class="who">지점</div><div class="no">4</div><h5>온체인 결제</h5>
+        <p>합의된 조건으로 USDC를 보내고 서명을 제출합니다.</p></div>
+      <div class="st"><div class="who">본사</div><div class="no">5</div><h5>정산 확정</h5>
+        <p>체인에서 금액·메모·성공을 <b>3중 대조</b>하고 닫습니다.</p></div>
+    </div>
+    <div class="kv">
+      <div class="i"><s>트리거 ①</s><b style="font-size:14.5px">납품 등록</b>
+        <p>본사 창고에서 물건이 나가면 그 기록이 청구서가 됩니다</p></div>
+      <div class="i"><s>트리거 ②</s><b style="font-size:14.5px">안전 수량 미달</b>
+        <p>손님이 사 가서 재고가 선을 깨면 조달이 시작됩니다</p></div>
+      <div class="i"><s>트리거 ③</s><b style="font-size:14.5px">카드매출 입금</b>
+        <p>지갑에 돈이 들어오면 미룬 청구서를 다시 봅니다</p></div>
+      <div class="i"><s>트리거 ④</s><b style="font-size:14.5px">예약 납부일 도래</b>
+        <p>유예로 잡아둔 날이 오면 스스로 냅니다</p></div>
+    </div>
+    <div class="cols c3" style="gap:14px">
+      <div class="card tint"><h4>사람은 경계에서만</h4><p>정책 상한을 넘거나 발주 없는 청구일 때만 등장합니다.
+        그 외에는 개입하지 않습니다.</p></div>
+      <div class="card tint"><h4>모든 판단이 기록</h4><p>제안·심사·결제가 실행 로그로 남고, 청구서 한 건의
+        전 과정을 한 화면에서 펼쳐 볼 수 있습니다.</p></div>
+      <div class="card tint"><h4>같은 규약, 두 방향</h4><p>본사↔지점뿐 아니라 <b>지점↔지점 직거래</b>도
+        같은 x402 왕복을 씁니다.</p></div>
+    </div>
+  </div>
+  <div class="foot">Solply</div><span class="pageno">04</span>
+</section>
+
+<!-- 05 · 아키텍처 -->
+<section class="slide">
+  <div class="hd"><div class="mark"></div><h2>아키텍처 — 네 층이 각자 맡습니다</h2><div class="ctx">기술 구성 · <b>아키텍처</b></div></div>
+  <p class="lede">돈을 움직이는 판단은 <b>경로가 드러나는 그래프</b>가, 사람과의 대화는 <b>도구를 고르는 에이전트</b>가 —
+    프레임워크를 둘로 나눈 것이 설계의 핵심입니다.</p>
+  <div class="canvas">
+    <div class="layers">
+      <div class="layer"><div class="tag">사람</div><div class="items">
+        <div class="chip"><b>점주 · 본사 정산팀</b><s>정책을 정하고 경계에서만 승인</s></div>
+        <div class="chip"><b>손님 <span class="mono">/shop</span></b><s>구매가 수요를 만든다</s></div>
+        <div class="chip"><b>정산 어시스턴트 (ADK)</b><s>대화로 조회·승인 — 권한은 화면 버튼과 동일</s></div>
+      </div></div>
+      <div class="layer on"><div class="tag">에이전트<br>판단</div><div class="items">
+        <div class="chip key"><b>지점 에이전트 ×3</b><s>검수 → 협상 → 결제 (LangGraph 15노드)</s></div>
+        <div class="chip key"><b>본사 에이전트</b><s>청구 · 심사 · 3중 대조 정산 확정</s></div>
+        <div class="chip"><b>Gemini (Vertex AI)</b><s>차감·유예·직거래 심사 판단</s></div>
+        <div class="chip"><b>정책 <span class="mono">core/policy</span></b><s>한도·기준은 DB에서 주입 — 프롬프트에 숫자 없음</s></div>
+      </div></div>
+      <div class="layer on"><div class="tag">결제<br>Solana</div><div class="items">
+        <div class="chip key"><b>x402 왕복</b><s>402 조건 제시 → 지불 → 서명 제출 → 정산 확정</s></div>
+        <div class="chip"><b>USDC (devnet)</b><s>물대 · 직거래 · 카드매출 정산</s></div>
+        <div class="chip"><b>memo 증빙</b><s>청구서 번호를 체인에 새겨 대조</s></div>
+        <div class="chip"><b>pay.sh</b><s>판단 재료(시세) 구매</s></div>
+      </div></div>
+      <div class="layer"><div class="tag">Google<br>Cloud</div><div class="items">
+        <div class="chip"><b>Cloud Run ×2</b><s>공개 API · 지갑 키를 든 결제 서비스(비공개)</s></div>
+        <div class="chip"><b>Cloud SQL</b><s>문서 + append-only 증빙 로그</s></div>
+        <div class="chip"><b>Cloud Scheduler</b><s>10분마다 경제 루프</s></div>
+        <div class="chip"><b>Secret Manager</b><s>지갑 키 4개</s></div>
+      </div></div>
+    </div>
+    <div class="band"><b>지갑 열쇠는 한 곳에만</b> 있습니다. 결제 서비스만 키를 들고, Cloud Run에서 인터넷에 노출되지
+      않게 잠갔습니다 — 사고가 나도 어디서 났는지 알 수 있는 구조입니다.</div>
+  </div>
+  <div class="foot">Solply</div><span class="pageno">05</span>
+</section>
+
+<!-- 06 · x402 -->
+<section class="slide">
+  <div class="hd"><div class="mark"></div><h2>x402 — 402 응답이 곧 협상 테이블</h2><div class="ctx">정산 프로토콜 · <b>기술 핵심</b></div></div>
+  <p class="lede">HTTP에는 <b>402 Payment Required</b>가 30년 넘게 비어 있었습니다. x402는 그 빈 칸을 채운 규약이고,
+    우리는 <b>판매자와 구매자 양쪽을 직접 구현</b>했습니다.</p>
+  <div class="canvas">
+    <div class="seq">
+      <div class="st"><div class="who">지점 → 본사</div><div class="no">1</div><h5>정산 요청</h5>
+        <p>청구서 결제를 요청합니다.</p></div>
+      <div class="st"><div class="who">본사 → 지점</div><div class="no">2</div><h5>402 + 조건 목록</h5>
+        <p><b>즉시 · 유예 · 분할</b> 세 조건을 <span class="mono">accepts[]</span>에 담아 돌려줍니다.</p></div>
+      <div class="st"><div class="who">지점</div><div class="no">3</div><h5>조건 선택</h5>
+        <p>잔액·정책 상한·검수 결과를 보고 하나를 고르거나 역제안합니다.</p></div>
+      <div class="st"><div class="who">지점 → 체인</div><div class="no">4</div><h5>USDC 전송</h5>
+        <p>메모에 청구서 번호를 새겨 보냅니다.</p></div>
+      <div class="st"><div class="who">본사 → 체인</div><div class="no">5</div><h5>3중 대조 후 확정</h5>
+        <p><b>금액 · 메모 · 성공 여부</b>를 직접 확인해야 정산이 닫힙니다.</p></div>
+    </div>
+    <div class="cols c-53" style="gap:16px; align-items:center">
+      <div class="code">
+<span class="c">// 본사가 돌려주는 402 — 조건 세 개가 한 배열에 담긴다</span><br>
+{ <span class="k">"x402Version"</span>: <span class="v">1</span>, <span class="k">"accepts"</span>: [<br>
+&nbsp;&nbsp;{ <span class="k">"term"</span>: <em>"immediate"</em>, <span class="k">"amount"</span>: <span class="v">"6500000"</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"memo"</span>: <span class="v">"INV-0729-B01"</span> },<br>
+&nbsp;&nbsp;{ <span class="k">"term"</span>: <em>"deferred"</em>, <span class="k">"requiresApproval"</span>: <span class="v">true</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"policyHint"</span>: <span class="v">"외상 한도의 20% 이내면 자동 수락"</span> },<br>
+&nbsp;&nbsp;{ <span class="k">"term"</span>: <em>"installment"</em>, <span class="k">"installments"</span>: <span class="v">2</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"amount"</span>: <span class="v">"3250000"</span> } ] }
+      </div>
+      <div class="card"><h4>이 배열이 곧 메뉴판입니다</h4>
+        <p><span class="mono">accepts</span>의 <b>세 항목이 세 가지 결제 조건</b>입니다. 지점 에이전트는 잔액과
+          정책 상한을 보고 하나를 고르거나, 어느 것도 맞지 않으면 <b>역제안</b>합니다.
+          <span class="mono">policyHint</span>는 본사 정책에서 그때그때 채워집니다 — 숫자가 코드에 박혀 있지 않습니다.</p></div>
+    </div>
+    <div class="cols c-35" style="align-items:center">
+      <div class="donut">
+        <div class="ring"><i><b>1.1초</b><s>왕복 평균</s></i></div>
+        <div class="legend">
+          <div><em></em>402 요구 → 정산 확정까지</div>
+          <div><em class="g"></em>기존 물대: 외상 30–60일</div>
+          <div style="margin-top:6px; color:var(--faint); font-size:11.5px">라이브 최근 20건 실측</div>
+        </div>
+      </div>
+      <div>
+        <div class="cols c2" style="gap:12px">
+          <div class="card"><h4>표준 안에서 협상</h4><p>x402의 <span class="mono">accepts</span>는 배열입니다.
+            원래는 결제 수단 선택용이지만, 여기에 <b>결제 조건</b>을 담아 규약을 벗어나지 않고 협상을 표현했습니다.</p></div>
+          <div class="card"><h4>왜 3중 대조인가</h4><p>서명만 확인하면 <b>다른 청구서의 결제를 재사용</b>할 수 있습니다.
+            금액·메모·성공을 함께 봐야 그 구멍이 막힙니다.</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="foot">Solply</div><span class="pageno">06</span>
+</section>
+
+<!-- 07 · 협상 (실제 화면) -->
+<section class="slide">
+  <div class="hd"><div class="mark"></div><h2>차별화 ① 결제만 하지 않습니다 — 협상합니다</h2><div class="ctx">실제 화면 · <b>심사 기준 1</b></div></div>
+  <p class="lede">근거가 사람의 기억이 아니라 <b>양쪽 시스템의 기록</b>에 있습니다 —
+    그래서 협상이 성립하고, 결과가 검증됩니다. 아래는 실제 청구서 한 건의 전 과정입니다.</p>
+  <div class="canvas">
     <div class="screen">
-      <div class="bar"><i></i><i></i><i></i><span>solply — 청구서 INV-0729-B01</span></div>
+      <div class="bar2"><i></i><i></i><i></i><span>solply — 청구서 INV-0729-B01 · 협상 타임라인</span></div>
       <img src="shots/02-timeline.jpg" alt="검수 불일치 협상 타임라인">
     </div>
-  </div>
-</section>
-
-<!-- 5.5 · 협상 유형 -->
-<section class="slide">
-  <div class="kicker">차별화 1 — 합의에 이르는 세 갈래</div>
-  <span class="pageno">06</span>
-  <h1>막히면 멈추는 게 아니라, <span class="em">대안을 만듭니다.</span></h1>
-  <div class="body">
-    <div class="flow">
-      <div class="step on">
-        <div class="t">CASE 01</div><h4>검수 불일치</h4>
-        <p>수량이 다르면 차액을 빼달라고 제안. 본사가 검수 기록으로 재검증하고 청구서를 재발행한다.</p>
-      </div>
-      <div class="step on">
-        <div class="t">CASE 02</div><h4>잔액 부족</h4>
-        <p>예상 입금 일정을 근거로 납부 유예를 요청. 신용점수가 기준을 넘으면 본사가 납부일을 잡아준다.</p>
-      </div>
-      <div class="step on">
-        <div class="t">CASE 03</div><h4>전액 유예 불가</h4>
-        <p>본사가 <b>분할을 역제안</b>. 말로 끝내지 않고 분할 청구서를 실제로 발행해 협상 테이블에 올린다.</p>
-      </div>
-      <div class="step">
-        <div class="t">CASE 04</div><h4>발주 없는 청구</h4>
-        <p>깎는 문제가 아니다. <b>거부하고 사람에게</b> 넘긴다 — 낼 이유가 없는 돈이므로.</p>
-      </div>
-    </div>
-    <div class="band">자동 이체는 “된다 / 안 된다” 둘뿐입니다.
-      <b>에이전트 상거래는 그 사이에 대안을 만듭니다</b> — 그리고 그 판단 근거가 전부 기록으로 남습니다.</div>
-  </div>
-</section>
-
-<!-- 6 · 차별화: P2P -->
-<section class="slide">
-  <div class="kicker">차별화 2 — 멀티에이전트 상거래</div>
-  <span class="pageno">07</span>
-  <h1>지점끼리도 거래합니다 — <span class="em">본사는 심판으로.</span></h1>
-  <div class="body">
-    <div class="flow" style="margin-bottom:14px">
-      <span>B지점 재고 0<span class="mono" style="font-size:12px; color:var(--faint)"> (안전재고 4)</span></span><i>→</i><span>조달 비교</span><i>→</i><span>A지점에 직거래 제안</span><i>→</i><span>A 수락</span><i>→</i><span class="hot">본사 승인</span><i>→</i><span class="hot">B→A 온체인 결제</span><i>→</i><span>장부 기록</span>
-    </div>
-    <p class="lead" style="font-size:14.5px; margin-bottom:40px">본사 발주는 D+2에 최소 10개 — 주말 피크 전 결품 위험. A지점의 잉여 6개는 오늘 인수 가능. 에이전트가 비교하고, 본사 공급가 기준으로 제안합니다.</p>
-    <div class="stats">
-      <div class="stat"><div class="n" style="font-size:26px">A지점</div><div class="d">폐기될 재고가 현금이 됩니다 — 안전재고는 지키고 잉여만 판매</div></div>
-      <div class="stat"><div class="n" style="font-size:26px">B지점</div><div class="d">결품을 피하고, 소량을 오늘 확보합니다</div></div>
-      <div class="stat"><div class="n" style="font-size:26px">본사</div><div class="d">물류비를 줄이고, 위생·품질·가격을 승인으로 통제합니다 — 승인 없는 거래는 결제 자체가 차단</div></div>
+    <div class="cols c4" style="gap:15px">
+      <div class="point"><b>1</b><p>본사가 <em>7.00 USDC</em>를 청구했습니다.</p></div>
+      <div class="point"><b>2</b><p>지점이 입고 기록과 대조 — <em>10마리 청구, 9마리 입고</em>. 결제를 멈추고 차감을 제안합니다.</p></div>
+      <div class="point"><b>3</b><p>본사가 검수 기록으로 재검증 — <em>차감 요청 0.5가 과청구액과 일치</em>합니다.</p></div>
+      <div class="point"><b>4</b><p>청구서가 <em>6.50으로 재발행</em>되고, 그제서야 온체인 결제가 나갑니다.</p></div>
     </div>
   </div>
-  <div class="foot">직거래 대금도 같은 x402 왕복으로 — 이번엔 판매 지점이 결제 조건을 제시하는 쪽이 됩니다.</div>
+  <div class="foot">Solply</div><span class="pageno">07</span>
 </section>
 
-<!-- 7 · 신용 -->
+<!-- 08 · 협상 유형 + P2P -->
 <section class="slide">
-  <div class="kicker">차별화 3</div>
-  <span class="pageno">08</span>
-  <h1>납부 이력이 곧 <span class="em">신용</span>이 됩니다.</h1>
-  <div class="body">
-    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:56px; align-items:start">
+  <div class="hd"><div class="mark"></div><h2>막히면 멈추지 않고, 대안을 만듭니다</h2><div class="ctx">협상 4가지 경우 · 지점 간 직거래</div></div>
+  <p class="lede">지점 에이전트는 청구서를 받으면 <b>네 개의 관문</b>을 순서대로 지납니다.
+    막히는 자리마다 대응이 다릅니다 — 그래서 결과가 네 가지로 갈립니다.</p>
+  <div class="canvas">
+    <div class="seq">
+      <div class="st"><div class="who">관문 1</div><div class="no">✓</div><h5>시킨 물건인가</h5>
+        <p>발주 목록에 없으면 여기서 <b>거부</b>입니다.</p></div>
+      <div class="st"><div class="who">관문 2</div><div class="no">✓</div><h5>수량이 맞는가</h5>
+        <p>입고 기록과 다르면 <b>차감</b>을 제안합니다.</p></div>
+      <div class="st"><div class="who">관문 3</div><div class="no">✓</div><h5>낼 돈이 있는가</h5>
+        <p>최소 보유액을 깨면 <b>유예</b>를 요청합니다.</p></div>
+      <div class="st"><div class="who">관문 4</div><div class="no">✓</div><h5>내가 정할 금액인가</h5>
+        <p>자동결제 한도를 넘으면 <b>사람</b>에게 넘깁니다.</p></div>
+    </div>
+    <div class="cols c4" style="gap:13px">
+      <div class="card tint"><h4>① 검수 불일치</h4><p>수량이 다르면 차액을 빼달라고 제안. 본사가 검수 기록으로
+        재검증하고 청구서를 재발행한다.</p></div>
+      <div class="card tint"><h4>② 잔액 부족</h4><p>예상 입금 일정을 근거로 유예를 요청. 신용점수가 기준을 넘으면
+        본사가 납부일을 잡아준다.</p></div>
+      <div class="card tint"><h4>③ 전액 유예 불가</h4><p>본사가 <b>분할을 역제안</b>. 말로 끝내지 않고 분할 청구서를
+        실제로 발행해 테이블에 올린다.</p></div>
+      <div class="card"><h4>④ 발주 없는 청구</h4><p>깎을 문제가 아니다. <b>거부하고 사람에게</b> 넘긴다 —
+        낼 이유가 없는 돈이므로.</p></div>
+    </div>
+    <div class="cols c-53" style="align-items:center">
       <div>
-        <div class="mono" style="font-size:19px; border:1.5px solid var(--ink); padding:18px 22px; margin-bottom:18px">점수 = 50 <b style="color:var(--mint)">+ 정시납×2</b> − 연체×3 − 분쟁×2</div>
-        <p style="font-size:14.5px; color:var(--muted); line-height:1.65; word-break:keep-all">점수는 상수가 아니라 이력의 함수입니다. 시드 이력에 이번 세션의 온체인 정산이 실시간으로 가산되고, 본사의 유예 심사는 이 계산값과 근거를 그대로 인용합니다.</p>
-      </div>
-      <div>
-        <div style="display:flex; align-items:baseline; gap:14px">
-          <span class="mono" style="font-size:56px; font-weight:700; color:var(--faint)">88</span>
-          <span style="font-size:26px; color:var(--faint)">→</span>
-          <span class="mono" style="font-size:56px; font-weight:700; color:var(--mint)">90</span>
+        <div class="pill" style="margin-bottom:11px"><span class="n">A2A</span>지점끼리도 거래합니다 — 본사는 심판으로</div>
+        <div class="seq" style="margin-top:4px">
+          <div class="st"><div class="no">1</div><h5>재고 미달</h5><p>B지점 치킨무 부족</p></div>
+          <div class="st"><div class="no">2</div><h5>잉여 탐색</h5><p>시세를 사서 본사 발주와 비교</p></div>
+          <div class="st"><div class="no">3</div><h5>본사 승인</h5><p>위생·품질 책임이 본사에 있으므로</p></div>
+          <div class="st"><div class="no">4</div><h5>온체인 결제</h5><p>지점 → 지점 직접 정산</p></div>
         </div>
-        <p style="font-size:14.5px; color:var(--muted); margin-top:10px; line-height:1.6; word-break:keep-all">데모 화면에서 정산이 확정되는 순간 점수가 오릅니다. 성실 납부가 즉시 자산이 되는 것을 심사위원이 직접 봅니다.</p>
+      </div>
+      <div class="band">자동 이체는 “된다 / 안 된다” 둘뿐입니다. <b>에이전트 상거래는 그 사이에 대안을 만듭니다</b> —
+        그리고 그 판단 근거가 전부 기록으로 남습니다.</div>
+    </div>
+  </div>
+  <div class="foot">Solply</div><span class="pageno">08</span>
+</section>
+
+<!-- 09 · 자율성과 통제 -->
+<section class="slide">
+  <div class="hd"><div class="mark"></div><h2>자율에는 경계가 있습니다</h2><div class="ctx">정책 · <b>심사 기준 B</b></div></div>
+  <p class="lede">법인카드와 같습니다. 한도까지는 스스로 쓰되, 그 위는 <b>결재</b>입니다. 다만 두 가지를 구분합니다 —
+    <b>상한은 권한의 문제</b>, <b>하한은 능력의 문제</b>입니다.</p>
+  <div class="canvas">
+    <div class="gauge">
+      <div class="track">
+        <div class="seg" style="flex:1.5; background:linear-gradient(90deg,var(--mint),var(--mint-2))">에이전트가 스스로 결제</div>
+        <div class="seg" style="flex:1; background:#C9873A">사람 승인 필요</div>
+        <div class="seg" style="flex:.8; background:#B0483C">협상 또는 거부</div>
+      </div>
+      <div class="marks">
+        <span style="flex:1.5"><b>자동결제 상한 이하</b>잔액이 충분하고 최소 보유액을 깨지 않으면 즉시 결제</span>
+        <span style="flex:1"><b>상한 초과 — 권한</b>돈이 있어도 에이전트가 정할 금액이 아니다. 버튼 또는 대화로 승인</span>
+        <span style="flex:.8"><b>잔액 부족 · 미발주 — 능력/근거</b>유예를 제안하거나, 근거가 없으면 거부한다</span>
       </div>
     </div>
-    <div style="border-top:1px solid var(--hair); margin-top:40px; padding-top:22px">
-      <p style="font-size:15px; color:var(--muted); word-break:keep-all">이 이력은 조작할 수 없습니다 — 온체인이기 때문입니다. 점주가 자신의 신용을 들고 다니며 <b style="color:var(--ink)">운전자금 대출 조건을 바꾸는 자산</b>이 됩니다. (수익모델 3층)</p>
+    <div class="kv">
+      <div class="i"><s>자동결제 한도</s><b>10.00 <span style="font-size:12px">USDC</span></b>
+        <p>이 금액 이하면 지점 에이전트가 스스로 결제합니다</p></div>
+      <div class="i"><s>유예 승인 최소 신용점수</s><b>85 <span style="font-size:12px">점</span></b>
+        <p>이 점수 이상이면 본사가 유예를 자동 수락합니다</p></div>
+      <div class="i"><s>직거래 참가 신용점수</s><b>75 <span style="font-size:12px">점</span></b>
+        <p>지점 간 직거래는 물대보다 완만한 기준을 씁니다</p></div>
+      <div class="i"><s>유예 허용 비율</s><b>20 <span style="font-size:12px">%</span></b>
+        <p>외상 한도의 몇 %까지 미뤄줄지의 상한입니다</p></div>
+    </div>
+    <div class="cols c-35" style="align-items:center">
+      <div class="donut">
+        <div class="ring" style="background:conic-gradient(var(--mint) 0 99.02%, #DDE4E0 99.02% 100%)"><i><b>99.0%</b><s>자율 처리</s></i></div>
+        <div class="legend">
+          <div><em></em>에이전트가 스스로 판단·실행</div>
+          <div><em class="g"></em>사람이 개입한 결정</div>
+          <div style="margin-top:6px; color:var(--faint); font-size:11.5px">정산·직거래 915건 중 사람 개입 9건</div>
+        </div>
+      </div>
+      <div class="cols c2" style="gap:12px">
+        <div class="card"><h4>점주가 화면에서 정합니다</h4><p>자동결제 상한 · 최소 보유액 · 안전재고 배수.
+          <b>코드에 하드코딩하지 않습니다</b> — 프롬프트에도 숫자를 쓰지 않고 DB에서 주입합니다.</p></div>
+        <div class="card"><h4>멈춘 뒤가 중요합니다</h4><p>승인은 버튼으로도, <b>어시스턴트와의 대화로도</b> 가능합니다.
+          승인 직후 에이전트가 이어서 온체인 결제를 마칩니다.</p></div>
+      </div>
     </div>
   </div>
+  <div class="foot">Solply</div><span class="pageno">09</span>
 </section>
 
-<!-- 8 · 통제 -->
-<section class="slide">
-  <div class="kicker">자율성과 통제</div>
-  <span class="pageno">09</span>
-  <h1>자율에는 경계가 있습니다.</h1>
-  <p class="lead">경계는 코드가 아니라 점주와 본사가 화면에서 정합니다. 규칙 변경조차 같은 장부에 증빙으로 남습니다.</p>
-  <div class="body">
-    <div class="cols2">
-      <div class="item"><h4>건당 자동결제 상한</h4><p>넘으면 에이전트가 멈추고 사람에게 — 대시보드에서 승인하면 이어서 결제, 반려하면 종결.</p></div>
-      <div class="item"><h4>운영 자금 하한</h4><p>결제 후 잔액이 하한을 깨면 결제 대신 유예를 제안합니다.</p></div>
-      <div class="item"><h4>발주 없는 청구 거부</h4><p>발주 내역에 없는 품목은 협상이 아니라 거부 — 사람에게 에스컬레이션.</p></div>
-      <div class="item"><h4>승인 없는 직거래 차단</h4><p>본사 승인 전에는 지점 간 결제가 실행되지 않습니다.</p></div>
-      <div class="item"><h4>안전재고 보호</h4><p>직거래로 팔아도 잉여까지만 — 안전재고는 침범하지 않습니다.</p></div>
-      <div class="item"><h4>이중 결제 방지</h4><p>이미 결제·정산된 청구서는 재시도가 와도 돈이 나가지 않습니다.</p></div>
-    </div>
-  </div>
-  <div class="foot">에이전트의 모든 판단·차단·사람 개입이 append-only 실행 로그로 남습니다 — 심사 기준 4(실행 증빙)의 근거.</div>
-</section>
-
-<!-- 9 · 왜 온체인 -->
-<section class="slide">
-  <div class="kicker">왜 온체인인가</div>
-  <span class="pageno">10</span>
-  <h1>수수료 때문이 아닙니다.</h1>
-  <div class="body">
-    <div class="rows">
-      <div class="row"><h3>에이전트는 계좌가 없습니다</h3><p>은행 계좌 개설과 카드망은 사람의 신원과 승인을 전제합니다. <b>지갑은 에이전트가 가질 수 있는 유일한 계좌</b>입니다.</p></div>
-      <div class="row"><h3>외상 30–60일 → 0.4초</h3><p>정산이 즉시 끝나면 미수금 관리라는 업무 자체가 사라집니다.</p></div>
-      <div class="row"><h3>이력이 신용이 됩니다</h3><p>조작 불가능한 납부 기록 — 여신 자동화로 확장되는 토대입니다.</p></div>
-      <div class="row"><h3>같은 장부를 봅니다</h3><p>본사와 가맹점이 하나의 원장을 공유합니다. <b>정산 불신의 구조적 해소</b>입니다.</p></div>
-    </div>
-  </div>
-</section>
-
-
-<!-- 9.5 · 지금도 거래 중 -->
+<!-- 10 · 실제 구동 -->
 <section class="slide dark">
-  <div class="kicker">실제 구동 — 지금 이 순간</div>
-  <span class="pageno">11</span>
-  <h1>발표용 화면이 아닙니다.<br><span style="color:#57BE95">지금도 거래하고 있습니다.</span></h1>
-  <div class="body" style="justify-content:center; gap:52px">
+  <div class="hd"><div class="mark"></div><h2>발표용 화면이 아닙니다 — 지금도 거래 중입니다</h2><div class="ctx">실제 구동 · <b>심사 기준 4</b></div></div>
+  <p class="lede">Cloud Scheduler가 <b>10분마다</b> 라이브를 깨웁니다 — 판매 → 카드정산 → 조달 → 창고 재입고 → 예약 납부.
+    <b>2026-07-29부터 멈춘 적이 없습니다.</b></p>
+  <div class="canvas">
+    <div class="seq">
+      <div class="st"><div class="who">손님 · /shop</div><div class="no">1</div><h5>판매 발생</h5>
+        <p>구매가 일어나면 지점 재고가 줄어듭니다.</p></div>
+      <div class="st"><div class="who">카드사 → 지점</div><div class="no">2</div><h5>카드매출 정산</h5>
+        <p>매출 대금이 지점 지갑으로 들어옵니다.</p></div>
+      <div class="st"><div class="who">지점</div><div class="no">3</div><h5>조달 판단</h5>
+        <p>안전 수량을 깬 품목을 본사 발주와 직거래 중에서 고릅니다.</p></div>
+      <div class="st"><div class="who">본사</div><div class="no">4</div><h5>창고 재입고</h5>
+        <p>본사 재고도 줄어들므로 함께 채웁니다.</p></div>
+      <div class="st"><div class="who">지점</div><div class="no">5</div><h5>예약 납부 실행</h5>
+        <p>유예로 잡아둔 납부일이 오면 스스로 냅니다.</p></div>
+    </div>
     <div class="stats">
-      <div class="stat"><div class="n">424<small>건</small></div><div class="cap">누적 청구서<br>전부 devnet 실거래</div></div>
-      <div class="stat"><div class="n">441<small>건</small></div><div class="cap">지점 간 직거래<br>에이전트끼리 합의</div></div>
-      <div class="stat"><div class="n">9488<small>건</small></div><div class="cap">실행 증빙 로그<br>판단 하나하나가 기록</div></div>
-      <div class="stat"><div class="n">0<small>회</small></div><div class="cap">사람이 누른 버튼<br>2026-07-29부터</div></div>
+      <div class="s"><div class="n">461<small>건</small></div><div class="c">누적 청구서<br>정산 완료 457건</div></div>
+      <div class="s"><div class="n">479<small>건</small></div><div class="c">지점 간 직거래<br>승인 458 · 거부 10</div></div>
+      <div class="s"><div class="n">1,210<small>USDC</small></div><div class="c">회수된 물대<br>전부 devnet 실거래</div></div>
+      <div class="s"><div class="n">9<small>건</small></div><div class="c">사람이 개입한 결정<br>915건 중 1%</div></div>
     </div>
-    <div class="band" style="margin-top:0">Cloud Scheduler가 <b>10분마다</b> 라이브를 깨웁니다 —
-      판매 → 카드정산 → 조달 → 창고 재입고 → 예약 납부. <b>2026-07-29부터 멈춘 적이 없습니다.</b>
-      심사위원도 <span class="mono">/shop</span>에서 버튼 하나를 누르면 그 수요가 10분 안에 조달로 이어집니다.</div>
+    <div class="cols c3" style="gap:14px">
+      <div class="card"><h4>검증 가능한 증거</h4><p>모든 결제에 <b>devnet 익스플로러 링크</b>가 붙습니다.
+        서명을 눌러 직접 확인하실 수 있습니다.</p></div>
+      <div class="card"><h4>심사위원도 참여</h4><p><span class="mono">/shop</span>에서 버튼 하나를 누르면 재고가 줄고,
+        <b>10분 안에 에이전트가 조달을 시작</b>합니다.</p></div>
+      <div class="card"><h4>날짜로 되짚기</h4><p>정산은 날짜 단위 업무 — 기본은 오늘, 화살표로
+        <b>지난 날의 거래</b>를 확인합니다.</p></div>
+    </div>
+    <div class="band">목업으로는 만들 수 없는 종류의 증거입니다. <b>지금 접속하셔도 이 시스템은 거래하고 있습니다.</b></div>
   </div>
-  <div class="foot mono" style="color:#55605A">solply-api-965647250280.us-central1.run.app</div>
+  <div class="foot mono">solply-api-965647250280.us-central1.run.app</div><span class="pageno">10</span>
 </section>
 
-<!-- 9.55 · 라이브 화면 -->
+<!-- 11 · 라이브 화면 -->
 <section class="slide">
-  <div class="kicker">실제 구동 — 심사위원이 보게 될 화면</div>
-  <span class="pageno">12</span>
-  <h1>열어보면, 방금 있었던 일이 쌓여 있습니다.</h1>
-  <div class="split flip" style="margin-top:8px">
-    <div class="screen">
-      <div class="bar"><i></i><i></i><i></i><span>solply — 본사 정산팀 대시보드</span></div>
-      <img src="shots/01-dashboard.jpg" alt="본사 대시보드">
-    </div>
-    <div>
-      <div class="points">
-        <div class="point"><b>1</b><p><em>사람 개입 0회</em> — 지표에 그대로 표시됩니다. 자동화율이 아니라 <em>개입 횟수</em>를 셉니다.</p></div>
-        <div class="point"><b>2</b><p>가맹점별 <em>신용점수</em>는 상수가 아니라 온체인 납부 이력에서 계산됩니다.</p></div>
-        <div class="point"><b>3</b><p>품목별 재고가 <em>안전 수량</em>과 함께 — 미달이면 그 자리가 조달의 방아쇠가 됩니다.</p></div>
-        <div class="point"><b>4</b><p>청구서 행을 누르면 그 한 건의 <em>협상 전 과정</em>이 펼쳐집니다.</p></div>
+  <div class="hd"><div class="mark"></div><h2>열어보면, 방금 있었던 일이 쌓여 있습니다</h2><div class="ctx">본사 정산팀 화면 · <b>UX</b></div></div>
+  <div class="canvas" style="padding-top:14px">
+    <div class="cols" style="grid-template-columns:1.75fr 1fr; align-items:center">
+      <div class="screen">
+        <div class="bar2"><i></i><i></i><i></i><span>solply — 본사 정산팀 대시보드 · 08-01 촬영</span></div>
+        <img src="shots/01-dashboard.jpg" alt="본사 대시보드">
       </div>
-      <div class="band">정산은 날짜 단위 업무 — 기본은 오늘, 화살표로 <b>지난 날의 거래</b>를 넘겨봅니다.</div>
-    </div>
-  </div>
-</section>
-
-<!-- 9.6 · 세 레일 -->
-<section class="slide">
-  <div class="kicker">인프라 연동 — 셋을 각각 다른 역할로</div>
-  <span class="pageno">13</span>
-  <h1>결제 레일 셋이, 서로 다른 일을 합니다.</h1>
-  <div class="body">
-    <table>
-      <tr><th>레일</th><th>맡은 역할</th><th>우리 구현</th></tr>
-      <tr>
-        <td class="t">USDC</td>
-        <td>정산 통화<span class="sub">물대 · 지점 간 직거래 · 카드매출 정산</span></td>
-        <td>Solana devnet 실거래. 메모에 청구서 번호를 새겨 대조한다</td>
-      </tr>
-      <tr>
-        <td class="t">x402</td>
-        <td>정산 프로토콜<span class="sub">402 응답의 조건 목록이 곧 협상 테이블</span></td>
-        <td><b>판매자·구매자 양쪽을 직접 구현</b> — 402 발행, 조건 제시, 온체인 3중 대조(금액·메모·성공)</td>
-      </tr>
-      <tr>
-        <td class="t">pay.sh</td>
-        <td>판단 재료를 사는 레일<span class="sub">에이전트가 유료 데이터를 그 자리에서 결제</span></td>
-        <td>조달 판단 직전 시세를 구매하고 <b>영수증의 온체인 참조를 증빙으로 기록</b>한다</td>
-      </tr>
-    </table>
-    <p style="margin-top:26px; font-size:15px; color:var(--muted); line-height:1.6">
-      물건값만 낸 게 아닙니다 — <b style="color:var(--ink)">판단에 쓴 데이터값까지 에이전트가 자기 지갑에서 냈습니다.</b>
-      다음 단계는 우리가 <span class="mono">pay server</span>로 <b style="color:var(--ink)">시세를 파는 쪽</b>이 되는 것입니다.
-    </p>
-  </div>
-</section>
-
-<!-- 9.7 · pay.sh 증빙 -->
-<section class="slide">
-  <div class="kicker">인프라 연동 — 판단 재료를 사는 순간</div>
-  <span class="pageno">14</span>
-  <h1>에이전트가 데이터를 사고, <span class="em">영수증이 남습니다.</span></h1>
-  <div class="split wide">
-    <div>
-      <p class="note">실행 로그의 한 대목입니다. 조달 판단 <b>직전에</b> 시세를 사고,
-        그 데이터를 근거로 옆 지점과 거래하고, 온체인 결제까지 <b>같은 화면에 이어집니다.</b></p>
-      <div class="points">
-        <div class="point"><b>1</b><p><em>시세 데이터 구매 (pay.sh)</em> — 402 챌린지를 받아 그 자리에서 지불하고,
-          응답의 <em>영수증(온체인 참조)</em>을 증빙으로 남깁니다.</p></div>
-        <div class="point"><b>2</b><p>그 시세를 근거로 <em>직거래 제안 → 판매 지점 수락 → 본사 심사</em>가 이어집니다.</p></div>
-        <div class="point"><b>3</b><p>합의되면 <em>x402 왕복</em>으로 온체인 결제 — 서명을 누르면 익스플로러가 열립니다.</p></div>
+      <div>
+        <div class="points">
+          <div class="point"><b>1</b><p>맨 윗줄은 <em>이 날 하루</em>의 정산액·미수금·협상 건수입니다 —
+        누적이 아니라 <em>오늘 무슨 일이 있었는지</em>를 먼저 보여줍니다.</p></div>
+          <div class="point"><b>2</b><p>가맹점별 <em>신용점수</em>는 상수가 아니라 온체인 납부 이력에서 계산됩니다.</p></div>
+          <div class="point"><b>3</b><p>품목별 재고가 <em>안전 수량</em>과 함께 — 미달이 곧 조달의 방아쇠입니다.</p></div>
+          <div class="point"><b>4</b><p>청구서 행을 누르면 그 한 건의 <em>협상 전 과정</em>이 펼쳐집니다.</p></div>
+          <div class="point"><b>5</b><p>오른쪽 <em>거래 정책</em>은 읽기용 표시가 아니라 <em>입력란</em>입니다 —
+            여기 적힌 숫자가 곧 에이전트의 판단 경계가 됩니다.</p></div>
+        </div>
+        <div class="band" style="margin-top:14px">본사는 <b>자기 창고만</b> 봅니다. 지점 재고는 지점 화면에서만 —
+          역할에 따라 보이는 정보가 다릅니다.</div>
       </div>
-      <div class="band" style="margin-top:20px"><b>물건값만 낸 게 아닙니다.</b> 판단에 쓴 데이터값까지 자기 지갑에서 냈습니다.</div>
-    </div>
-    <div class="screen clip">
-      <div class="bar"><i></i><i></i><i></i><span>solply — 실행 증빙 로그</span></div>
-      <img src="shots/04-log.jpg" alt="실행 로그 — 시세 구매와 x402 정산">
     </div>
   </div>
+  <div class="foot">Solply</div><span class="pageno">11</span>
 </section>
 
-<!-- 10 · 수익모델 -->
+<!-- 12 · 세 레일 + pay.sh 증빙 -->
 <section class="slide">
-  <div class="kicker">수익모델</div>
-  <span class="pageno">15</span>
-  <h1>구독으로 시작해, 거래가 커지면 함께 자랍니다.</h1>
-  <div class="body">
+  <div class="hd"><div class="mark"></div><h2>결제 레일 셋이, 서로 다른 일을 합니다</h2><div class="ctx">인프라 연동 · <b>심사 기준 3</b></div></div>
+  <div class="canvas" style="padding-top:14px">
+    <div class="cols c-35" style="align-items:center">
+      <div>
+        <table>
+          <tr><th>레일</th><th>맡은 역할</th></tr>
+          <tr><td class="t">USDC</td><td>정산 통화<span class="sub">물대 · 지점 간 직거래 · 카드매출 정산.
+            메모에 청구서 번호를 새겨 대조한다</span></td></tr>
+          <tr><td class="t">x402</td><td><b>판매자·구매자 양쪽 직접 구현</b><span class="sub">402 발행 · 조건 제시 ·
+            온체인 3중 대조(금액·메모·성공)</span></td></tr>
+          <tr><td class="t">pay.sh</td><td>판단 재료를 사는 레일<span class="sub">조달 직전 시세를 구매하고
+            영수증의 온체인 참조를 증빙으로 남긴다</span></td></tr>
+        </table>
+        <div class="band" style="margin-top:14px"><b>물건값만 낸 게 아닙니다.</b> 판단에 쓴 데이터값까지
+          에이전트가 자기 지갑에서 냈습니다. 다음 단계는 <span class="mono">pay server</span>로
+          <b>우리가 시세를 파는 쪽</b>이 되는 것입니다.</div>
+      </div>
+      <div class="screen clip">
+        <div class="bar2"><i></i><i></i><i></i><span>solply — 실행 증빙 로그</span></div>
+        <img src="shots/04-log.jpg" alt="실행 로그 — 시세 구매와 x402 정산">
+      </div>
+    </div>
+    <div class="kv">
+      <div class="i"><s>pay.sh 카탈로그</s><b>70<span style="font-size:12px">개 제공자</span></b>
+        <p>Gemini · BigQuery · 시세 API까지 14개 분야</p></div>
+      <div class="i"><s>시세 1회 구매가</s><b>0.01<span style="font-size:12px">USDC</span></b>
+        <p>조달 판단 직전에 에이전트가 스스로 결제합니다</p></div>
+      <div class="i"><s>구매 실패 시</s><b style="font-size:16px">조달은 계속</b>
+        <p>시세는 참고값입니다 — 없으면 직전 구매가로 판단합니다</p></div>
+      <div class="i"><s>정직하게 밝히면</s><b style="font-size:16px">샌드박스</b>
+        <p>pay.sh 결제는 공개 체인 밖입니다. 물대 정산은 devnet 실거래입니다</p></div>
+    </div>
+  </div>
+  <div class="foot">Solply</div><span class="pageno">12</span>
+</section>
+
+<!-- 13 · 수익모델 -->
+<section class="slide">
+  <div class="hd"><div class="mark"></div><h2>구독으로 시작해, 거래가 커지면 함께 자랍니다</h2><div class="ctx">사업성 · <b>수익모델</b></div></div>
+  <p class="lede">수수료를 낮춰 이기는 사업이 아닙니다. <b>정산을 대신 처리해 사람의 시간을 돌려주고</b>,
+    그 과정에서 쌓인 <b>기록을 자산으로</b> 바꿉니다.</p>
+  <div class="canvas">
     <table>
       <tr><th>층</th><th>모델</th><th>무엇에 대한 대가</th><th>가격</th></tr>
-      <tr>
-        <td class="t">1 · 지금</td>
-        <td>SaaS 구독 <span class="sub">본사 과금, 가맹점 수 기준</span></td>
-        <td>정산 자동화 — 경리 인건비 절감, 분쟁 처리, 미수금 실시간 가시성</td>
-        <td class="num">지점당 월 29,000원</td>
-      </tr>
-      <tr>
-        <td class="t">2 · 성장</td>
-        <td>직거래 중개료 <span class="sub">거래 지점 과금</span></td>
-        <td>재고 매칭 + 본사 품질 승인 + 온체인 증빙 — 우리가 만들어낸 신규 거래</td>
-        <td class="num">거래액의 1%</td>
-      </tr>
-      <tr>
-        <td class="t">3 · 비전</td>
-        <td>온체인 신용 여신 <span class="sub">금융사 과금</span></td>
-        <td>조작 불가능한 납부 이력 기반 스코어링 — 점주 동의 하에 제시되는 자산</td>
-        <td class="num">API 사용료 / 실행액 bp</td>
-      </tr>
+      <tr><td class="t">1 · 지금</td><td><b>구독</b><span class="sub">본사 정산 SaaS</span></td>
+        <td>경리팀의 대조·독촉 시간을 대체한다. 지점이 늘어도 담당자를 늘리지 않는다</td>
+        <td class="mono"><b>월 29,000원</b><span class="sub">지점당</span></td></tr>
+      <tr><td class="t">2 · 다음</td><td><b>중개 수수료</b><span class="sub">지점 간 직거래</span></td>
+        <td>본사 발주보다 싸고 빠른 조달을 성사시킨 대가. 거래가 늘수록 함께 큰다</td>
+        <td class="mono"><b>거래액 1%</b></td></tr>
+      <tr><td class="t">3 · 이후</td><td><b>온체인 여신</b><span class="sub">신용 데이터</span></td>
+        <td>조작 불가능한 납부 이력이 곧 신용. 유예·선정산 상품의 근거 데이터가 된다</td>
+        <td class="mono"><b>여신 스프레드</b></td></tr>
     </table>
-    <p style="font-size:14.5px; color:var(--muted); margin-top:24px; word-break:keep-all">국내 가맹점 약 35만 개* 중 1%(3,500지점)만 확보해도 — 구독만 <b style="color:var(--ink)">월 약 1억 원.</b> 결제가 아닌 자동화·매칭·신용에서 받기 때문에 "온체인 정산은 저렴하다"는 제품 논리와 충돌하지 않습니다.</p>
-  </div>
-  <div class="foot">* 공정거래위원회 가맹사업 통계 기준.</div>
-</section>
-
-<!-- 11 · 시장과 다음 -->
-<section class="slide">
-  <div class="kicker">시장과 다음 단계</div>
-  <span class="pageno">16</span>
-  <h1>실물 B2B 정산은 아직 <span class="em">비어 있습니다.</span></h1>
-  <p class="lead">현재 x402 트래픽은 데이터·API 같은 디지털 재화에 몰려 있습니다. 실물 상거래의 이행 리스크 — 검수, 분쟁, 품질 — 를 다룰 장치가 없었기 때문입니다. Solply는 그 장치(검수 대조·협상·본사 승인·에스컬레이션)를 갖추고 첫 사례를 만듭니다.</p>
-  <div class="body">
-    <div class="rows">
-      <div class="row"><h3 class="mono" style="font-size:16px">2026. 8</h3><p>devnet 시연 · Cloud Run 라이브 대시보드 · 해커톤 제출</p></div>
-      <div class="row"><h3 class="mono" style="font-size:16px">파이널</h3><p>A2A 연동(에이전트 간 왕복의 표준화) · Pub/Sub 이벤트 파이프라인 · Firestore</p></div>
-      <div class="row"><h3 class="mono" style="font-size:16px">이후</h3><p>온체인 신용 스코어링 API — 여신 시장으로.</p></div>
+    <div class="kv">
+      <div class="i"><s>100개 지점 프랜차이즈</s><b>월 290<span style="font-size:12px">만원</span></b>
+        <p>1층 구독만으로. 경리 담당자 한 명의 인건비 수준입니다</p></div>
+      <div class="i"><s>지점당 월 직거래액 가정</s><b>200<span style="font-size:12px">만원</span></b>
+        <p>본사 발주보다 싸게 조달한 만큼만 오가는 금액입니다</p></div>
+      <div class="i"><s>2층 중개 수수료</s><b>월 200<span style="font-size:12px">만원</span></b>
+        <p>거래액 1% — 정산 건수가 늘수록 함께 커집니다</p></div>
+      <div class="i"><s>합계</s><b>월 490<span style="font-size:12px">만원</span></b>
+        <p>지점이 늘어도 담당 인력은 늘지 않는 구조입니다</p></div>
+    </div>
+    <div class="cols c-53" style="align-items:center">
+      <div class="bars">
+        <div class="bar"><span>정시 납부</span><div class="t"><i style="width:67%"></i></div><span class="v">+2점</span></div>
+        <div class="bar"><span>연체</span><div class="t"><i style="width:100%; background:#C9873A"></i></div><span class="v">−3점</span></div>
+        <div class="bar"><span>분쟁</span><div class="t"><i style="width:67%; background:#B0483C"></i></div><span class="v">−2점</span></div>
+      </div>
+      <div class="band"><b>신용점수는 상수가 아닙니다.</b> 기본 50점에서 시작해 온체인 납부 이력으로 계산됩니다.
+        라이브 3개 지점은 나흘 만에 <b>50 → 100점</b>에 도달했습니다 — 3층 여신의 근거가 여기서 만들어집니다.</div>
     </div>
   </div>
+  <div class="foot">Solply</div><span class="pageno">13</span>
 </section>
 
-<!-- 12 · 클로징 -->
+<!-- 14 · 마무리 -->
 <section class="slide dark">
-  <div class="body" style="justify-content:center">
-    <h1 style="font-size:38px; max-width:940px; line-height:1.45">본사 경리팀의 미수금 엑셀과<br>사장님의 새벽 정산이,<br><span class="em" style="color:#57BE95">에이전트 넷</span>으로 대체됐습니다.</h1>
+  <div class="hd"><div class="mark"></div><h2>본사 경리팀의 엑셀과 사장님의 새벽 정산을 대신합니다</h2><div class="ctx">팀 Solply · <b>2026. 8.</b></div></div>
+  <div class="canvas">
+    <div class="tl">
+      <div class="n"><div class="d">2026. 8. 3</div><h5>제출</h5>
+        <p>라이브 · 데모 영상 · 코드 공개</p></div>
+      <div class="n"><div class="d">2026. 8. 7</div><h5>본선 발표</h5>
+        <p>A2A 전환과 pay.sh 심화를 본선 주간 과제로</p></div>
+      <div class="n"><div class="d">2026. 8. 21</div><h5>데모데이</h5>
+        <p>심사위원이 직접 <span class="mono">/shop</span>에서 경제를 움직이는 시연</p></div>
+      <div class="n"><div class="d">이후</div><h5>실물 파일럿</h5>
+        <p>단일 프랜차이즈 본사와 지점 소수로 현장 검증</p></div>
+    </div>
+    <div class="cols c3" style="gap:14px">
+      <div class="card"><h4>지금 (해커톤)</h4><p>devnet 실거래 · Cloud Run 라이브 · 협상 6종 ·
+        경제 루프가 10분마다 자율 순환</p></div>
+      <div class="card"><h4>다음 (파이널 주간)</h4><p><b>A2A 전환</b> — 에이전트를 독립 서비스로 분리하고
+        표준 프로토콜로 왕복 · <b>pay.sh 심화</b> — 우리가 시세를 파는 쪽으로</p></div>
+      <div class="card"><h4>이후</h4><p>온체인 신용 스코어링 API — 프랜차이즈를 넘어
+        <b>실물 B2B 정산과 여신 시장</b>으로</p></div>
+    </div>
+    <div class="cols c3" style="gap:14px">
+      <div class="card tint" style="background:#16211C; border-color:#2A3A33">
+        <h4 style="color:#57D3A6">라이브 대시보드</h4>
+        <p class="mono" style="font-size:10.5px; color:#9AA79F">solply-api-965647250280<br>.us-central1.run.app</p></div>
+      <div class="card tint" style="background:#16211C; border-color:#2A3A33">
+        <h4 style="color:#57D3A6">GitHub</h4>
+        <p class="mono" style="font-size:10.5px; color:#9AA79F">github.com/poi2507/solply</p></div>
+      <div class="card tint" style="background:#16211C; border-color:#2A3A33">
+        <h4 style="color:#57D3A6">데모 영상 (2분 55초)</h4>
+        <p class="mono" style="font-size:10.5px; color:#9AA79F">제출물에 첨부</p></div>
+    </div>
+    <div class="band">"실물 B2B 정산은 왜 아직 온체인이 아닌가" — 실물 이행과 분쟁 리스크 때문입니다.
+      <b>그래서 검수 대조·차감 협상·거부가 이 시스템의 중심입니다.</b></div>
   </div>
-  <div class="foot mono" style="color:#55605A; display:flex; gap:28px">
-    <span>github.com/poi2507/solply</span>
-    <span>라이브 대시보드 — solply-api-965647250280.us-central1.run.app</span>
-    <span>데모 영상 — URL</span>
-  </div>
+  <div class="foot">Solply · Settle On Ledger, for supply</div><span class="pageno">14</span>
 </section>
 
 </body>

@@ -10,7 +10,7 @@
 |---|---|
 | 🟢 **지금 돌고 있는 화면** | **https://solply-api-965647250280.us-central1.run.app** |
 | 🛒 손님으로 참여해보기 | [/shop](https://solply-api-965647250280.us-central1.run.app/shop) — 구매 한 번이 에이전트 조달을 일으킵니다 |
-| 🎬 데모 영상 (2분 54초) | 제출물에 함께 첨부했습니다 · 장면별 대본은 [video-script.md](docs/video-script.md) |
+| 🎬 데모 영상 (2분 55초) | 제출물에 함께 첨부했습니다 · 장면별 대본은 [video-script.md](docs/video-script.md) |
 | 📖 코드 레벨 해부도 | [deep-dive.html](docs/deep-dive.html) — 8부 26장, 브라우저로 열면 됩니다 |
 
 ---
@@ -51,7 +51,7 @@ pay.sh는 `--sandbox` 모드라 그 결제는 공개 체인에 남지 않고, **
 | **① 혁신성·UX** | 에이전트가 **따지고·거부하고·멈춘다**. 협상 6종(정상·차감·유예·분할 역제안·거부·지점 간 직거래). 손님이 직접 수요를 만드는 `/shop` | `agents/*/graph.py` · `api/shop.py` |
 | **② AI 활용도** | **Vertex AI(Gemini)** + **LangGraph**(거래 두뇌 — 경로가 그래프로 드러난다) + **ADK**(사람 창구 — 대화로 승인). 분담에 근거가 있다 | `llm/judge.py` · `agents/` · `assistant/` |
 | **③ 인프라 연동** | **USDC**(정산 통화) · **x402**(우리가 판매자·구매자 양쪽을 직접 구현) · **pay.sh**(에이전트가 판단 재료를 사는 레일) — 셋이 각각 다른 역할로 실사용 | `core/protocol.py` · `api/x402.py` · `core/market.py` |
-| **④ 실제 구동** | 라이브가 **사람 없이 10분마다** 거래 중. 모든 결제에 devnet 익스플로러 링크. 실행 로그 4,500건+ 누적 | `core/economy.py` · `api/dashboard.py` |
+| **④ 실제 구동** | 라이브가 **10분마다 스스로** 거래 중 — 청구서 461건·직거래 479건, 그중 사람이 개입한 결정은 9건. 모든 결제에 devnet 익스플로러 링크 | `core/economy.py` · `api/dashboard.py` |
 
 세부 주제 대응: **A**(결제 요청 생성→입금→정산) = 402 발행·온체인 3중 대조 ·
 **B**(정책 한도 내 자율 서명) = `route_after_cashflow`의 상한·하한·승인 경계 ·
