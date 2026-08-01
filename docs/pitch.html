@@ -210,11 +210,20 @@
   .fe.ok { color: var(--mint); } .fe.warn { color: #B26A1B; } .fe.bad { color: #A6423A; }
 
   /* ── 실제 사례 ── */
-  .case { border: 1px solid #EBD6D1; background: #FBF4F1; border-radius: 11px; padding: 15px 18px; }
-  .case .yr { font-family: var(--mono); font-size: 10.5px; font-weight: 700; letter-spacing: .08em; color: #A6423A; }
-  .case h4 { font-size: 14.5px; font-weight: 800; margin: 6px 0 7px; word-break: keep-all; }
-  .case p { font-size: 12.8px; color: var(--muted); line-height: 1.6; word-break: keep-all; }
+  .case { border: 1px solid #EBD6D1; background: #FBF4F1; border-radius: 11px; padding: 16px 19px;
+    display: flex; align-items: center; gap: 18px; }
+  .case .cb { flex: 1; }
+  .case .tops { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .case .stamp { border: 1.6px solid #B0302A; color: #B0302A; border-radius: 6px; padding: 2px 9px;
+    font-size: 10.3px; font-weight: 800; letter-spacing: .05em; transform: rotate(-2deg);
+    background: rgba(255,255,255,.65); flex: none; }
+  .case .yr { font-family: var(--mono); font-size: 10.3px; color: #A6423A; }
+  .case h4 { font-size: 15px; font-weight: 800; margin-bottom: 7px; word-break: keep-all; }
+  .case p { font-size: 12.4px; color: var(--muted); line-height: 1.58; word-break: keep-all; }
   .case p b { color: var(--ink); font-weight: 750; }
+  .case .amt { flex: none; text-align: center; padding: 4px 4px 4px 18px; border-left: 1px dashed #E3C4BD; min-width: 92px; }
+  .case .amt b { display: block; font-size: 33px; font-weight: 800; color: #B0302A; letter-spacing: -.02em; line-height: 1.05; }
+  .case .amt s { display: block; text-decoration: none; font-size: 10.3px; color: #A6423A; font-weight: 700; margin-top: 4px; }
   .card .q { margin-top: 11px; border-left: 2px solid var(--mint); padding: 2px 0 2px 10px;
     font-family: var(--mono); font-size: 10.6px; color: #48705F; line-height: 1.55; word-break: keep-all; }
 
@@ -464,13 +473,18 @@
         <b>기준이 담당자마다 다릅니다.</b></p></div>
     </div>
     <div class="cols c2" style="gap:15px">
-      <div class="case"><div class="yr">2026 · 대법원 확정</div><h4>피자헛, 차액가맹금 210억 원 반환 확정</h4>
-        <p>물대에 얹힌 마진(차액가맹금)이 계약서에 없었다는 이유로 부당이득 반환 — 1심 75억, 2심 210억,
-          2026년 1월 대법원 확정. 항소심 두 달 뒤 회사는 회생절차를 신청했습니다.
-          <b>정산 기록이 불투명하면 본사가 무너집니다.</b></p></div>
-      <div class="case"><div class="yr">2017 · 검찰 기소</div><h4>미스터피자 ‘치즈 통행세’</h4>
-        <p>치즈 유통에 동생 회사 두 곳을 끼워 12년간 <b>57억 원</b>의 마진을 얹은 사실이 드러나
-          총수 구속과 불매로 이어졌습니다. <b>무엇을 얼마에 샀는지가 감춰질 때 생기는 일입니다.</b></p></div>
+      <div class="case"><div class="cb">
+        <div class="tops"><span class="stamp">대법원 확정</span><span class="yr">2026. 1. · 상고 기각으로 종결</span></div>
+        <h4>“피자헛은 차액가맹금을 반환하라”</h4>
+        <p>물대에 얹힌 마진이 계약서에 없었다는 이유 — 1심 75억, 2심 210억. 항소심 두 달 뒤 회사는
+          회생절차를 신청했습니다. <b>정산 기록이 불투명하면 본사가 무너집니다.</b></p></div>
+        <div class="amt"><b>210억</b><s>반환 확정액</s></div></div>
+      <div class="case"><div class="cb">
+        <div class="tops"><span class="stamp">검찰 구속 기소</span><span class="yr">2017. 7. · 서울중앙지검</span></div>
+        <h4>“미스터피자, 치즈에 통행세를 얹었다”</h4>
+        <p>치즈 유통에 동생 회사 두 곳을 끼워 12년간 마진을 얹었고, 총수 구속과 불매로 이어졌습니다.
+          <b>무엇을 얼마에 샀는지가 감춰질 때 생기는 일입니다.</b></p></div>
+        <div class="amt"><b>57억</b><s>12년 통행세</s></div></div>
     </div>
     <div class="cols c-53" style="align-items:center">
       <div class="kv" style="grid-template-columns:repeat(3,1fr)">
@@ -864,12 +878,12 @@
 <section class="slide">
   <div class="hd"><div class="mark"></div><h2>열어보면, 방금 있었던 일이 쌓여 있습니다</h2><div class="ctx">Ⅲ 증거 · <b>라이브 화면</b></div></div>
   <div class="canvas" style="padding-top:14px">
-    <div class="cols" style="grid-template-columns:1.75fr 1fr; align-items:center">
+    <div class="cols" style="grid-template-columns:1.75fr 1fr; align-items:stretch">
       <div class="screen">
         <div class="bar2"><i></i><i></i><i></i><span>solply — 본사 정산팀 대시보드 · 08-01 촬영</span></div>
         <img src="shots/01-dashboard.jpg" alt="본사 대시보드">
       </div>
-      <div>
+      <div style="display:flex; flex-direction:column; justify-content:space-evenly">
         <div class="points">
           <div class="point"><b>1</b><p>맨 윗줄은 <em>이 날 하루</em>의 정산액·미수금·협상 건수입니다 —
         누적이 아니라 <em>오늘 무슨 일이 있었는지</em>를 먼저 보여줍니다.</p></div>
@@ -928,12 +942,12 @@
 <section class="slide">
   <div class="hd"><div class="mark"></div><h2>판단에 쓴 데이터값도 에이전트가 냈습니다</h2><div class="ctx">Ⅲ 증거 · <b>pay.sh</b></div></div>
   <div class="canvas">
-    <div class="cols c-53" style="align-items:center">
+    <div class="cols c-53" style="align-items:stretch">
       <div class="screen clip">
         <div class="bar2"><i></i><i></i><i></i><span>solply — 실행 증빙 로그 · 시세 구매부터 직거래 정산까지</span></div>
         <img src="shots/04-log.jpg" alt="실행 로그 — 시세 구매와 직거래 정산">
       </div>
-      <div class="points">
+      <div class="points" style="justify-content:space-evenly">
         <div class="point"><b>1</b><p>재고가 안전선을 깨자 에이전트가 <em>pay.sh로 시세를 구매</em>합니다 —
           로그에 <em>영수증 참조</em>가 함께 남습니다.</p></div>
         <div class="point"><b>2</b><p>그 시세를 근거로 <em>본사 발주와 옆 지점 직거래</em> 중 싼 쪽을 고릅니다.</p></div>
@@ -1067,6 +1081,24 @@
       13장이고, 이 제품이 파는 것도 결국 <b>그 경계에 대한 신뢰</b>입니다.</div>
   </div>
   <div class="foot">Solply · Settle On Ledger, for supply</div><span class="pageno">22</span>
+</section>
+
+<!-- 백커버 -->
+<section class="slide divider">
+  <div class="brand"><div class="m"></div><span>Solply</span></div>
+  <div class="mid">
+    <div class="rom">THANK YOU</div>
+    <h2>감사합니다</h2>
+    <p class="desc">물어보실 것들은 라이브에 열려 있습니다 — 접속하시면 이 시스템은 지금도 거래하고 있습니다.<br>
+      GCP × Solana AI Agentic Hackathon 2026 · 팀 Solply</p>
+  </div>
+  <div class="items">
+    <div class="it"><b>라이브</b><span class="mono">solply-api-965647250280.us-central1.run.app</span></div>
+    <div class="it"><b>코드</b><span class="mono">github.com/poi2507/solply</span></div>
+    <div class="it"><b>영상</b>데모 2분 55초 — 제출물 첨부</div>
+  </div>
+  <div class="wmw"><div class="wm">S</div></div>
+  <span class="pageno">23</span>
 </section>
 
 </body>
