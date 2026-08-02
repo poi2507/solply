@@ -93,8 +93,14 @@ docker compose exec api python demo.py    # 협상 6종 — 온체인 결제 포
 ```
 
 기본은 규칙 기반 판단(키 불필요)입니다. **자기 키로 진짜 Gemini 판단**을 보려면 —
-[AI Studio](https://aistudio.google.com/apikey)에서 무료 키를 받아:
-`GOOGLE_API_KEY=<키> SOLPLY_LLM=gemini docker compose up` (무료 티어는 분당 한도가 낮아 데모가 수 분 걸립니다).
+[AI Studio](https://aistudio.google.com/apikey)에서 무료 키를 받아 스택을 gemini 모드로 다시 올립니다:
+
+```bash
+docker compose down                        # mock으로 떠 있던 스택 내리기
+GOOGLE_API_KEY=<발급받은 키> SOLPLY_LLM=gemini docker compose up -d
+docker compose exec api python demo.py     # 무료 티어 분당 한도 때문에 수 분 걸립니다
+```
+
 차이는 **판단 근거 문장**에서 보입니다 — 청구서 타임라인의 본사 심사 사유와 마지막 정산 리포트가
 규칙 템플릿이 아니라 LLM이 상황을 읽고 쓴 문장이 됩니다. 협상 갈림길 자체는 같습니다.
 
