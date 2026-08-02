@@ -62,6 +62,11 @@ pay.sh는 `--sandbox` 모드라 그 결제는 공개 체인에 남지 않고, **
 가장 빠른 검증(체인 불필요): `make setup && make test` — 137개, 3초.
 
 **경로 A — Docker (권장, 설치 최소)** · 필요한 것: **Docker** · **Solana CLI**
+
+> 없다면 — [Docker Desktop](https://docs.docker.com/get-docker/) ·
+> Solana CLI는 공식 스크립트 한 줄: `sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"`
+> (지갑 생성·로컬 체인·토큰 발행 명령이 함께 설치됩니다 — 저장소가 쓰는 건 이 네 가지뿐:
+> `solana-test-validator` · `solana-keygen` · `solana` · `spl-token`)
 라이브(Cloud Run)와 **같은 이미지 2개** + PostgreSQL이 컨테이너로 뜨고, 체인만 호스트에서 돕니다
 (공식 validator 이미지가 amd64 전용이라 Apple Silicon 호환을 위해 체인은 네이티브로 둡니다).
 
