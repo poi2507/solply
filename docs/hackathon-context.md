@@ -1,6 +1,6 @@
 # 해커톤 맥락 — 공모전 요건·일정·레퍼런스
 
-> 참가자용 문서다. 프로젝트 소개는 [루트 README](../README.md),
+> 참가자용 문서다. 제출 직전 점검은 [checklist](checklist.md). 프로젝트 소개는 [루트 README](../README.md),
 
 ## 참가 공모전: GCP × Solana AI Agentic 해커톤 2026
 

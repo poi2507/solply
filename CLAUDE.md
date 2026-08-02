@@ -4,7 +4,7 @@
 GCP × Solana AI Agentic 해커톤 출품작. **제출 마감 8/3 23:59**, 데모데이 8/21.
 **작업 시작 전 `docs-internal/HANDOFF.md`를 읽어라** — 현재 상태·환경 복구·알려진 함정·다음 할 일이 거기 있다.
 (`docs-internal/`은 git 밖 내부 문서다 — 새 컴퓨터로 옮길 땐 별도로 복사해야 한다.)
-작업 순서는 `docs-internal/wbs.md`, 킥오프 정리는 `docs-internal/kickoff-notes.md`.
+작업 순서는 `docs/wbs.md`, 킥오프 정리는 `docs-internal/kickoff-notes.md`.
 배경·심사기준은 README.md, 설계는 docs/product-design.md.
 
 ## 구조

@@ -165,4 +165,5 @@ scripts/video/         Playwright + ffmpeg 촬영기 — 코드가 바뀌면 영
 
 [제품 설계](docs/product-design.md) · [수익 모델](docs/revenue-model.md) · [의사결정 로그](docs/decision-log.md) ·
 [클라우드·pay.sh 구축 기록](docs/cloud-paysh-report.html) · [영상 대본](docs/video-script.md) ·
-[해커톤 맥락](docs/hackathon-context.md) · [지점 간 직거래 설계](docs/store-to-store-design.md)
+[해커톤 맥락](docs/hackathon-context.md) · [지점 간 직거래 설계](docs/store-to-store-design.md) ·
+[작업 계획](docs/wbs.md) · [제출 체크리스트](docs/checklist.md)
