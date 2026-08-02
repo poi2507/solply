@@ -77,6 +77,10 @@ docker compose up --build                 # DB + 결제 + API → http://localho
 docker compose exec api python demo.py    # 협상 6종 — 온체인 결제 포함 완주
 ```
 
+기본은 규칙 기반 판단(키 불필요)입니다. **자기 키로 진짜 Gemini 판단**을 보려면 —
+[AI Studio](https://aistudio.google.com/apikey)에서 무료 키를 받아:
+`GOOGLE_API_KEY=<키> SOLPLY_LLM=gemini docker compose up` (무료 티어는 분당 한도가 낮아 데모가 수 분 걸립니다)
+
 **경로 B — 전부 호스트에서 (개발용)** · 추가로 **uv** · **Node 20+** 필요.
 첫 실행이면 `make dev`가 지갑 생성 → 에어드랍 → 로컬 USDC 발행까지 스스로 합니다.
 
@@ -87,7 +91,7 @@ make dev       # 블록체인 + 결제 서비스 + API/대시보드 → http://l
 
 # 다른 터미널에서 — 협상 6종을 처음부터 끝까지
 make demo-mock # 규칙 기반 판단(빠름). 온체인 결제는 실제로 발생합니다
-make demo      # Gemini 판단 (Vertex 설정 필요)
+make demo      # Gemini 판단 — backend/.env에 GOOGLE_API_KEY 한 줄 (AI Studio 무료 발급)
 
 make tick      # 경제 루프 한 바퀴 (판매→카드정산→조달→재입고→예약납부)
 make test      # 137개

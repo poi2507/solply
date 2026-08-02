@@ -41,7 +41,10 @@ services:
       SOLPLY_STORE: postgres
       DATABASE_URL: postgresql://solply@db:5432/solply
       PAYMENTS_API_URL: http://payments:3000
-      LLM_PROVIDER: mock             # API 키 없이 — Vertex를 쓰려면 gemini/vertex로 바꾸세요
+      # 기본은 mock(키 불필요). 자기 키로 진짜 Gemini 판단을 보려면:
+      #   GOOGLE_API_KEY=<AI Studio 키> SOLPLY_LLM=gemini docker compose up
+      LLM_PROVIDER: ${SOLPLY_LLM:-mock}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
       PAYSH_ENABLED: "0"             # pay CLI가 x86_64 전용이라 로컬 컨테이너에선 끕니다 (라이브에선 켜짐)
     ports:
       - "${SOLPLY_API_PORT:-8080}:8080"
