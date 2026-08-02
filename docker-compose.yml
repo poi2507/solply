@@ -1,0 +1,47 @@
+# Solply 로컬 재현 — 라이브(Cloud Run)와 같은 이미지 2개 + PostgreSQL.
+#
+# 체인(로컬넷)만 호스트에서 돕니다: 공식 validator 이미지가 amd64 전용이라
+# Apple Silicon에서 에뮬레이션 리스크가 있어, 전 아키텍처에서 확실한 쪽을 택했습니다.
+#
+#   make chain            # 터미널 1 — 로컬 블록체인 (Solana CLI)
+#   make localnet-setup   # 터미널 2 — 지갑 생성·SOL·로컬 USDC (첫 1회)
+#   docker compose up --build          # DB + 결제 + API → http://localhost:8080
+#   docker compose exec api python demo.py   # 협상 6종 데모 (mock 판단, 온체인 결제는 실제)
+#
+# 포트가 겹치면: SOLPLY_API_PORT=8081 docker compose up
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: solply
+      POSTGRES_DB: solply
+      POSTGRES_HOST_AUTH_METHOD: trust
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U solply"]
+      interval: 2s
+      retries: 30
+
+  payments:
+    build: ./payments
+    env_file: ./payments/.env        # setup-localnet.sh가 기록한 USDC_MINT
+    environment:                     # env_file보다 우선 — 컨테이너 안에서의 주소로 교정
+      SOLANA_RPC_URL: http://host.docker.internal:8899
+      SOLPLY_WALLET_DIR: /secrets/wallets
+    volumes:
+      - ${SOLPLY_WALLET_DIR:-~/.config/solana/solply}:/secrets/wallets:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # Linux에서도 호스트 체인에 닿게
+
+  api:
+    build: { context: ., dockerfile: Dockerfile }
+    depends_on:
+      db: { condition: service_healthy }
+      payments: { condition: service_started }
+    environment:
+      SOLPLY_STORE: postgres
+      DATABASE_URL: postgresql://solply@db:5432/solply
+      PAYMENTS_API_URL: http://payments:3000
+      LLM_PROVIDER: mock             # API 키 없이 — Vertex를 쓰려면 gemini/vertex로 바꾸세요
+      PAYSH_ENABLED: "0"             # pay CLI가 x86_64 전용이라 로컬 컨테이너에선 끕니다 (라이브에선 켜짐)
+    ports:
+      - "${SOLPLY_API_PORT:-8080}:8080"

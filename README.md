@@ -59,14 +59,25 @@ pay.sh는 `--sandbox` 모드라 그 결제는 공개 체인에 남지 않고, **
 
 ## 직접 돌려보기
 
-필요한 도구: **uv** · **Node 20+** · **Docker**(PostgreSQL용 — 설치된 Postgres가 있으면 그걸 씁니다) · **Solana CLI**(`solana-test-validator`).
-체인 없이 로직만 확인하려면 `make setup` 후 `make test`만으로 충분합니다 (137개, 3초).
-첫 실행이면 `make dev`가 **지갑 생성 → SOL 에어드랍 → 로컬 USDC 발행 → `payments/.env` 기록**까지
-스스로 합니다 — 키를 준비할 필요가 없습니다.
+가장 빠른 검증(체인 불필요): `make setup && make test` — 137개, 3초.
+
+**경로 A — Docker (권장, 설치 최소)** · 필요한 것: **Docker** · **Solana CLI**
+라이브(Cloud Run)와 **같은 이미지 2개** + PostgreSQL이 컨테이너로 뜨고, 체인만 호스트에서 돕니다
+(공식 validator 이미지가 amd64 전용이라 Apple Silicon 호환을 위해 체인은 네이티브로 둡니다).
+
+```bash
+make chain            # 터미널 1 — 로컬 블록체인
+make localnet-setup   # 터미널 2 — 첫 1회: 지갑 생성·SOL·로컬 USDC (payments/.env 자동 기록)
+docker compose up --build                 # DB + 결제 + API → http://localhost:8080
+docker compose exec api python demo.py    # 협상 6종 — 온체인 결제 포함 완주
+```
+
+**경로 B — 전부 호스트에서 (개발용)** · 추가로 **uv** · **Node 20+** 필요.
+첫 실행이면 `make dev`가 지갑 생성 → 에어드랍 → 로컬 USDC 발행까지 스스로 합니다.
 
 ```bash
 make setup     # 의존성 (backend: uv · payments: npm)
-make db        # PostgreSQL 기동 (:5432)
+make db        # PostgreSQL 기동 (:5432) — 없으면 Docker로 띄웁니다
 make dev       # 블록체인 + 결제 서비스 + API/대시보드 → http://localhost:8080
 
 # 다른 터미널에서 — 협상 6종을 처음부터 끝까지
@@ -77,6 +88,11 @@ make tick      # 경제 루프 한 바퀴 (판매→카드정산→조달→재�
 make test      # 137개
 make help      # 전체 명령
 ```
+
+확인한 환경: macOS 15 (Apple Silicon) · Docker 29 · Solana CLI(Agave) 4.1 — 컨테이너 안은
+이미지에 고정되어 어디서나 같습니다 (Python 3.13 · Node 24 · postgres:16).
+Apple Silicon 참고: pay.sh CLI가 x86_64 전용이라 로컬 컨테이너에선 **시세 구매만 건너뜁니다**
+— 조달 흐름은 동일하고, 라이브(Cloud Run·amd64)에서는 켜져 있습니다.
 
 **개발은 로컬넷, 시연은 devnet.** `make localnet` / `make devnet`으로 전환합니다.
 환경 변수는 `backend/.env.example` · `payments/.env.example` 참고

@@ -33,7 +33,6 @@ CREATE INDEX IF NOT EXISTS documents_collection_idx ON documents (collection);
 CREATE INDEX IF NOT EXISTS documents_store_idx ON documents ((data ->> 'store_id'));
 -- 대시보드는 '그날 하루'만 읽는다 — 기록이 몇 달 쌓여도 화면은 하루치만 훑는다
 CREATE INDEX IF NOT EXISTS documents_day_idx ON documents (collection, updated_at DESC);
-CREATE INDEX IF NOT EXISTS events_ts_idx ON events (ts DESC);
 
 CREATE TABLE IF NOT EXISTS events (
     id       BIGSERIAL   PRIMARY KEY,
@@ -42,6 +41,9 @@ CREATE TABLE IF NOT EXISTS events (
     action   TEXT        NOT NULL,
     payload  JSONB       NOT NULL
 );
+
+-- 반드시 events 테이블 뒤에 — 빈 DB에서 이 파일이 처음 실행될 때의 순서가 곧 스키마다
+CREATE INDEX IF NOT EXISTS events_ts_idx ON events (ts DESC);
 """
 
 
