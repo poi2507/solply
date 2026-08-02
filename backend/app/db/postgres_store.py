@@ -115,6 +115,8 @@ class PostgresStore:
         for key, value in filters.items():
             if value is None:
                 continue
+            if not key.isidentifier():
+                raise ValueError(f"허용되지 않는 필터 키: {key!r}")
             sql += f" AND data ->> '{key}' = %s"
             params.append(str(value))
         sql += " ORDER BY updated_at"
@@ -128,6 +130,8 @@ class PostgresStore:
         for key, value in filters.items():
             if value is None:
                 continue
+            if not key.isidentifier():
+                raise ValueError(f"허용되지 않는 필터 키: {key!r}")
             sql += f" AND data ->> '{key}' = %s"
             params.append(str(value))
         with self.pool.connection() as conn:
