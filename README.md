@@ -82,6 +82,20 @@ make help      # 전체 명령
 **`LLM_PROVIDER=mock`이면 LLM 없이도 6종이 완주합니다** — 판단 규칙이 `llm/rules.py`에 따로 있어서,
 API 키 없이도 온체인 결제까지 그대로 검증할 수 있습니다.
 
+## 클라우드 배포 — 라이브는 이 저장소의 Docker 이미지 그대로입니다
+
+| 서비스 | Dockerfile | 배포 |
+|---|---|---|
+| `solply-api` (공개) | `./Dockerfile` — 컨텍스트는 **레포 루트** (대시보드 포함). pay.sh가 GLIBC 2.39를 요구해 `python:3.13-slim-trixie` 고정 | `gcloud run deploy solply-api --source . --clear-base-image --region us-central1` — **반드시 루트에서** |
+| `solply-payments` (비공개) | `payments/Dockerfile` — 지갑 키를 쥔 유일한 프로세스 | `--no-allow-unauthenticated` — 백엔드 서비스 계정만 호출 가능 |
+
+Cloud SQL · Secret Manager · Scheduler(10분 틱) 구성과 배포 중 겪은 문제들은
+[클라우드·pay.sh 구축 기록](docs/cloud-paysh-report.html)에 있습니다.
+심사용 데모 장면 재생성은 `gcloud run jobs execute solply-demo --region us-central1` 한 줄입니다.
+
+로컬에서는 위의 `make` 흐름을 쓰세요 — 로컬 체인(`solana-test-validator`)이 필요해서
+도커 단독으로는 전체 스택이 뜨지 않습니다.
+
 ## 구조
 
 ```
