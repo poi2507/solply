@@ -70,4 +70,3 @@
 
 - 참가 신청: 구글 폼 (poi2507.dev@gmail.com 계정으로), 신청 완료 여부 확인 필요
 - 상세 설계: [product-design.md](product-design.md)
-- 제출 체크리스트: [checklist.md](checklist.md)

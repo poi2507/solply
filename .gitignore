@@ -26,3 +26,6 @@ backend/data/state.json
 
 # dev 로그
 .dev-logs/
+
+# 내부 작업 문서 — 저장소 밖 (공개 저장소에 올리지 않는다)
+docs-internal/

@@ -250,7 +250,7 @@
 
 <header>
   <h1>솔플라이 — 클라우드 배포 & pay.sh 연동 기록</h1>
-  <p class="lede">7/29 밤(집)부터 7/30(회사)까지, 구글 클라우드에 라이브 시스템을 올리고
+  <p class="lede">7/29 밤부터 7/30까지 이틀에 걸쳐, 구글 클라우드에 라이브 시스템을 올리고
   pay.sh를 연동하기까지의 전 과정. 무엇을 왜 했는지, 어디서 막혔고 어떻게 뚫었는지를 순서대로 담았다.</p>
   <div class="meta-strip">
     <span class="meta-chip"><span class="dot"></span>라이브 <b>리비전 00010</b> 서빙 중</span>
@@ -304,7 +304,7 @@
 <!-- ══════════════ 2. 이틀의 타임라인 ══════════════ -->
 <section>
   <div class="sec-head"><span class="sec-no">02</span><h2>이틀 동안 무슨 일이 있었나</h2></div>
-  <p class="sec-sub">집 → 회사로 이어진 작업 순서 그대로.</p>
+  <p class="sec-sub">실제 작업 순서 그대로.</p>
 
   <div class="card">
     <ul class="tl">
@@ -376,7 +376,7 @@
     <p style="font-size:13.5px"><b>함정의 정체</b>: <code>--source .</code> 배포는 원래 Dockerfile을 쓰지만, 서비스에 빌드팩
     설정이 한 번이라도 남으면 그게 우선한다. 빌드팩은 시작 명령을 <code>uvicorn app:app</code>으로 추측하는데 실제는
     <code>app.main:app</code> — 그래서 ⑤에서 죽는다. <code>--clear-base-image</code>가 그 설정을 지워 Dockerfile로 되돌린다.
-    집(00003)과 회사(00006)가 같은 함정에 한 번씩 빠졌고, 이제 HANDOFF에 박제됐다.</p>
+    이틀 연속(리비전 00003, 00006) 같은 함정에 빠졌고, 이제 배포 절차에 박제됐다.</p>
   </div>
 
   <div class="card tbl-scroll">
@@ -403,7 +403,7 @@
 
   <div class="card">
     <p><b>왜</b> — 심사 기준 3은 "USDC · x402 · pay.sh를 실제 유스케이스에 녹였는가"를 본다. 우리는 USDC(정산 통화)와
-    x402(정산 프로토콜)는 처음부터 실사용이었지만 pay.sh만 비어 있었고, HANDOFF에 "정직한 약점 ②"로 적어뒀었다.</p>
+    x402(정산 프로토콜)는 처음부터 실사용이었지만 pay.sh만 비어 있었고, 인수인계 문서에 "정직한 약점 ②"로 적어뒀었다.</p>
     <p><b>무엇</b> — pay.sh는 솔라나 재단 + 구글 클라우드가 만든 <b>에이전트 전용 API 결제 도구</b>다. 방향이 중요하다:
     우리가 대금을 <em>받는</em> 레일이 아니라, <b>에이전트가 남의 유료 API를 쓰고 그 자리에서 USDC로 지불하는</b> 레일.
     사람처럼 회원가입·카드등록·API 키 발급을 못 하는 에이전트를 위해, HTTP 402(Payment Required) 챌린지를
@@ -507,7 +507,7 @@ pay --sandbox curl -s https://debugger.pay.sh/mpp/quote/AAPL
         <h3>3차 배포 <span class="rev">rev 00010</span></h3>
         <dl>
           <dt>결과</dt><dd><b>성공.</b> 라이브 에이전트가 시세를 사고, 같은 초에 그 데이터를 근거로 직거래를 제안했다 (아래 실제 로그)</dd>
-          <dt>남긴 것</dt><dd>두 함정 모두 HANDOFF에 기록 — 다음 사람(밤의 나)은 5분이면 안다</dd>
+          <dt>남긴 것</dt><dd>두 함정 모두 인수인계 문서에 기록 — 다음 사람은 5분이면 안다</dd>
         </dl>
       </div>
     </div>
