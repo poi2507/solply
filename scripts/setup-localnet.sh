@@ -2,19 +2,26 @@
 # Solply 로컬넷 개발 환경 셋업.
 # 주최측 권장(솔라나 세션 p17): 개발은 Localnet에서 무제한 반복, Devnet은 시연 직전에만.
 #
-# 사용법:
-#   1) 터미널 A: solana-test-validator --reset
-#   2) 터미널 B: bash scripts/setup-localnet.sh
-#   3) 출력된 USDC_MINT를 payments/.env 에 반영
+# 사용법: validator가 떠 있는 상태에서 bash scripts/setup-localnet.sh
+# (make dev가 새 validator를 띄울 때 자동 실행한다. 지갑·payments/.env가 없으면 만든다.)
 set -euo pipefail
 export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
 
 RPC="http://127.0.0.1:8899"
-DIR="$HOME/.config/solana/solply"
+DIR="${SOLPLY_WALLET_DIR:-$HOME/.config/solana/solply}"
 HQ_KEY="$DIR/hq.json"
 
 echo "▶ validator 연결 확인"
 solana cluster-version --url "$RPC" >/dev/null
+
+echo "▶ 지갑 4개 확인 — 없으면 생성"
+mkdir -p "$DIR"
+for n in hq store-a store-b store-c; do
+  if [ ! -f "$DIR/$n.json" ]; then
+    solana-keygen new --no-bip39-passphrase --silent --outfile "$DIR/$n.json" >/dev/null
+    echo "  + $n.json 생성"
+  fi
+done
 
 echo "▶ 지갑 4개에 SOL 에어드랍"
 for n in hq store-a store-b store-c; do
@@ -43,15 +50,21 @@ spl-token create-account "$MINT" --owner "$(solana-keygen pubkey "$HQ_KEY")" --u
 # 민트는 validator를 새로 띄울 때마다 바뀐다. 손으로 옮기게 두면 반드시 잊고,
 # 결제 서비스가 없는 민트를 붙들어 500을 낸다. 그래서 여기서 직접 갱신한다.
 ENV_FILE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/payments/.env"
-if [ -f "$ENV_FILE" ]; then
-  tmp=$(mktemp)
-  sed -e "s|^SOLANA_RPC_URL=.*|SOLANA_RPC_URL=$RPC|" \
-      -e "s|^SOLANA_NETWORK=.*|SOLANA_NETWORK=localnet|" \
-      -e "s|^USDC_MINT=.*|USDC_MINT=$MINT|" "$ENV_FILE" > "$tmp" && mv "$tmp" "$ENV_FILE"
-  echo "▶ payments/.env 갱신 (USDC_MINT=$MINT)"
-else
-  echo "⚠ payments/.env 가 없습니다. .env.example을 복사한 뒤 USDC_MINT=$MINT 를 넣으세요."
+if [ ! -f "$ENV_FILE" ]; then
+  cp "${ENV_FILE}.example" "$ENV_FILE"
+  echo "▶ payments/.env 생성 (.env.example 복사)"
 fi
+set_env() {  # set_env KEY VALUE — 있으면 교체, 없으면 추가
+  if grep -q "^$1=" "$ENV_FILE"; then
+    tmp=$(mktemp); sed "s|^$1=.*|$1=$2|" "$ENV_FILE" > "$tmp" && mv "$tmp" "$ENV_FILE"
+  else
+    echo "$1=$2" >> "$ENV_FILE"
+  fi
+}
+set_env SOLANA_RPC_URL "$RPC"
+set_env SOLANA_NETWORK localnet
+set_env USDC_MINT "$MINT"
+echo "▶ payments/.env 갱신 (USDC_MINT=$MINT)"
 
 cat <<EOF
 

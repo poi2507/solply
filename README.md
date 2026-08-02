@@ -61,6 +61,8 @@ pay.sh는 `--sandbox` 모드라 그 결제는 공개 체인에 남지 않고, **
 
 필요한 도구: **uv** · **Node 20+** · **Docker**(PostgreSQL용) · **Solana CLI**(`solana-test-validator`).
 체인 없이 로직만 확인하려면 `make setup` 후 `make test`만으로 충분합니다 (137개, 3초).
+첫 실행이면 `make dev`가 **지갑 생성 → SOL 에어드랍 → 로컬 USDC 발행 → `payments/.env` 기록**까지
+스스로 합니다 — 키를 준비할 필요가 없습니다.
 
 ```bash
 make setup     # 의존성 (backend: uv · payments: npm)

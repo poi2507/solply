@@ -28,6 +28,9 @@ chain:             ## 로컬 블록체인만 기동
 		--clone MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr \
 		--url https://api.mainnet-beta.solana.com
 
+localnet-setup:    ## 지갑 생성·에어드랍·로컬 USDC 발행 (make dev가 자동 실행 — 수동용)
+	bash scripts/setup-localnet.sh
+
 pay:               ## 결제 서비스만 (:3000)
 	cd payments && npm run dev
 
