@@ -277,12 +277,16 @@
   /* ── 도식: 시장 동심원 ── */
   .tsom { position: relative; height: 430px; }
   .tsom .ring { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); border-radius: 50%; }
-  .tsom .ring > b { position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
-    font-size: 12.6px; font-weight: 800; white-space: nowrap; }
-  .tsom .ring > s { position: absolute; top: 34px; left: 50%; transform: translateX(-50%);
-    text-decoration: none; font-size: 10.9px; white-space: nowrap; color: var(--faint); }
+  .tsom .ring > b { position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+    font-size: 12.6px; font-weight: 800; white-space: nowrap;
+    background: #fff; padding: 2px 10px; border-radius: 5px; }
+  .tsom .ring > s { position: absolute; top: 35px; left: 50%; transform: translateX(-50%);
+    text-decoration: none; font-size: 10.9px; white-space: nowrap; color: var(--faint);
+    background: #fff; padding: 1px 8px; border-radius: 5px; }
+  .tsom .stp { font-family: var(--mono); font-size: 9.5px; font-weight: 800; letter-spacing: .1em; color: #48705F; }
   .tsom .ring.som { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
     background: var(--tint); border: 2px solid var(--mint); }
+  .tsom .ring.som b, .tsom .ring.som s { background: transparent; padding: 0; }
   .tsom .ring.som b { position: static; transform: none; color: var(--mint); font-size: 21px; }
   .tsom .ring.som s { position: static; transform: none; color: #48705F; font-size: 11px; }
 
@@ -1130,31 +1134,31 @@
 <!-- 성장 가능성 -->
 <section class="slide">
   <div class="hd"><div class="mark"></div><h2>성장 — 같은 제품이 세 겹의 시장으로 커집니다</h2><div class="ctx">Ⅳ 사업 · <b>성장 가능성</b></div></div>
-  <p class="lede">지금의 수익 시나리오는 국내 가맹점의 <b>3%만</b> 계산한 것입니다. 그 바깥에,
-    같은 제품이 그대로 갈 수 있는 시장이 두 겹 더 있습니다.</p>
+  <p class="lede">앞 장의 수익 계산은 <b>1단계(침투 3%) 목표</b> 기준입니다. 그 바깥에,
+    같은 제품이 구조 변경 없이 밟아갈 단계가 두 겹 더 있습니다.</p>
   <div class="canvas">
     <div class="cols c-53" style="align-items:center">
       <div class="tsom">
         <div class="ring" style="width:430px; height:430px; border:1.6px dashed #C2CFC8">
-          <b style="color:#7C8B83">실물 B2B 정산 · 해외 프랜차이즈</b>
-          <s>검수와 협상이 있는 모든 공급망</s></div>
+          <b style="color:#7C8B83">STEP 3 — 해외 · 인접 산업</b>
+          <s>검수와 협상이 있는 실물 B2B 공급망</s></div>
         <div class="ring" style="width:280px; height:280px; border:1.6px solid #12A9B4">
-          <b style="color:#12A9B4">국내 프랜차이즈 전체 — 35만 지점</b>
-          <s>구독만으로 연 2,000억 규모</s></div>
-        <div class="ring som" style="width:150px; height:150px">
-          <b>연 87억</b><s>침투 3% · 10,500지점</s></div>
+          <b style="color:#12A9B4">STEP 2 — 국내 확산 · 침투 20%</b>
+          <s>7만 지점 · 구독만 연 400억 규모</s></div>
+        <div class="ring som" style="width:160px; height:160px">
+          <em class="stp">STEP 1</em><b>연 87억</b><s>침투 3% · 10,500지점</s></div>
       </div>
       <div style="display:flex; flex-direction:column; justify-content:space-evenly; gap:14px">
-        <div class="card tint"><h4>① 지금 — 국내 3%</h4><p>본사 50곳 안팎으로 연 87억.
-          이 원은 가정이 아니라 <b>이미 돌아가는 제품</b>의 단가 × 지점 수입니다.</p></div>
-        <div class="card"><h4>② 국내 전체 — 가맹점 35만</h4><p>물대 정산의 표준 레일이 되면
-          구독만으로 <b>연 2,000억 규모</b>(35만 지점 × 월 49,000원). 온체인 신용·여신이 그 위에 얹힙니다.</p></div>
-        <div class="card"><h4>③ 해외 · 인접 산업</h4><p>프랜차이즈 구조는 세계 공통이고,
+        <div class="card tint"><h4>STEP 1 — 중견 본사 50곳 · 침투 3%</h4><p>앞 장의 수익 계산이 이 단계입니다
+          (연 87억). <b>이미 돌아가는 제품</b>으로 시작하는 첫 목표입니다.</p></div>
+        <div class="card"><h4>STEP 2 — 국내 확산 · 침투 20%</h4><p>물대 정산의 표준 레일로 자리 잡으면
+          7만 지점 — 구독만 <b>연 400억 규모</b>. 온체인 신용·여신이 그 위에 얹힙니다.</p></div>
+        <div class="card"><h4>STEP 3 — 해외 · 인접 산업</h4><p>프랜차이즈 구조는 세계 공통이고,
           검수와 분쟁이 있는 <b>실물 B2B 공급망</b> 전체가 같은 문제를 갖고 있습니다.</p></div>
       </div>
     </div>
-    <div class="band">안쪽 원만 숫자로 약속하고, 바깥 두 원은 방향으로 말합니다 —
-      <b>지금 제품이 구조 변경 없이 그대로 커지는 경로</b>라는 것이 핵심입니다.</div>
+    <div class="band">숫자로 약속하는 것은 <b>1단계뿐</b>입니다 — 바깥 두 원은 같은 제품이
+      재설계 없이 밟아갈 방향이고, 단계마다 필요한 것은 영업이지 개발이 아닙니다.</div>
   </div>
   <div class="foot">Solply</div><span class="pageno">23</span>
 </section>
