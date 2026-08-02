@@ -263,6 +263,17 @@
   .chain .ck s { display: block; text-decoration: none; font-size: 10.6px; color: var(--faint); margin-top: 2px; }
   .chain i { font-style: normal; color: #93ACA0; font-weight: 800; font-size: 15px; }
 
+  /* ── 시스템 구성도 ── */
+  .arch { position: relative; height: 400px; }
+  .arch svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .zone { position: absolute; border: 1.6px dashed #A9C3B6; border-radius: 14px; }
+  .zone em { position: absolute; top: -8px; left: 16px; font-style: normal; font-family: var(--mono);
+    font-size: 10px; letter-spacing: .1em; color: #5E8272; font-weight: 700; background: #fff; padding: 0 7px; }
+  .bignode { position: absolute; border: 1.6px solid var(--mint); border-radius: 11px;
+    background: var(--tint); padding: 11px 14px; }
+  .bignode h4 { font-size: 12.8px; font-weight: 800; margin-bottom: 6px; }
+  .bignode p { font-size: 10.8px; color: var(--muted); line-height: 1.66; word-break: keep-all; }
+
   /* ── 표 ── */
   table { width: 100%; border-collapse: collapse; }
   th { font-size: 10.8px; letter-spacing: .06em; color: var(--faint); text-align: left;
@@ -566,34 +577,47 @@
 
 <!-- 05 · 아키텍처 -->
 <section class="slide">
-  <div class="hd"><div class="mark"></div><h2>아키텍처 — 네 층이 각자 맡습니다</h2><div class="ctx">Ⅱ 기술 · <b>아키텍처</b></div></div>
-  <p class="lede">돈을 움직이는 판단은 <b>경로가 드러나는 그래프</b>가, 사람과의 대화는 <b>도구를 고르는 에이전트</b>가 —
-    프레임워크를 둘로 나눈 것이 설계의 핵심입니다.</p>
+  <div class="hd"><div class="mark"></div><h2>아키텍처 — 전체 구성도</h2><div class="ctx">Ⅱ 기술 · <b>아키텍처</b></div></div>
+  <p class="lede">서비스 둘, 데이터베이스 하나, 그리고 체인 — <b>지갑 키를 든 결제 서비스만 비공개로 분리</b>한 것이
+    이 구성의 중심입니다.</p>
   <div class="canvas">
-    <div class="layers">
-      <div class="layer"><div class="tag">사람</div><div class="items">
-        <div class="chip"><b>점주 · 본사 정산팀</b><s>정책을 정하고 경계에서만 승인</s></div>
-        <div class="chip"><b>손님 <span class="mono">/shop</span></b><s>구매가 수요를 만든다</s></div>
-        <div class="chip"><b>정산 어시스턴트 (ADK)</b><s>대화로 조회·승인 — 권한은 화면 버튼과 동일</s></div>
-      </div></div>
-      <div class="layer on"><div class="tag">에이전트<br>판단</div><div class="items">
-        <div class="chip key"><b>지점 에이전트 ×3</b><s>검수 → 협상 → 결제 (LangGraph 15노드)</s></div>
-        <div class="chip key"><b>본사 에이전트</b><s>청구 · 심사 · 3중 대조 정산 확정</s></div>
-        <div class="chip"><b>Gemini (Vertex AI)</b><s>차감·유예·직거래 심사 판단</s></div>
-        <div class="chip"><b>정책 <span class="mono">core/policy</span></b><s>한도·기준은 DB에서 주입 — 프롬프트에 숫자 없음</s></div>
-      </div></div>
-      <div class="layer on"><div class="tag">결제<br>Solana</div><div class="items">
-        <div class="chip key"><b>x402 왕복</b><s>402 조건 제시 → 지불 → 서명 제출 → 정산 확정</s></div>
-        <div class="chip"><b>USDC (devnet)</b><s>물대 · 직거래 · 카드매출 정산</s></div>
-        <div class="chip"><b>memo 증빙</b><s>청구서 번호를 체인에 새겨 대조</s></div>
-        <div class="chip"><b>pay.sh</b><s>판단 재료(시세) 구매</s></div>
-      </div></div>
-      <div class="layer"><div class="tag">Google<br>Cloud</div><div class="items">
-        <div class="chip"><b>Cloud Run ×2</b><s>공개 API · 지갑 키를 든 결제 서비스(비공개)</s></div>
-        <div class="chip"><b>Cloud SQL</b><s>문서 + append-only 증빙 로그</s></div>
-        <div class="chip"><b>Cloud Scheduler</b><s>10분마다 경제 루프</s></div>
-        <div class="chip"><b>Secret Manager</b><s>지갑 키 4개</s></div>
-      </div></div>
+    <div class="arch">
+      <div class="zone" style="left:210px; top:8px; width:750px; height:388px"><em>GOOGLE CLOUD — 한 프로젝트</em></div>
+      <svg viewBox="0 0 1164 400">
+        <defs><marker id="ar-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7"
+          orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#93ACA0"/></marker></defs>
+        <g fill="none" stroke="#93ACA0" stroke-width="1.6" marker-end="url(#ar-ah)">
+          <path d="M160 80 L246 90"/><path d="M160 176 L246 150"/>
+          <path d="M330 222 L330 168"/><path d="M534 72 L636 66"/>
+          <path d="M534 120 L636 158"/><path d="M500 164 L656 240"/>
+          <path d="M474 334 L636 312"/><path d="M924 292 L996 286"/>
+          <path d="M534 100 L996 106"/>
+        </g>
+      </svg>
+      <div class="fn" style="left:0; top:56px; width:160px"><b>본사 정산팀 · 점주</b><s>브라우저 대시보드</s></div>
+      <div class="fn" style="left:0; top:152px; width:160px"><b>손님 · 심사위원</b><s>/shop 구매 한 번</s></div>
+      <div class="bignode" style="left:250px; top:40px; width:280px">
+        <h4>Cloud Run — solply-api <span style="color:var(--mint)">공개</span></h4>
+        <p>FastAPI · 라우터 8 · SSE 실시간<br>LangGraph 에이전트 (지점 3 + 본사)<br>
+          ADK 정산 어시스턴트<br>정적 대시보드 · /shop</p></div>
+      <div class="fn" style="left:250px; top:224px; width:220px"><b>Cloud Scheduler</b><s>*/10 — 경제 틱 호출</s></div>
+      <div class="fn" style="left:250px; top:312px; width:220px"><b>Secret Manager</b><s>지갑 키 4개</s></div>
+      <div class="fn" style="left:640px; top:40px; width:212px"><b>Vertex AI — Gemini</b><s>본사 2.5 Flash · 지점 Flash-Lite</s></div>
+      <div class="fn" style="left:640px; top:136px; width:212px"><b>Cloud SQL — PostgreSQL</b><s>documents JSONB · events 추가 전용</s></div>
+      <div class="bignode" style="left:640px; top:240px; width:284px; border-style:solid">
+        <h4>Cloud Run — solply-payments <span style="color:#B0483C">비공개</span></h4>
+        <p>TypeScript · Solana SDK · x402 결제 실행<br>지갑 보관 — 인터넷 비노출, 내부 호출 전용</p></div>
+      <div class="fn" style="left:1000px; top:258px; width:160px; border-color:#8FD0D8"><b>Solana devnet</b><s>USDC · 익스플로러 공개 검증</s></div>
+      <div class="fn" style="left:1000px; top:84px; width:160px; border-color:#E0C08D"><b>pay.sh 샌드박스</b><s>시세 구매 · 영수증</s></div>
+      <div class="fe" style="left:168px; top:58px">HTTPS · SSE</div>
+      <div class="fe" style="left:174px; top:180px">/shop</div>
+      <div class="fe" style="left:340px; top:188px">10분마다</div>
+      <div class="fe" style="left:544px; top:50px">판단 요청</div>
+      <div class="fe" style="left:534px; top:132px">문서 · 증빙 로그</div>
+      <div class="fe warn" style="left:505px; top:196px">결제 지시 — 내부 전용</div>
+      <div class="fe" style="left:500px; top:330px">키 주입</div>
+      <div class="fe" style="left:872px; top:306px">USDC 전송 · 서명</div>
+      <div class="fe" style="left:730px; top:82px">시세 구매 (CLI)</div>
     </div>
     <div class="band"><b>지갑 열쇠는 한 곳에만</b> 있습니다. 결제 서비스만 키를 들고, Cloud Run에서 인터넷에 노출되지
       않게 잠갔습니다 — 사고가 나도 어디서 났는지 알 수 있는 구조입니다.</div>
