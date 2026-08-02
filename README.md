@@ -87,7 +87,7 @@ pay.sh는 `--sandbox` 모드라 그 결제는 공개 체인에 남지 않고, **
 
 ```bash
 make chain            # 터미널 1 — 로컬 블록체인
-make localnet-setup   # 터미널 2 — 첫 1회: 지갑 생성·SOL·로컬 USDC (payments/.env 자동 기록)
+make localnet-setup   # 터미널 2 — 첫 1회: 지갑 생성·SOL·로컬 USDC (.env 자동 기록 — compose가 지갑 경로를 이어받습니다)
 docker compose up --build                 # DB + 결제 + API → http://localhost:8080
 docker compose exec api python demo.py    # 협상 6종 — 온체인 결제 포함 완주
 ```

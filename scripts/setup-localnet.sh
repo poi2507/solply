@@ -66,6 +66,17 @@ set_env SOLANA_NETWORK localnet
 set_env USDC_MINT "$MINT"
 echo "▶ payments/.env 갱신 (USDC_MINT=$MINT)"
 
+# docker compose가 어느 터미널에서 떠도 같은 지갑을 보도록 루트 .env에 기록한다.
+# (환경변수는 터미널을 벗어나면 사라져서, setup과 compose를 다른 터미널에서
+#  실행하면 자금 없는 기본 지갑이 마운트되는 함정이 있었다)
+ROOT_ENV="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/.env"
+if grep -q "^SOLPLY_WALLET_DIR=" "$ROOT_ENV" 2>/dev/null; then
+  tmp=$(mktemp); sed "s|^SOLPLY_WALLET_DIR=.*|SOLPLY_WALLET_DIR=$DIR|" "$ROOT_ENV" > "$tmp" && mv "$tmp" "$ROOT_ENV"
+else
+  echo "SOLPLY_WALLET_DIR=$DIR" >> "$ROOT_ENV"
+fi
+echo "▶ 루트 .env에 지갑 경로 기록 ($DIR)"
+
 cat <<EOF
 
 ✅ 로컬넷 준비 완료 — payments/.env 는 자동 갱신됐습니다.
