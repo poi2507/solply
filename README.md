@@ -11,7 +11,6 @@
 | 🟢 **지금 돌고 있는 화면** | **https://solply-api-965647250280.us-central1.run.app** |
 | 🛒 손님으로 참여해보기 | [/shop](https://solply-api-965647250280.us-central1.run.app/shop) — 구매 한 번이 에이전트 조달을 일으킵니다 |
 | 🎬 데모 영상 (2분 55초) | 제출물에 함께 첨부했습니다 · 장면별 대본은 [video-script.md](docs/video-script.md) |
-| 📖 코드 레벨 해부도 | [deep-dive.html](docs/deep-dive.html) — 8부 26장, 브라우저로 열면 됩니다 |
 
 ---
 
@@ -158,8 +157,8 @@ frontend/              빌드 없는 정적 대시보드 + 손님 페이지
 scripts/video/         Playwright + ffmpeg 촬영기 — 코드가 바뀌면 영상을 다시 만든다
 ```
 
-설계 의도와 코드 레벨 설명은 **[deep-dive.html](docs/deep-dive.html)** (8부 26장)에 있습니다 —
-왜 프레임워크를 둘 쓰는지, 왜 재고를 저장하지 않는지, 어떤 버그를 어떻게 잡았는지까지.
+설계 의도는 [제품 설계](docs/product-design.md)와 [의사결정 로그](docs/decision-log.md)에 있습니다 —
+왜 프레임워크를 둘 쓰는지, 왜 재고를 저장하지 않는지까지.
 
 ## 더 읽을 것
 
