@@ -93,8 +93,10 @@ Cloud SQL · Secret Manager · Scheduler(10분 틱) 구성과 배포 중 겪은 
 [클라우드·pay.sh 구축 기록](docs/cloud-paysh-report.html)에 있습니다.
 심사용 데모 장면 재생성은 `gcloud run jobs execute solply-demo --region us-central1` 한 줄입니다.
 
-로컬에서는 위의 `make` 흐름을 쓰세요 — 로컬 체인(`solana-test-validator`)이 필요해서
-도커 단독으로는 전체 스택이 뜨지 않습니다.
+로컬 실행은 위의 `make` 흐름을 쓰세요. 이미지 두 개에는 API·결제 서비스만 담겨 있는데,
+로컬에서는 결제가 붙을 블록체인(로컬넷)이 하나 더 필요하고 그건 도커가 아니라 호스트의
+Solana CLI(`solana-test-validator`)로 띄우기 때문입니다 — `make dev`가 체인·결제·API를 한 번에 올립니다.
+(클라우드에서는 공개 devnet에 접속하므로 이미지 두 개로 충분합니다.)
 
 ## 구조
 
