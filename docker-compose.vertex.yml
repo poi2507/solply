@@ -1,0 +1,17 @@
+# Vertex AI 오버레이 — 라이브(Cloud Run)와 동일한 판단 스택으로 로컬 실행.
+#
+# 전제: GCP 프로젝트 + `gcloud auth application-default login` (ADC 자격증명 파일 생성)
+#
+#   GOOGLE_CLOUD_PROJECT=<프로젝트ID> SOLPLY_LLM=vertex \
+#     docker compose -f docker-compose.yml -f docker-compose.vertex.yml up --build
+#
+# 기본 compose와 분리한 이유: ADC 파일이 없는 컴퓨터에서 이 마운트가 있으면
+# 기본(mock) 경로까지 뜨지 않는다 — Vertex를 쓰는 사람만 이 파일을 겹쳐 쓴다.
+services:
+  api:
+    environment:
+      GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT:?GCP 프로젝트 ID가 필요합니다}
+      GOOGLE_CLOUD_LOCATION: ${GOOGLE_CLOUD_LOCATION:-us-central1}
+      GOOGLE_APPLICATION_CREDENTIALS: /secrets/adc.json
+    volumes:
+      - ~/.config/gcloud/application_default_credentials.json:/secrets/adc.json:ro
