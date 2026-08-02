@@ -59,6 +59,9 @@ pay.sh는 `--sandbox` 모드라 그 결제는 공개 체인에 남지 않고, **
 
 ## 직접 돌려보기
 
+필요한 도구: **uv** · **Node 20+** · **Docker**(PostgreSQL용) · **Solana CLI**(`solana-test-validator`).
+체인 없이 로직만 확인하려면 `make setup` 후 `make test`만으로 충분합니다 (137개, 3초).
+
 ```bash
 make setup     # 의존성 (backend: uv · payments: npm)
 make db        # PostgreSQL 기동 (:5432)
