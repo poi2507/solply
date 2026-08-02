@@ -114,7 +114,7 @@ API 키 없이도 온체인 결제까지 그대로 검증할 수 있습니다.
 | 서비스 | Dockerfile | 배포 |
 |---|---|---|
 | `solply-api` (공개) | `./Dockerfile` — 컨텍스트는 **레포 루트** (대시보드 포함). pay.sh가 GLIBC 2.39를 요구해 `python:3.13-slim-trixie` 고정 | `gcloud run deploy solply-api --source . --clear-base-image --region us-central1` — **반드시 루트에서** |
-| `solply-payments` (비공개) | `payments/Dockerfile` — 지갑 키를 쥔 유일한 프로세스 | `--no-allow-unauthenticated` — 백엔드 서비스 계정만 호출 가능 |
+| `solply-payments` (비공개) | `payments/Dockerfile` — 지갑 키를 쥔 유일한 프로세스. **Solana SDK**(`@solana/web3.js`)로 USDC 전송·서명을 코드에서 직접 실행 — 에이전트가 사람 없이 결제하는 손이 이것 | `--no-allow-unauthenticated` — 백엔드 서비스 계정만 호출 가능 |
 
 Cloud SQL · Secret Manager · Scheduler(10분 틱) 구성과 배포 중 겪은 문제들은
 [클라우드·pay.sh 구축 기록](docs/cloud-paysh-report.html)에 있습니다.
