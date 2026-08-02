@@ -10,7 +10,7 @@
 |---|---|
 | 🟢 **지금 돌고 있는 화면** | **https://solply-api-965647250280.us-central1.run.app** |
 | 🛒 손님으로 참여해보기 | [/shop](https://solply-api-965647250280.us-central1.run.app/shop) — 구매 한 번이 에이전트 조달을 일으킵니다 |
-| 🎬 데모 영상 (2분 55초) | 제출물에 함께 첨부했습니다 · 장면별 대본은 [video-script.md](docs/video-script.md) |
+| 🎬 데모 영상 (2분 55초) | **https://youtu.be/Tx40wJV4UVQ** · 장면별 대본은 [video-script.md](docs/video-script.md) |
 
 ---
 
