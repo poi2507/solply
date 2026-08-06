@@ -168,6 +168,14 @@ scripts/video/         Playwright + ffmpeg 촬영기 — 코드가 바뀌면 영
 설계 의도는 [제품 설계](docs/product-design.md)와 [의사결정 로그](docs/decision-log.md)에 있습니다 —
 왜 프레임워크를 둘 쓰는지, 왜 재고를 저장하지 않는지까지.
 
+## 오류 수정사항
+
+라이브를 계속 운영하며 발견한 문제와 수리 기록입니다.
+
+- **8/6** — 마진 없는 가격 구조 + 카드정산 중단으로 지점 지갑이 본사로 쏠려 마르던 문제 수리 ([`3a68be1`](../../commit/3a68be1))
+- **8/2** — setup과 `docker compose`를 다른 터미널에서 실행하면 자금 없는 지갑이 마운트되던 문제 수리 ([`8c052f3`](../../commit/8c052f3))
+- **7/29** — 새 DB에서 "잔액 부족 → 유예 협상" 시나리오의 전제가 성립하지 않던 문제 수리 ([`f4a4535`](../../commit/f4a4535))
+
 ## 더 읽을 것
 
 [제품 설계](docs/product-design.md) · [수익 모델](docs/revenue-model.md) · [의사결정 로그](docs/decision-log.md) ·
