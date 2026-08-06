@@ -28,7 +28,9 @@ def test_sales_move_ledger_and_accrue_till():
     assert sold, "재고가 있는데 아무것도 안 팔리면 rng 경계가 잘못된 것"
     for sale in sold:
         assert sale["qty"] > 0
-        assert sale["revenue"] == pytest.approx(sale["qty"] * economy._sku_price(sale["sku"]))
+        assert sale["revenue"] == pytest.approx(
+                round(sale["qty"] * economy._sku_price(sale["sku"]) * economy.RETAIL_MARGIN, 2)
+            ), "매출 = 공급가 × 마진 — 마진 없이는 지점 순현금흐름이 0이라 마찰 손실만 남는다"
         till = db.get(economy.TILL, sale["store_id"])
         assert till["accrued_usdc"] > 0
     # 판매는 원장(sold 이동)을 지나므로 현재고가 그만큼 줄어야 한다
@@ -58,19 +60,44 @@ def test_card_settlement_pays_accrued_and_resets(monkeypatch):
     assert [e for e in db.list_events() if e["action"] == "card.settled"]
 
 
-def test_card_settlement_respects_hq_reserve(monkeypatch):
-    """hq 잔액이 바닥이면 지급하지 않는다 — 생태계가 마이너스로 가지 않게."""
+def test_card_settlement_pays_partially_within_hq_reserve(monkeypatch):
+    """hq 가용액(잔액−예비 5)까지 **부분 지급**하고 잔여 채권은 금고에 남긴다.
+
+    통째로 건너뛰면 금고가 hq 잔액보다 커지는 순간 영원히 못 받는다 —
+    8/6 라이브에서 카드정산이 멈춰 지점 돈이 말랐던 사고의 회귀 가드.
+    """
     db.put(economy.TILL, "store-c", {"accrued_usdc": 50.0})
+    paid = []
     monkeypatch.setattr(
         "app.core.economy.payments.balance",
         lambda w: {"address": f"{w}-ADDR", "usdc": 10.0, "sol": 1},
     )
     monkeypatch.setattr(
         "app.core.economy.payments.pay",
-        lambda *a: pytest.fail("예비금을 깨고 지급하면 안 된다"),
+        lambda src, to, amount, memo: paid.append((to, amount)) or {"signature": "S"},
     )
-    assert economy.settle_cards() == []
+    result = economy.settle_cards()
+
+    assert paid == [("store-c-ADDR", 5.0)], "가용액 10−5=5까지만 지급"
+    assert result == [{"store_id": "store-c", "amount_usdc": 5.0}]
+    assert db.get(economy.TILL, "store-c")["accrued_usdc"] == pytest.approx(45.0), "잔여 채권 보존"
     db.put(economy.TILL, "store-c", {"accrued_usdc": 0.0})  # 다른 테스트 오염 방지
+
+
+def test_card_settlement_failure_preserves_till(monkeypatch):
+    """지급 실패는 그 지점만 건너뛰고 금고를 보존한다 — 다음 틱이 재시도한다."""
+    db.put(economy.TILL, "store-c", {"accrued_usdc": 3.0})
+    monkeypatch.setattr(
+        "app.core.economy.payments.balance",
+        lambda w: {"address": f"{w}-ADDR", "usdc": 100.0, "sol": 1},
+    )
+    def boom(*a):
+        raise RuntimeError("devnet 일시 오류")
+    monkeypatch.setattr("app.core.economy.payments.pay", boom)
+
+    assert economy.settle_cards() == []
+    assert db.get(economy.TILL, "store-c")["accrued_usdc"] == pytest.approx(3.0)
+    db.put(economy.TILL, "store-c", {"accrued_usdc": 0.0})
 
 
 def test_fulfill_order_creates_readable_delivery_and_invoice():
@@ -128,7 +155,7 @@ def test_visitor_purchase_moves_ledger_and_till():
     assert data["remaining"] == before_qty - 1
     assert "next" in data
     till = db.get(economy.TILL, "store-c")["accrued_usdc"]
-    assert till == pytest.approx(before_till + economy._sku_price("CHK-10"))
+    assert till == pytest.approx(before_till + round(economy._sku_price("CHK-10") * economy.RETAIL_MARGIN, 2))
     move = db.list_docs("inventory_moves")[-1]
     assert move["reason"] == "sold" and move["ref"] == "손님 구매 (라이브)"
 

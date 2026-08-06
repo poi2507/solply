@@ -119,7 +119,12 @@ def execute_payment(
 
     pay_to = term["payTo"] if term else payments.balance("hq")["address"]
     memo = (term or {}).get("extra", {}).get("memo") or invoice_id
-    result = payments.pay(store_id, pay_to, amount, memo)
+    try:
+        result = payments.pay(store_id, pay_to, amount, memo)
+    except Exception as exc:  # noqa: BLE001 — devnet 일시 오류. 청구서는 미결로 남아 다음 주기에 재시도된다
+        utils.log(actor, "payment.failed",
+                  {"invoice_id": invoice_id, "amount": amount, "reason": str(exc)[:160]})
+        return utils.error(f"결제 실패(일시 오류) — 청구서는 미결로 유지: {exc}")
 
     if term:
         receipt = x402_client.submit_payment(invoice_id, result["signature"]).get("receipt", {})

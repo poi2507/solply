@@ -304,7 +304,10 @@ async def main() -> None:
     args = parser.parse_args()
 
     if not args.keep:
-        db.reset(keep=("policies",))  # 사용자가 설정한 거래 정책은 남긴다
+        # 정책 = 사용자 설정, till = 지점이 아직 지급받지 못한 매출채권.
+        # till을 지우면 지점이 이미 돈 주고 산 재고의 매출이 증발해 지점→본사로
+        # 부가 편향된다 (라이브에서 3시간마다 리셋이 돌며 실제로 그렇게 샜다).
+        db.reset(keep=("policies", "till"))
 
     banner("SOLPLY — 프랜차이즈 식자재 대금 자율 정산", "hq")
     mode = "규칙 기반(mock)" if config.LLM_PROVIDER == "mock" else f"{config.LLM_PROVIDER} · {config.HQ_MODEL}"

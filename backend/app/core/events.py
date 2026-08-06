@@ -27,6 +27,7 @@ ACTION_LABELS: dict[str, str] = {
     "payment.refused": "결제 거부",
     "payment.blocked_over_limit": "한도 초과 차단",
     "payment.needs_approval": "사람 승인 요청",
+    "payment.failed": "결제 실패 (재시도 예정)",
     # x402 왕복
     "x402.payment_required": "x402 결제 요구 (402)",
     "x402.terms_received": "x402 조건 수신",
@@ -50,6 +51,7 @@ ACTION_LABELS: dict[str, str] = {
     # 라이브 경제 루프
     "inventory.sold": "판매 (재고 차감)",
     "card.settled": "카드매출 정산 지급",
+    "card.settle_failed": "카드정산 지급 실패 (재시도 예정)",
     "warehouse.restocked": "본사 창고 재입고",
     "market.quote_purchased": "시세 데이터 구매 (pay.sh)",
     "tick.completed": "경제 루프 한 바퀴",
