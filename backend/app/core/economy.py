@@ -132,9 +132,14 @@ def settle_cards() -> list[dict]:
     """
     paid = []
     available = payments.balance("hq")["usdc"] - 5.0  # hq 운영 예비
-    for store_id in fixtures.load()["stores"]:
-        till = db.get(TILL, store_id)
-        accrued = round((till or {}).get("accrued_usdc", 0.0), 2)
+    # 금고가 작은 지점부터 — 고정 순서로 돌면 가용액이 빠듯할 때 첫 지점(금고가 가장
+    # 큰 a)이 매 틱 전액을 흡수해 나머지가 굶는다 (8/7 라이브: 카드정산 158.95가
+    # 전부 a로만). 소액을 먼저 완납하면 모든 지점이 매 틱 환류를 받는다.
+    def _accrued(store_id: str) -> float:
+        return round((db.get(TILL, store_id) or {}).get("accrued_usdc", 0.0), 2)
+
+    for store_id in sorted(fixtures.load()["stores"], key=_accrued):
+        accrued = _accrued(store_id)
         amount = round(min(accrued, available), 2)
         if amount <= 0.01:
             continue
