@@ -19,7 +19,9 @@ def get_settlement_overview() -> dict:
     by_status: dict[str, int] = {}
     for inv in invoices:
         by_status[inv["status"]] = by_status.get(inv["status"], 0) + 1
-    trades = db.list_docs("p2p_trades")
+    # 직거래는 최근 것만 — 전량(수천 건)을 LLM 프롬프트에 밀어 넣지 않는다
+    trades = sorted(db.list_docs("p2p_trades"),
+                    key=lambda t: t.get("updated_at", ""))[-10:]
     return {
         "invoices_by_status": by_status,
         # 받을 돈의 정의는 core/status.py 하나에서만 온다 — 대시보드와 숫자가 갈라지지 않게
@@ -61,10 +63,13 @@ def get_store_credit(store_id: str) -> dict:
 
 def list_pending_approvals() -> list[dict]:
     """사람 승인을 기다리는 결제 목록 — 자동결제 상한을 넘어 에이전트가 멈춘 건들."""
+    docs = db.list_docs("invoices", status="pending_approval")
+    docs += [d for d in db.list_docs("invoices", status="refused")
+             if not d.get("human_reviewed")]
     return [
-        {"id": d["id"], "store_id": d["store_id"], "amount_usdc": d["amount_usdc"]}
-        for d in db.list_docs("invoices")
-        if d["status"] == "pending_approval"
+        {"id": d["id"], "store_id": d["store_id"], "amount_usdc": d["amount_usdc"],
+         "kind": "상한 초과 승인 대기" if d["status"] == "pending_approval" else "거부 검토"}
+        for d in docs
     ]
 
 

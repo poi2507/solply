@@ -230,3 +230,34 @@ def test_visitor_purchase_guards():
                        json={"store_id": "store-a", "sku": "CHK-10", "qty": 9}).status_code == 422
     assert client.post("/api/shop/purchase",
                        json={"store_id": "store-a", "sku": "LOB-01", "qty": 1}).status_code == 409
+
+
+def test_refused_invoice_reaches_human_queue_and_can_be_confirmed():
+    """"거부하고 사람에게 넘긴다"가 화면의 사실이어야 한다 — 거부 건은 승인 큐에
+    올라오고, 사람이 확정하면 큐에서 내려간다. (8/7: 거부 42건이 어떤 큐에도 없었다)"""
+    db.put("invoices", "INV-TEST-REFUSED", {
+        "id": "INV-TEST-REFUSED", "store_id": "store-a", "status": "refused",
+        "amount_usdc": 3.0, "items": [],
+    })
+
+    queue = client.get("/api/approvals").json()["pending"]
+    assert any(d["id"] == "INV-TEST-REFUSED" for d in queue), "거부 건이 사람 큐에 보여야 한다"
+
+    res = client.post("/api/approvals/INV-TEST-REFUSED/decide",
+                      json={"decision": "reject"})
+    assert res.status_code == 200 and res.json()["outcome"] == "refused"
+
+    queue = client.get("/api/approvals").json()["pending"]
+    assert not any(d["id"] == "INV-TEST-REFUSED" for d in queue), "확정한 건은 큐에서 내려간다"
+
+
+def test_split_rejects_refused_invoice():
+    """거부된 청구서는 분할할 수 없다 — 상태 목록을 손으로 적다 빠뜨렸던 구멍."""
+    from app.agents.hq import tools as hq_tools
+
+    db.put("invoices", "INV-TEST-NOSPLIT", {
+        "id": "INV-TEST-NOSPLIT", "store_id": "store-a", "status": "refused",
+        "amount_usdc": 8.0, "items": [],
+    })
+    result = hq_tools.split_invoice("INV-TEST-NOSPLIT", parts=2)
+    assert result.get("error"), "refused는 분할 금지"

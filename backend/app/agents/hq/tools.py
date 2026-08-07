@@ -119,7 +119,9 @@ def split_invoice(invoice_id: str, parts: int = 2) -> dict:
     invoice = utils.get_invoice(invoice_id)
     if not invoice:
         return utils.error(f"청구서 없음: {invoice_id}")
-    if invoice["status"] in ("paid", "settled", "split"):
+    if invoice["status"] not in status_mod.ACTIONABLE:
+        # 손으로 적은 목록엔 refused가 빠져 있었다 — 거부된 청구서가 분할됐다.
+        # 받을 수 있고 아직 열려 있는 상태의 정의는 core/status.py 한 곳에서만 온다.
         return utils.error(f"분할할 수 없는 상태: {invoice['status']}")
 
     per = round(invoice["amount_usdc"] / parts, 2)

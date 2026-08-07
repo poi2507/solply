@@ -38,7 +38,7 @@ def _simulate_card_settlement(store_id: str, invoice_amount: float) -> float:
 @router.get("")
 def list_scheduled() -> dict:
     """예약(유예 합의) 상태의 청구서 목록."""
-    docs = [d for d in store.list_docs("invoices") if d["status"] == "scheduled"]
+    docs = store.list_docs("invoices", status="scheduled")
     return {"scheduled": sorted(docs, key=lambda d: d.get("updated_at", ""))}
 
 

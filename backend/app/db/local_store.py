@@ -77,6 +77,11 @@ class LocalStore:
     def count_docs(self, collection: str, **filters) -> int:
         return len(self.list_docs(collection, **filters))
 
+    def events_for(self, invoice_ids: tuple[str, ...]) -> list[dict]:
+        wanted = set(invoice_ids)
+        return [e for e in self.list_events()
+                if (e.get("payload") or {}).get("invoice_id") in wanted]
+
     def count_stale(self, collection: str, statuses: tuple[str, ...], before: str,
                     **filters) -> int:
         return sum(

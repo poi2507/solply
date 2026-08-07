@@ -1,8 +1,11 @@
 """사람 승인 API — 에이전트 자율성의 경계.
 
-에이전트가 정책 상한을 넘는 결제를 만나면 `pending_approval`로 멈춘다.
-여기서 사람이 승인하면 에이전트가 이어서 결제하고(x402 왕복 그대로),
-반려하면 거기서 끝난다. 사람의 개입은 전부 실행 증빙(actor=human)으로 남는다.
+사람 몫이 두 종류 온다:
+  pending_approval — 정책 상한 초과. 승인하면 에이전트가 이어서 결제한다.
+  refused          — 발주 기록 없는 청구를 에이전트가 거부한 것. "거부하고
+                     사람에게 넘긴다"고 말했으면 실제로 사람 앞에 도착해야 한다.
+                     재발행(발주가 실제로 있었다면)하거나 거부를 확정한다.
+사람의 개입은 전부 실행 증빙(actor=human)으로 남는다.
 """
 
 from fastapi import APIRouter, HTTPException
@@ -21,8 +24,10 @@ class Decision(BaseModel):
 
 @router.get("")
 def list_pending() -> dict:
-    """사람 승인을 기다리는 청구서 목록."""
-    docs = [d for d in store.list_docs("invoices") if d["status"] == "pending_approval"]
+    """사람 손을 기다리는 청구서 목록 — 승인 대기와, 아직 확인 안 된 거부 건."""
+    docs = store.list_docs("invoices", status="pending_approval")
+    docs += [d for d in store.list_docs("invoices", status="refused")
+             if not d.get("human_reviewed")]
     return {"pending": sorted(docs, key=lambda d: d.get("updated_at", ""))}
 
 
@@ -31,8 +36,10 @@ async def decide(invoice_id: str, body: Decision) -> dict:
     invoice = store.get("invoices", invoice_id)
     if not invoice:
         raise HTTPException(404, f"청구서 없음: {invoice_id}")
-    if invoice["status"] != "pending_approval":
-        raise HTTPException(409, f"승인 대기 상태가 아님: {invoice['status']}")
+    if invoice["status"] not in ("pending_approval", "refused"):
+        raise HTTPException(409, f"사람 결정 대상이 아님: {invoice['status']}")
+    if invoice["status"] == "refused" and invoice.get("human_reviewed"):
+        raise HTTPException(409, "이미 사람이 확인한 거부 건")
     if body.decision not in ("approve", "reject"):
         raise HTTPException(400, "decision은 approve 또는 reject")
 
@@ -44,7 +51,9 @@ async def decide(invoice_id: str, body: Decision) -> dict:
     )
 
     if body.decision == "reject":
-        updated = store.update("invoices", invoice_id, {"status": "refused"})
+        # 승인 대기의 반려든 거부의 확정이든 — 사람이 봤다는 표시를 남겨 큐에서 내린다
+        updated = store.update("invoices", invoice_id,
+                               {"status": "refused", "human_reviewed": True})
         return {"invoice": updated, "outcome": "refused"}
 
     # 승인 — 결제는 사람이 아니라 에이전트가 한다. 사람은 권한만 열어준다.

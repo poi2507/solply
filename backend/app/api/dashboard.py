@@ -148,16 +148,12 @@ def timeline(invoice_id: str) -> dict:
 
     # 분할된 경우 자식 청구서까지 한 이야기로 묶는다
     family = {invoice_id}
-    children = [d for d in store.list_docs("invoices") if d.get("parent_id") == invoice_id]
+    children = store.list_docs("invoices", parent_id=invoice_id)
     family.update(c["id"] for c in children)
     if invoice.get("parent_id"):
         family.add(invoice["parent_id"])
 
-    steps = [
-        event
-        for event in store.list_events()
-        if (event.get("payload") or {}).get("invoice_id") in family
-    ]
+    steps = store.events_for(tuple(family))
     negotiations = [
         n for n in store.list_docs("negotiations") if n.get("invoice_id") in family
     ]
@@ -191,9 +187,16 @@ def wallets() -> dict:
     out = []
     for name in config.WALLETS:
         try:
-            out.append(payments.balance(name))
+            bal = payments.balance(name)
         except Exception as exc:  # noqa: BLE001 — 결제 서비스가 꺼져도 대시보드는 살아있게
             out.append({"wallet": name, "error": str(exc)})
+            continue
+        if name != "hq":
+            # 본사가 아직 지급하지 못한 카드 매출 — 지점 입장의 "받을 돈".
+            # 이게 안 보이면 잔액 편중을 화면만으로 진단할 수 없다.
+            till = store.get("till", name) or {}
+            bal["pending_settlement_usdc"] = round(till.get("accrued_usdc", 0.0), 2)
+        out.append(bal)
     return {"wallets": out}
 
 

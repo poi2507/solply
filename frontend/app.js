@@ -392,9 +392,11 @@ function renderApprovals(invoices) {
   const panel = $("approvals-panel");
   const el = $("approvals");
   if (!panel || !el) return;
-  const pending = (invoices || []).filter((inv) => inv.status === "pending_approval");
+  const pending = (invoices || []).filter((inv) =>
+    inv.status === "pending_approval" ||
+    (inv.status === "refused" && !inv.human_reviewed));
   panel.style.display = pending.length ? "" : "none";
-  el.innerHTML = pending.map((inv) => `
+  el.innerHTML = pending.map((inv) => inv.status === "pending_approval" ? `
     <div class="row">
       <span class="kind">승인</span>
       <div class="body">
@@ -404,6 +406,17 @@ function renderApprovals(invoices) {
       <span class="actions">
         <button class="btn btn-approve" data-id="${esc(inv.id)}" data-decision="approve">승인</button>
         <button class="btn btn-reject" data-id="${esc(inv.id)}" data-decision="reject">반려</button>
+      </span>
+    </div>` : `
+    <div class="row">
+      <span class="kind">거부 검토</span>
+      <div class="body">
+        <div class="head">${esc(inv.id)} · ${esc(inv.store_id)} · ${fmt(inv.amount_usdc)} USDC</div>
+        <div class="why">발주 기록에 없어 에이전트가 결제를 거부했습니다 — 재발행하거나 거부를 확정할 사람의 몫입니다</div>
+      </div>
+      <span class="actions">
+        <button class="btn btn-approve" data-id="${esc(inv.id)}" data-decision="approve">재발행</button>
+        <button class="btn btn-reject" data-id="${esc(inv.id)}" data-decision="reject">거부 확정</button>
       </span>
     </div>`).join("");
   el.querySelectorAll("button[data-id]").forEach((btn) => {
@@ -454,6 +467,7 @@ function renderWallets(wallets) {
     : `<div class="wallet">
          <div class="line"><span class="who2">${esc(w.wallet)}</span><span class="usdc">${fmt(w.usdc)} <small>USDC</small></span></div>
          <div class="line"><span class="addr">${short(w.address, 10, 6)}</span><span class="sol">${Number(w.sol).toFixed(3)} SOL</span></div>
+         ${w.pending_settlement_usdc > 0 ? `<div class="line"><span class="addr">카드정산 대기</span><span class="sol">+${fmt(w.pending_settlement_usdc)} USDC</span></div>` : ""}
        </div>`).join("");
 }
 

@@ -174,6 +174,17 @@ class PostgresStore:
             {"ts": r[0].isoformat(), "actor": r[1], "action": r[2], "payload": r[3]} for r in rows
         ]
 
+    def events_for(self, invoice_ids: tuple[str, ...]) -> list[dict]:
+        with self.pool.connection() as conn:
+            rows = conn.execute(
+                "SELECT ts, actor, action, payload FROM events "
+                "WHERE payload ->> 'invoice_id' = ANY(%s) ORDER BY id",
+                [list(invoice_ids)],
+            ).fetchall()
+        return [
+            {"ts": r[0].isoformat(), "actor": r[1], "action": r[2], "payload": r[3]} for r in rows
+        ]
+
     def count_events(self, actor: str | None = None, day: str | None = None) -> int:
         sql, params, where = "SELECT count(*) FROM events", [], []
         if actor:

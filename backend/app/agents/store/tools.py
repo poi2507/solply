@@ -239,7 +239,9 @@ def propose_p2p_trade(
 
     basis: 제안의 판단 근거(구매한 시세 등) — 문서에 남아 본사 심사와 대시보드가 읽는다.
     """
-    seq = len(db.list_docs("p2p_trades")) + 1
+    # 번호만 필요하다 — 문서 전체를 싣지 않는다 (거래가 수천 건이면 제안마다
+    # 전량 로드가 되고, 8/6 틱 사망과 같은 부류의 부하가 된다)
+    seq = db.count_docs("p2p_trades") + 1
     while db.get("p2p_trades", f"P2P-{seq:02d}"):
         seq += 1
     trade = db.put(
