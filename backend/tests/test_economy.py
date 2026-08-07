@@ -130,6 +130,43 @@ def test_restock_refills_hq_below_safety():
     assert [e for e in db.list_events() if e["action"] == "warehouse.restocked"]
 
 
+def test_scheduled_backlog_does_not_block_procurement():
+    """예약(합의된 분할·유예)이 쌓여도 발주는 계속돼야 한다.
+
+    8/7 라이브: 미결 210건 중 184건이 예약이었는데 게이트가 전부 세는 바람에
+    세 지점이 영구 발주 정지 → 데모가 넣어주는 냉장 닭만 남고 나머지 재고가 0이 됐다.
+    """
+    from app.core import status as status_mod
+
+    for i in range(economy.MAX_STUCK_INVOICES + 5):  # 게이트 기준을 넘는 예약 백로그
+        db.put("invoices", f"INV-TEST-SCHED-{i}", {
+            "id": f"INV-TEST-SCHED-{i}", "store_id": "store-b",
+            "status": status_mod.InvoiceStatus.SCHEDULED, "amount_usdc": 1.0, "items": [],
+        })
+
+    inv = utils.effective_inventory("store-b")["CHK-10"]
+    utils.record_move("store-b", "CHK-10", inv["name"], -(inv["qty"] - inv["safety"] + 1),
+                      "sold", "TEST-DRAIN")
+
+    open_invoices = [d for d in db.list_docs("invoices", store_id="store-b")
+                     if d["status"] in status_mod.ACTIONABLE]
+    stuck = sum(1 for d in open_invoices
+                if d["status"] != status_mod.InvoiceStatus.SCHEDULED)
+    assert len(open_invoices) > economy.MAX_STUCK_INVOICES, "예약 백로그가 기준을 넘어야 의미 있는 검사"
+    assert stuck < economy.MAX_STUCK_INVOICES, "예약은 '막힌' 청구서로 세지 않는다"
+    assert utils.stock_shortages(utils.effective_inventory("store-b")), "미달이 있어야 발주 대상"
+
+
+def test_reorder_fills_above_safety():
+    """딱 안전재고까지만 채우면 판매 한 번에 다시 미달이라 매 틱 발주가 나간다."""
+    inv = utils.effective_inventory("store-c")["CHK-10"]
+    utils.record_move("store-c", "CHK-10", inv["name"], -(inv["qty"] - inv["safety"] + 2),
+                      "sold", "TEST-DRAIN")
+    shortage = utils.stock_shortages(utils.effective_inventory("store-c"))[0]
+    need = shortage["need"] + shortage["safety"] * (economy.REORDER_TO_SAFETY_X - 1)
+    assert shortage["qty"] + need > shortage["safety"], "재주문 후엔 안전선 위에 여유가 남아야 한다"
+
+
 def test_tick_endpoint_respects_toggle(monkeypatch):
     monkeypatch.setattr("app.config.TICK_ENABLED", False)
     assert client.post("/api/ticks/run").status_code == 409

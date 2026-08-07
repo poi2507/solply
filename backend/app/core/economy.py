@@ -38,9 +38,22 @@ RETAIL_MARGIN = 1.35
 # (8/6: 예약 311건 전수조사로 틱이 60~350초, 대부분 도중 사망).
 PAYDOWN_PER_STORE = 2
 
-# 미결(발행·협의·예약) 청구서가 이만큼 쌓인 지점은 새 발주를 멈춘다.
-# 결제가 막힌 상태에서 주문만 반복하면 부채와 틱 부하가 같이 폭주한다.
-MAX_OPEN_INVOICES = 3
+# 결제가 막힌 청구서(발행·협의 — 아직 납부 방법이 정해지지 않은 것)가 이만큼 쌓인
+# 지점은 새 발주를 멈춘다. 주문만 반복하면 부채와 틱 부하가 같이 폭주한다.
+#
+# 예약(scheduled)은 세지 않는다 — 납부일을 이미 합의한 건이라 "막힌" 상태가 아니고,
+# 여기에 포함하면 분할 합의가 쌓인 지점이 영구히 발주를 못 한다
+# (8/7 라이브: 미결 210건 중 184건이 예약이라 세 지점 전부 발주 정지 →
+#  데모가 3시간마다 넣어주는 냉장 닭만 남고 나머지 품목 재고가 전부 0이 됐다).
+MAX_STUCK_INVOICES = 3
+
+# 그래도 전체 미결이 이 선을 넘으면 멈춘다 — 폭주에 대한 회로 차단기다
+# (평시엔 닿지 않는 값. 8/6 사고 때 하루 700건이 쌓였다).
+MAX_OPEN_INVOICES = 200
+
+# 발주는 안전재고까지가 아니라 그 배수까지 채운다. 딱 안전재고로 맞추면 판매 한 번에
+# 다시 미달이라 매 틱 발주가 나가 청구서가 무의미하게 불어난다.
+REORDER_TO_SAFETY_X = 2
 
 
 # ── 공용 헬퍼 ─────────────────────────────────────────────────────────
@@ -217,15 +230,14 @@ async def run_procurement() -> list[dict]:
         if not shortages:
             continue
 
-        # 미결 청구서가 쌓인 지점은 발주를 멈춘다 — 결제가 막힌 채 주문만 반복하면
-        # 부채·틱 부하가 같이 폭주한다 (8/6: 하루 700건 발행 사고의 재발 방지).
-        open_count = sum(
-            1 for inv in db.list_docs("invoices", store_id=store_id)
-            if inv["status"] in status_mod.ACTIONABLE
-        )
-        if open_count >= MAX_OPEN_INVOICES:
+        # 결제가 막힌 지점은 발주를 멈춘다 (8/6: 하루 700건 발행 사고의 재발 방지).
+        open_invoices = [inv for inv in db.list_docs("invoices", store_id=store_id)
+                         if inv["status"] in status_mod.ACTIONABLE]
+        stuck = sum(1 for inv in open_invoices
+                    if inv["status"] != status_mod.InvoiceStatus.SCHEDULED)
+        if stuck >= MAX_STUCK_INVOICES or len(open_invoices) >= MAX_OPEN_INVOICES:
             actions.append({"store_id": store_id, "route": "hold",
-                            "status": f"open_invoices={open_count}"})
+                            "status": f"stuck={stuck} open={len(open_invoices)}"})
             continue
 
         try:
@@ -239,7 +251,8 @@ async def run_procurement() -> list[dict]:
 
             # 잉여 지점이 없으면 본사 발주 — 납품·청구 생성 후 기존 x402 정산 플로우
             shortage = shortages[0]
-            invoice_id = _fulfill_order(store_id, shortage["sku"], shortage["need"])
+            need = shortage["need"] + shortage["safety"] * (REORDER_TO_SAFETY_X - 1)
+            invoice_id = _fulfill_order(store_id, shortage["sku"], max(1, need))
             if not invoice_id:
                 actions.append({"store_id": store_id, "route": "hq_order", "status": "hq_out_of_stock"})
                 continue
