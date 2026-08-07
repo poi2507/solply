@@ -157,6 +157,22 @@ def test_scheduled_backlog_does_not_block_procurement():
     assert utils.stock_shortages(utils.effective_inventory("store-b")), "미달이 있어야 발주 대상"
 
 
+def test_starving_store_can_order_despite_backlog():
+    """재고가 바닥난 지점은 미납이 쌓여 있어도 발주할 수 있어야 한다.
+
+    8/7 라이브 사망 나선: 게이트에 막혀 발주 불가 → 팔 재고 0 → 매출 0 →
+    갚을 돈 없음 → 계속 게이트. 굶는 지점은 우회로가 있어야 경제가 회복된다.
+    """
+    inventory = utils.effective_inventory("store-c")
+    for sku, e in inventory.items():  # 전 품목을 안전선 아래로
+        if e["qty"] >= e["safety"]:
+            utils.record_move("store-c", sku, e["name"], -(e["qty"] - e["safety"] + 1),
+                              "sold", "TEST-STARVE")
+    shortages = utils.stock_shortages(utils.effective_inventory("store-c"))
+    starving = len(shortages) >= max(1, round(len(inventory) * economy.STARVING_RATIO))
+    assert starving, "전 품목 미달이면 굶는 지점으로 판정돼 게이트를 우회한다"
+
+
 def test_reorder_fills_above_safety():
     """딱 안전재고까지만 채우면 판매 한 번에 다시 미달이라 매 틱 발주가 나간다."""
     inv = utils.effective_inventory("store-c")["CHK-10"]

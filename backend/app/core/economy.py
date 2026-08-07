@@ -51,6 +51,12 @@ MAX_STUCK_INVOICES = 3
 # (평시엔 닿지 않는 값. 8/6 사고 때 하루 700건이 쌓였다).
 MAX_OPEN_INVOICES = 200
 
+# 품목의 이 비율 이상이 미달이면 "굶는" 지점으로 본다 — 이때는 게이트를 우회한다.
+# 팔 물건이 없는 지점은 영원히 벌 수 없어서, 게이트가 "못 갚아서 못 사고,
+# 못 사서 못 버는" 사망 나선을 만든다 (8/7 라이브: b·c가 여기 갇혀 재고 0 ·
+# 매출 0 · 미납 39/14건 동결). 우회할 때는 안전재고까지만 최소로 발주한다.
+STARVING_RATIO = 0.6
+
 # 발주는 안전재고까지가 아니라 그 배수까지 채운다. 딱 안전재고로 맞추면 판매 한 번에
 # 다시 미달이라 매 틱 발주가 나가 청구서가 무의미하게 불어난다.
 REORDER_TO_SAFETY_X = 2
@@ -226,7 +232,8 @@ async def run_procurement() -> list[dict]:
     """지점마다 재고를 점검하고, 미달이면 조달 그래프(P2P vs 본사 발주)를 태운다."""
     actions = []
     for store_id in fixtures.load()["stores"]:
-        shortages = utils.stock_shortages(utils.effective_inventory(store_id))
+        inventory = utils.effective_inventory(store_id)
+        shortages = utils.stock_shortages(inventory)
         if not shortages:
             continue
 
@@ -235,7 +242,9 @@ async def run_procurement() -> list[dict]:
                          if inv["status"] in status_mod.ACTIONABLE]
         stuck = sum(1 for inv in open_invoices
                     if inv["status"] != status_mod.InvoiceStatus.SCHEDULED)
-        if stuck >= MAX_STUCK_INVOICES or len(open_invoices) >= MAX_OPEN_INVOICES:
+        gated = stuck >= MAX_STUCK_INVOICES or len(open_invoices) >= MAX_OPEN_INVOICES
+        starving = len(shortages) >= max(1, round(len(inventory) * STARVING_RATIO))
+        if gated and not starving:
             actions.append({"store_id": store_id, "route": "hold",
                             "status": f"stuck={stuck} open={len(open_invoices)}"})
             continue
@@ -251,7 +260,9 @@ async def run_procurement() -> list[dict]:
 
             # 잉여 지점이 없으면 본사 발주 — 납품·청구 생성 후 기존 x402 정산 플로우
             shortage = shortages[0]
-            need = shortage["need"] + shortage["safety"] * (REORDER_TO_SAFETY_X - 1)
+            # 굶어서 우회한 발주는 안전재고까지만 — 빚을 더 키우지 않는다
+            refill = 1 if (gated and starving) else REORDER_TO_SAFETY_X
+            need = shortage["need"] + shortage["safety"] * (refill - 1)
             invoice_id = _fulfill_order(store_id, shortage["sku"], max(1, need))
             if not invoice_id:
                 actions.append({"store_id": store_id, "route": "hq_order", "status": "hq_out_of_stock"})
