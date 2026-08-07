@@ -137,6 +137,23 @@ class PostgresStore:
         with self.pool.connection() as conn:
             return conn.execute(sql, params).fetchone()[0]
 
+    def count_stale(self, collection: str, statuses: tuple[str, ...], before: str,
+                    **filters: Any) -> int:
+        """상태·정체 시각으로 세는 전용 경로 — 문서를 읽지 않고 count로 끝낸다.
+        갱신 시각은 컬럼(updated_at)을 쓴다: documents_day_idx가 그대로 태워진다."""
+        sql = ("SELECT count(*) FROM documents WHERE collection = %s "
+               "AND data ->> 'status' = ANY(%s) AND updated_at < %s")
+        params: list[Any] = [collection, list(statuses), before]
+        for key, value in filters.items():
+            if value is None:
+                continue
+            if not key.isidentifier():
+                raise ValueError(f"허용되지 않는 필터 키: {key!r}")
+            sql += f" AND data ->> '{key}' = %s"
+            params.append(str(value))
+        with self.pool.connection() as conn:
+            return conn.execute(sql, params).fetchone()[0]
+
     def first_day(self) -> str | None:
         """기록이 시작된 KST 날짜 — 날짜 이동의 왼쪽 끝."""
         with self.pool.connection() as conn:

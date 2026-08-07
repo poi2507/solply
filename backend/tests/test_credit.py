@@ -126,3 +126,43 @@ def test_schedule_list_returns_scheduled_only():
     listed = client.get("/api/schedules").json()["scheduled"]
     assert invoice["id"] in {d["id"] for d in listed}
     assert all(d["status"] == "scheduled" for d in listed)
+
+
+def test_late_moves_score_even_after_long_clean_history():
+    """정시납이 수천 건 쌓여도 연체는 점수에 보여야 한다.
+
+    8/7 라이브: 정시납 누적으로 원점수가 1432라 미수 415 USDC·미결 144건인
+    지점도 100점이었다 — 나쁜 이력이 점수에 전혀 닿지 않았다.
+    """
+    clean = credit.score_from(on_time=5000, late=0, disputed=0)
+    with_late = credit.score_from(on_time=5000, late=10, disputed=0)
+    assert clean == 100
+    assert with_late < clean, "정시납 가산에 상한이 없으면 연체가 묻힌다"
+
+
+def test_overdue_count_ignores_scheduled_invoices():
+    """연체는 '납부 계획이 없는' 미결만 센다 — 예약은 날짜를 합의한 건이다.
+
+    (updated_at은 put이 항상 현재로 찍으므로, 과거를 만드는 대신 미래 기준으로
+     조회해 상태 필터만 검증한다.)
+    """
+    from datetime import UTC, datetime, timedelta
+
+    from app.db import store as db
+
+    future = (datetime.now(UTC) + timedelta(minutes=5)).isoformat()
+    base = db.count_stale("invoices", credit.UNPLANNED, future, store_id="store-a")
+
+    db.put("invoices", "INV-TEST-PLANNED", {
+        "id": "INV-TEST-PLANNED", "store_id": "store-a", "status": "scheduled",
+        "amount_usdc": 1.0, "items": [],
+    })
+    assert db.count_stale("invoices", credit.UNPLANNED, future, store_id="store-a") == base, \
+        "예약은 연체로 세지 않는다"
+
+    db.put("invoices", "INV-TEST-LATE", {
+        "id": "INV-TEST-LATE", "store_id": "store-a", "status": "issued",
+        "amount_usdc": 1.0, "items": [],
+    })
+    assert db.count_stale("invoices", credit.UNPLANNED, future, store_id="store-a") == base + 1, \
+        "계획 없는 미결은 연체로 센다"

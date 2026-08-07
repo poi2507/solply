@@ -77,6 +77,13 @@ class LocalStore:
     def count_docs(self, collection: str, **filters) -> int:
         return len(self.list_docs(collection, **filters))
 
+    def count_stale(self, collection: str, statuses: tuple[str, ...], before: str,
+                    **filters) -> int:
+        return sum(
+            1 for d in self.list_docs(collection, **filters)
+            if d.get("status") in statuses and str(d.get("updated_at", "")) < before
+        )
+
     def first_day(self) -> str | None:
         with self._lock:
             state = self._load()

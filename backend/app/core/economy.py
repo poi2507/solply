@@ -36,7 +36,7 @@ RETAIL_MARGIN = 1.35
 # 예약·미결 청구서 상환은 틱마다 지점당 이 개수까지만 시도한다.
 # 전수 시도하면 백로그가 클 때 틱 하나가 수백 번의 온체인 조회로 수 분씩 걸린다
 # (8/6: 예약 311건 전수조사로 틱이 60~350초, 대부분 도중 사망).
-PAYDOWN_PER_STORE = 2
+PAYDOWN_PER_STORE = 4
 
 # 결제가 막힌 청구서(발행·협의 — 아직 납부 방법이 정해지지 않은 것)가 이만큼 쌓인
 # 지점은 새 발주를 멈춘다. 주문만 반복하면 부채와 틱 부하가 같이 폭주한다.
@@ -50,6 +50,12 @@ MAX_STUCK_INVOICES = 3
 # 그래도 전체 미결이 이 선을 넘으면 멈춘다 — 폭주에 대한 회로 차단기다
 # (평시엔 닿지 않는 값. 8/6 사고 때 하루 700건이 쌓였다).
 MAX_OPEN_INVOICES = 200
+
+# 재고가 안전재고의 이 배수를 넘으면 "과잉"으로 보고 더 팔린다 (프로모션·밀어내기).
+# 고정 확률로만 팔면 데모가 3시간마다 넣어주는 물량이 한 지점에 쌓이고, 직거래
+# 판매자는 늘 잉여가 가장 많은 그 지점으로 고정된다 (8/7: 직거래 12건 전부 a → b·c).
+# 과잉이 빨리 소진되면 잉여가 지점 사이를 돌고, 직거래도 양방향이 된다.
+OVERSTOCK_X = 3
 
 # 품목의 이 비율 이상이 미달이면 "굶는" 지점으로 본다 — 이때는 게이트를 우회한다.
 # 팔 물건이 없는 지점은 영원히 벌 수 없어서, 게이트가 "못 갚아서 못 사고,
@@ -118,6 +124,13 @@ def sell(store_id: str, sku: str, qty: int, note: str) -> dict:
             "remaining": result["remaining"], "revenue": revenue}
 
 
+def sale_weights(entry: dict) -> tuple[int, int, int]:
+    """0·1·2개가 팔릴 가중치. 과잉 재고는 더 팔린다 (프로모션·밀어내기)."""
+    if entry["qty"] >= max(1, entry["safety"]) * OVERSTOCK_X:
+        return (20, 40, 40)
+    return (60, 32, 8)
+
+
 def run_sales(rng: random.Random) -> list[dict]:
     """지점마다 보유 재고 한도 내에서 몇 개 판매한다 (시뮬 수요).
 
@@ -130,7 +143,7 @@ def run_sales(rng: random.Random) -> list[dict]:
         for sku, entry in utils.effective_inventory(store_id).items():
             if entry["qty"] <= 0:
                 continue
-            qty = min(entry["qty"], rng.choices((0, 1, 2), weights=(60, 32, 8))[0])
+            qty = min(entry["qty"], rng.choices((0, 1, 2), weights=sale_weights(entry))[0])
             if qty <= 0:
                 continue
             result = sell(store_id, sku, qty, "영업 판매")

@@ -157,6 +157,16 @@ def test_scheduled_backlog_does_not_block_procurement():
     assert utils.stock_shortages(utils.effective_inventory("store-b")), "미달이 있어야 발주 대상"
 
 
+def test_overstock_sells_faster():
+    """과잉 재고는 더 팔려야 한다 — 안 그러면 한 지점에 쌓여 직거래가 단방향이 된다."""
+    def mean(w):
+        return sum(i * x for i, x in zip((0, 1, 2), w)) / sum(w)
+
+    normal = economy.sale_weights({"qty": 4, "safety": 4})
+    piled = economy.sale_weights({"qty": 40, "safety": 4})
+    assert mean(piled) > mean(normal), "안전선의 10배가 쌓였는데 판매 기대값이 같다"
+
+
 def test_starving_store_can_order_despite_backlog():
     """재고가 바닥난 지점은 미납이 쌓여 있어도 발주할 수 있어야 한다.
 
