@@ -51,6 +51,10 @@ ACTION_LABELS: dict[str, str] = {
     "p2p.blocked_over_limit": "직거래 한도 초과 차단",
     "p2p.blocked_unapproved": "본사 미승인 직거래 차단",
     # 라이브 경제 루프
+    # 데이터 판매 (본사가 x402 판매자가 된다)
+    "data.quoted": "데이터 판매 견적 (402)",
+    "data.sold": "데이터 판매 (x402 정산)",
+
     # 에이전트 간 표준 왕복 (A2A)
     "a2a.message": "A2A 메시지 (message/send)",
 

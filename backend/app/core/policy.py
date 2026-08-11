@@ -62,6 +62,8 @@ class HQPolicy:
     # (8/11 라이브: 총량 400 중 본사 5.0까지 고갈, 카드정산 정지). 25%를 원천징수하면
     # 본사 순유출이 매출의 1.25%로 줄고 지점은 소폭 흑자를 유지한다.
     royalty_pct: float = 25.0
+    # 데이터 상품(체결가 지수·수요 지수) 판매 단가 — 본사의 세 번째 매출원
+    data_price_usdc: float = 0.1
 
     kind: str = "hq"
 
@@ -128,6 +130,8 @@ def _validate(policy: StorePolicy | HQPolicy) -> None:
             raise ValueError("분할 최대 회차는 1 이상이어야 합니다")
         if not 0 <= policy.royalty_pct <= 50:
             raise ValueError("로열티 비율은 0~50% 사이여야 합니다")
+        if policy.data_price_usdc < 0:
+            raise ValueError("데이터 판매 단가는 0 이상이어야 합니다")
 
 
 def describe(owner_id: str) -> list[dict[str, Any]]:
@@ -148,6 +152,7 @@ def describe(owner_id: str) -> list[dict[str, Any]]:
             ("installment_max", "분할 최대 회차", "몇 회까지 나눠 받을지", "회", 1, 12),
             ("auto_adjust_limit_usdc", "자동 차감 승인 한도", "이 금액을 넘는 차감은 사람이 확인합니다", "USDC", 0, 1000),
             ("royalty_pct", "카드정산 로열티", "카드매출 정산 때 공제하는 비율 — 마진으로 새는 본사 유동성을 환류시킵니다", "%", 0, 50),
+            ("data_price_usdc", "데이터 판매 단가", "체결가·수요 지수 1건 조회 가격 (x402)", "USDC", 0, 10),
         ]
     current = asdict(policy)
     return [

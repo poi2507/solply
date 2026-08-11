@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app import config
 from app.a2a import server as a2a_server
-from app.api import approvals, assistant, dashboard, policy, schedules, shop, ticks, x402
+from app.api import approvals, assistant, dashboard, data_products, policy, schedules, shop, ticks, x402
 
 app = FastAPI(
     title="Solply",
@@ -21,6 +21,7 @@ app = FastAPI(
 )
 
 app.include_router(a2a_server.router)
+app.include_router(data_products.router)
 app.include_router(approvals.router)
 app.include_router(assistant.router)
 app.include_router(dashboard.router)

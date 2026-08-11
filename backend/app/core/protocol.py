@@ -193,6 +193,47 @@ def build_trade_requirements(trade: dict, seller_address: str, network: str) -> 
     }
 
 
+def build_data_requirements(order: dict, hq_address: str, network: str) -> dict:
+    """데이터 상품 판매의 402 — 세 번째 리소스 타입.
+
+    청구서(세로)·직거래(가로)에 이어, 이번엔 외부 구매자를 향한 판매다.
+    우리가 pay.sh에서 시세를 사듯, 우리 실거래가 남긴 지수를 같은 규약으로 판다.
+    memo = 주문 ID — 결제와 주문을 잇는 끈이자 재사용 차단의 근거.
+    """
+    caip2 = NETWORKS.get(network, NETWORKS["localnet"])
+    return {
+        "x402Version": X402_VERSION,
+        "accepts": [
+            {
+                "scheme": "exact",
+                "network": caip2,
+                "amount": to_atomic(order["price_usdc"]),
+                "asset": "USDC",
+                "payTo": hq_address,
+                "maxTimeoutSeconds": 60,
+                "extra": {
+                    "term": "immediate",
+                    "label": f"데이터 구매 — {order['product']}/{order['sku']}",
+                    "memo": order["id"],
+                },
+            }
+        ],
+        "resource": {
+            "url": f"/x402/data/orders/{order['id']}/settle",
+            "description": f"물대 실거래 데이터 — {order['product']} 지수 ({order['sku']})",
+            "mimeType": "application/json",
+        },
+        "extensions": {
+            "solply.dataOrder": {
+                "id": order["id"],
+                "product": order["product"],
+                "sku": order["sku"],
+                "priceUsdc": order["price_usdc"],
+            }
+        },
+    }
+
+
 def build_settlement_response(invoice_id: str, signature: str, verified: bool, explorer: str) -> dict:
     """정산 완료 응답 = SettlementResponse (PAYMENT-RESPONSE 헤더에 실린다)."""
     return {
