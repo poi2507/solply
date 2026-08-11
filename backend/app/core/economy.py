@@ -161,9 +161,15 @@ def settle_cards() -> list[dict]:
     본사 잔액보다 커지는 순간 영원히 못 받는다. 지급 실패는 그 지점만 건너뛰고
     금고를 보존한다 (다음 틱에 재시도) — 한 결제의 일시 오류가 환류 전체를
     멈추면 지점 돈이 마르기 시작한다.
+
+    지급 때 **로열티를 원천징수**한다 (정책 royalty_pct, 기본 25%). 폐쇄 풀에서
+    마진 1.35는 판매마다 매출의 26%를 본사→지점으로 영구 이동시켜, 환류 없이는
+    본사가 마르고 카드정산이 멈춘다 (8/11 라이브: 총량 400 중 본사 5.0까지 고갈).
+    공제 후 지급이라 추가 온체인 이체는 없다 — 실제 카드사·본사 정산 방식 그대로.
     """
     paid = []
     available = payments.balance("hq")["usdc"] - 5.0  # hq 운영 예비
+    royalty_pct = policy_mod.get("hq").royalty_pct
     # 금고가 작은 지점부터 — 고정 순서로 돌면 가용액이 빠듯할 때 첫 지점(금고가 가장
     # 큰 a)이 매 틱 전액을 흡수해 나머지가 굶는다 (8/7 라이브: 카드정산 158.95가
     # 전부 a로만). 소액을 먼저 완납하면 모든 지점이 매 틱 환류를 받는다.
@@ -172,23 +178,29 @@ def settle_cards() -> list[dict]:
 
     for store_id in sorted(fixtures.load()["stores"], key=_accrued):
         accrued = _accrued(store_id)
-        amount = round(min(accrued, available), 2)
-        if amount <= 0.01:
+        gross = round(min(accrued, available), 2)
+        if gross <= 0.01:
+            continue
+        # 원천징수 — 금고(채권)는 gross만큼 정리되고, 실지급은 net뿐이다
+        net = round(gross * (1 - royalty_pct / 100), 2)
+        royalty = round(gross - net, 2)
+        if net <= 0.01:
             continue
         try:
             address = payments.balance(store_id)["address"]
-            result = payments.pay("hq", address, amount, "CARD-SETTLEMENT")
+            result = payments.pay("hq", address, net, "CARD-SETTLEMENT")
         except Exception as exc:  # noqa: BLE001 — 다음 틱이 재시도한다
             utils.log("hq-agent", "card.settle_failed",
-                      {"store_id": store_id, "amount_usdc": amount, "reason": str(exc)[:160]})
+                      {"store_id": store_id, "amount_usdc": net, "reason": str(exc)[:160]})
             continue
-        db.put(TILL, store_id, {"accrued_usdc": round(accrued - amount, 2)})
-        available -= amount
+        db.put(TILL, store_id, {"accrued_usdc": round(accrued - gross, 2)})
+        available -= net
         utils.log(
             "hq-agent", "card.settled",
-            {"store_id": store_id, "amount_usdc": amount, "tx": result["signature"]},
+            {"store_id": store_id, "amount_usdc": net, "gross_usdc": gross,
+             "royalty_usdc": royalty, "tx": result["signature"]},
         )
-        paid.append({"store_id": store_id, "amount_usdc": amount})
+        paid.append({"store_id": store_id, "amount_usdc": net, "royalty_usdc": royalty})
     return paid
 
 

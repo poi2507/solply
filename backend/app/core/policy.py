@@ -56,6 +56,12 @@ class HQPolicy:
     installment_max: int = 2
     # 이 금액을 넘는 차감 요청은 사람이 본다
     auto_adjust_limit_usdc: float = 4.0
+    # 카드매출 정산 때 본사가 공제하는 로열티 비율.
+    # 폐쇄 풀(총량 고정)에서 요리 마진(1.35)은 판매마다 매출의 26%(0.35/1.35)를
+    # 본사→지점으로 영구 이동시킨다 — 환류가 없으면 본사가 필연적으로 마른다
+    # (8/11 라이브: 총량 400 중 본사 5.0까지 고갈, 카드정산 정지). 25%를 원천징수하면
+    # 본사 순유출이 매출의 1.25%로 줄고 지점은 소폭 흑자를 유지한다.
+    royalty_pct: float = 25.0
 
     kind: str = "hq"
 
@@ -120,6 +126,8 @@ def _validate(policy: StorePolicy | HQPolicy) -> None:
             raise ValueError("유예 허용 비율은 0~100% 사이여야 합니다")
         if policy.installment_max < 1:
             raise ValueError("분할 최대 회차는 1 이상이어야 합니다")
+        if not 0 <= policy.royalty_pct <= 50:
+            raise ValueError("로열티 비율은 0~50% 사이여야 합니다")
 
 
 def describe(owner_id: str) -> list[dict[str, Any]]:
@@ -139,6 +147,7 @@ def describe(owner_id: str) -> list[dict[str, Any]]:
             ("defer_max_pct", "유예 허용 비율", "외상 한도의 몇 %까지 유예를 허용할지", "%", 0, 100),
             ("installment_max", "분할 최대 회차", "몇 회까지 나눠 받을지", "회", 1, 12),
             ("auto_adjust_limit_usdc", "자동 차감 승인 한도", "이 금액을 넘는 차감은 사람이 확인합니다", "USDC", 0, 1000),
+            ("royalty_pct", "카드정산 로열티", "카드매출 정산 때 공제하는 비율 — 마진으로 새는 본사 유동성을 환류시킵니다", "%", 0, 50),
         ]
     current = asdict(policy)
     return [

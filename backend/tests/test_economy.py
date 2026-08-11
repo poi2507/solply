@@ -39,7 +39,8 @@ def test_sales_move_ledger_and_accrue_till():
 
 
 def test_card_settlement_pays_accrued_and_resets(monkeypatch):
-    db.put(economy.TILL, "store-a", {"accrued_usdc": 3.5})
+    """금고 4.0 정리 = 실지급 3.0(로열티 25% 공제) + 채권 전액 소멸."""
+    db.put(economy.TILL, "store-a", {"accrued_usdc": 4.0})
     db.put(economy.TILL, "store-b", {"accrued_usdc": 0.0})
     db.put(economy.TILL, "store-c", {"accrued_usdc": 0.0})  # 앞 테스트의 판매 적립 제거
     payouts = []
@@ -54,10 +55,45 @@ def test_card_settlement_pays_accrued_and_resets(monkeypatch):
 
     paid = economy.settle_cards()
 
-    assert [(p["store_id"], p["amount_usdc"]) for p in paid] == [("store-a", 3.5)]
-    assert payouts[0][0] == "hq" and payouts[0][3] == "CARD-SETTLEMENT"
-    assert db.get(economy.TILL, "store-a")["accrued_usdc"] == 0.0
-    assert [e for e in db.list_events() if e["action"] == "card.settled"]
+    assert [(p["store_id"], p["amount_usdc"], p["royalty_usdc"]) for p in paid] == [
+        ("store-a", 3.0, 1.0)
+    ], "실지급 = 금고 × (1 − 로열티 25%)"
+    assert payouts[0][0] == "hq" and payouts[0][2] == 3.0 and payouts[0][3] == "CARD-SETTLEMENT"
+    assert db.get(economy.TILL, "store-a")["accrued_usdc"] == 0.0, "채권은 gross만큼 정리"
+    settled = [e for e in db.list_events() if e["action"] == "card.settled"]
+    assert settled and settled[-1]["payload"]["royalty_usdc"] == 1.0
+
+
+def test_card_settlement_royalty_returns_margin_leak(monkeypatch):
+    """로열티 원천징수의 수지 가드 — 이게 없으면 폐쇄 풀에서 본사가 마른다.
+
+    마진 1.35는 판매마다 매출의 26%(0.35/1.35)를 본사→지점으로 영구 이동시킨다
+    (8/11 라이브: 온체인 총량 400 중 본사 5.0까지 고갈, 카드정산 정지).
+    gross − net == gross × royalty_pct/100 이 지켜져야 유출이 1.25%대로 준다.
+    """
+    from app.core import policy as policy_mod
+
+    db.put(economy.TILL, "store-a", {"accrued_usdc": 0.0})
+    db.put(economy.TILL, "store-b", {"accrued_usdc": 27.0})
+    db.put(economy.TILL, "store-c", {"accrued_usdc": 0.0})
+    payouts = []
+    monkeypatch.setattr(
+        "app.core.economy.payments.balance",
+        lambda w: {"address": f"{w}-ADDR", "usdc": 500.0, "sol": 1},
+    )
+    monkeypatch.setattr(
+        "app.core.economy.payments.pay",
+        lambda src, to, amt, memo: payouts.append(amt) or {"signature": "S"},
+    )
+
+    paid = economy.settle_cards()
+
+    pct = policy_mod.get("hq").royalty_pct
+    assert pct > 0, "로열티가 0이면 본사 순유출이 매출의 26%로 복귀한다 (재주입 검출)"
+    expected_net = round(27.0 * (1 - pct / 100), 2)
+    assert payouts == [expected_net]
+    assert paid[0]["amount_usdc"] + paid[0]["royalty_usdc"] == pytest.approx(27.0), "gross 보존"
+    db.put(economy.TILL, "store-b", {"accrued_usdc": 0.0})
 
 
 def test_card_settlement_pays_partially_within_hq_reserve(monkeypatch):
@@ -78,8 +114,8 @@ def test_card_settlement_pays_partially_within_hq_reserve(monkeypatch):
     )
     result = economy.settle_cards()
 
-    assert paid == [("store-c-ADDR", 5.0)], "가용액 10−5=5까지만 지급"
-    assert result == [{"store_id": "store-c", "amount_usdc": 5.0}]
+    assert paid == [("store-c-ADDR", 3.75)], "가용액 10−5=5(gross)의 로열티 공제 후 3.75 지급"
+    assert result == [{"store_id": "store-c", "amount_usdc": 3.75, "royalty_usdc": 1.25}]
     assert db.get(economy.TILL, "store-c")["accrued_usdc"] == pytest.approx(45.0), "잔여 채권 보존"
     db.put(economy.TILL, "store-c", {"accrued_usdc": 0.0})  # 다른 테스트 오염 방지
 
