@@ -92,11 +92,11 @@ def test_pay_approved_intent_bypasses_limit_but_not_wallet():
 def test_human_approval_resumes_the_agent(monkeypatch):
     invoice = make_invoice(status="pending_approval", amount=80.0)
 
-    async def fake_run(agent, intent, **kwargs):
+    async def fake_send(agent_id, intent, **kwargs):
         assert intent == "invoice.pay_approved"
         return {"outcome": "paid", "tx_signature": "SIG", "messages": []}
 
-    monkeypatch.setattr("app.api.approvals.runner.run", fake_run)
+    monkeypatch.setattr("app.api.approvals.a2a.send", fake_send)
     resp = client.post(f"/api/approvals/{invoice['id']}/decide", json={"decision": "approve"})
 
     assert resp.status_code == 200
@@ -199,10 +199,10 @@ def test_schedule_run_can_simulate_inflow(monkeypatch):
         lambda src, to, amount, memo: inflows.append((src, to, amount, memo)) or {"signature": "S"},
     )
 
-    async def fake_run(agent, intent, **kwargs):
+    async def fake_send(agent_id, intent, **kwargs):
         return {"outcome": "paid", "tx_signature": "SIG", "messages": []}
 
-    monkeypatch.setattr("app.api.schedules.runner.run", fake_run)
+    monkeypatch.setattr("app.api.schedules.a2a.send", fake_send)
 
     resp = client.post(f"/api/schedules/{invoice['id']}/run", json={"simulate_inflow": True})
     assert resp.status_code == 200

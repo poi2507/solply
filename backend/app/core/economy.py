@@ -6,6 +6,8 @@
 원칙 두 가지:
   1) 발주 버튼은 없다 — 사건(재고 미달)이 트리거고, 사람은 경계에서만.
      조달 판단(P2P vs 본사 발주)은 기존 에이전트 그래프를 그대로 태운다.
+     에이전트끼리는 A2A(message/send)로 말한다 — 이 파일은 그래프를 직접 부르지
+     않고 상대의 A2A 엔드포인트로 실제 HTTP 왕복을 한다 (a2a/client.py).
   2) 온체인 총량 보존 — 손님·외부 공급사는 체인 밖 존재라, 소매가 = 공급가로
      두고(마진은 표시 계층 몫) 카드정산(hq→지점)과 물대(지점→hq)가 순환한다.
      외부로 돈이 새는 단계(본사 재입고)는 원장 기록만 남긴다.
@@ -16,6 +18,7 @@
 
 import random
 
+from app.a2a import client as a2a
 from app.agents import runner, utils
 from app.core import fixtures, kst
 from app.core import policy as policy_mod
@@ -209,19 +212,15 @@ def settle_cards() -> list[dict]:
 async def _p2p_handshake(trade: dict) -> str:
     """제안된 직거래의 나머지 왕복 — 판매측 응답 → 본사 심사 → 결제 → 장부."""
     trade_id = trade["id"]
-    responded = await runner.run(
-        "store", "p2p.respond", store_id=trade["seller_id"], trade_id=trade_id
-    )
+    responded = await a2a.send(trade["seller_id"], "p2p.respond", trade_id=trade_id)
     if (responded.get("trade") or {}).get("status") != status_mod.TradeStatus.ACCEPTED:
         return "rejected_by_seller"
-    await runner.run("hq", "p2p.review", trade_id=trade_id)
+    await a2a.send("hq", "p2p.review", trade_id=trade_id)
     if (db.get("p2p_trades", trade_id) or {}).get("status") != status_mod.TradeStatus.APPROVED:
         return "rejected_by_hq"
-    paid = await runner.run(
-        "store", "p2p.pay", store_id=trade["buyer_id"], trade_id=trade_id
-    )
+    paid = await a2a.send(trade["buyer_id"], "p2p.pay", trade_id=trade_id)
     if paid.get("outcome") == "paid":
-        await runner.run("hq", "p2p.record", trade_id=trade_id)
+        await a2a.send("hq", "p2p.record", trade_id=trade_id)
         return "confirmed"
     return "payment_failed"
 
@@ -276,7 +275,7 @@ async def run_procurement() -> list[dict]:
 
         try:
             # 조달 판단은 에이전트의 몫 — P2P가 유리하면 직거래를 제안한다
-            result = await runner.run("store", "restock.check", store_id=store_id)
+            result = await a2a.send(store_id, "restock.check")
             trade = result.get("trade")
             if trade:
                 status = await _p2p_handshake(trade)
@@ -292,14 +291,12 @@ async def run_procurement() -> list[dict]:
             if not invoice_id:
                 actions.append({"store_id": store_id, "route": "hq_order", "status": "hq_out_of_stock"})
                 continue
-            handled = await runner.run(
-                "store", "invoice.handle", store_id=store_id, invoice_id=invoice_id
-            )
+            handled = await a2a.send(store_id, "invoice.handle", invoice_id=invoice_id)
             outcome = handled.get("outcome")
             if outcome == "negotiating":  # 잔액 부족 → 유예 제안 → 본사 심사 한 홉
                 proposal = runner.latest_event(db.list_events(), "proposal.deferral")
                 if proposal and proposal.get("invoice_id") == invoice_id:
-                    await runner.run("hq", "proposal.deferral", invoice_id=invoice_id, payload=proposal)
+                    await a2a.send("hq", "proposal.deferral", invoice_id=invoice_id, payload=proposal)
                     outcome = "deferred"
             actions.append({"store_id": store_id, "route": "hq_order",
                             "invoice_id": invoice_id, "status": outcome})
@@ -360,10 +357,7 @@ async def run_scheduled_payments() -> list[dict]:
             if wallet < invoice["amount_usdc"] + reserve:
                 executed.append({"invoice_id": invoice["id"], "outcome": "waiting_funds"})
                 break  # 오래된 것도 못 내면 뒤의 것도 못 낸다
-            final = await runner.run(
-                "store", payable[invoice["status"]],
-                store_id=store_id, invoice_id=invoice["id"],
-            )
+            final = await a2a.send(store_id, payable[invoice["status"]], invoice_id=invoice["id"])
             if final.get("outcome") == "paid":
                 wallet -= invoice["amount_usdc"]
             executed.append({"invoice_id": invoice["id"], "outcome": final.get("outcome")})

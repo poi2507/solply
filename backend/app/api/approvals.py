@@ -11,7 +11,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from app.agents import runner
+from app.a2a import client as a2a
 from app.db import store
 
 router = APIRouter(prefix="/api/approvals", tags=["approvals"])
@@ -58,10 +58,7 @@ async def decide(invoice_id: str, body: Decision) -> dict:
 
     # 승인 — 결제는 사람이 아니라 에이전트가 한다. 사람은 권한만 열어준다.
     store.update("invoices", invoice_id, {"status": "issued"})
-    final = await runner.run(
-        "store", "invoice.pay_approved",
-        store_id=invoice["store_id"], invoice_id=invoice_id,
-    )
+    final = await a2a.send(invoice["store_id"], "invoice.pay_approved", invoice_id=invoice_id)
     return {
         "invoice": store.get("invoices", invoice_id),
         "outcome": final.get("outcome"),

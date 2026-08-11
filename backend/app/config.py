@@ -20,6 +20,12 @@ PAYMENTS_API_URL = os.getenv("PAYMENTS_API_URL", "http://localhost:3000")
 # 본사 x402 엔드포인트 (가맹점 에이전트가 정산 왕복에 사용) — 우리 API 서버 자신이다
 SOLPLY_API_URL = os.getenv("SOLPLY_API_URL", "http://localhost:8080")
 
+# ── A2A (에이전트 간 표준 왕복) ──
+# 경량판: 두 에이전트가 같은 배포에 살아 자기 자신을 HTTP로 부른다.
+# 완전판 승격은 이 URL 교체가 전부다 — 메시지 규약·번역기·클라이언트는 그대로.
+A2A_HQ_URL = os.getenv("A2A_HQ_URL", SOLPLY_API_URL)
+A2A_STORE_URL = os.getenv("A2A_STORE_URL", SOLPLY_API_URL)
+
 # ── LLM ──
 # gemini(AI Studio 무료) | vertex(GCP 크레딧·한도 여유) | mock(LLM 없이 규칙)
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini")

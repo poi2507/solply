@@ -49,6 +49,9 @@ ACTION_LABELS: dict[str, str] = {
     "p2p.blocked_over_limit": "직거래 한도 초과 차단",
     "p2p.blocked_unapproved": "본사 미승인 직거래 차단",
     # 라이브 경제 루프
+    # 에이전트 간 표준 왕복 (A2A)
+    "a2a.message": "A2A 메시지 (message/send)",
+
     "inventory.sold": "판매 (재고 차감)",
     "card.settled": "카드매출 정산 지급",
     "card.settle_failed": "카드정산 지급 실패 (재시도 예정)",

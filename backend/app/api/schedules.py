@@ -11,7 +11,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from app.agents import runner
+from app.a2a import client as a2a
 from app.core import policy as policy_mod
 from app.db import store
 from app.solana import payments
@@ -54,10 +54,7 @@ async def run_scheduled(invoice_id: str, options: RunOptions | None = None) -> d
     if options and options.simulate_inflow:
         _simulate_card_settlement(invoice["store_id"], invoice["amount_usdc"])
 
-    final = await runner.run(
-        "store", "invoice.pay_scheduled",
-        store_id=invoice["store_id"], invoice_id=invoice_id,
-    )
+    final = await a2a.send(invoice["store_id"], "invoice.pay_scheduled", invoice_id=invoice_id)
     return {
         "invoice": store.get("invoices", invoice_id),
         "outcome": final.get("outcome"),
