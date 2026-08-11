@@ -12,7 +12,17 @@ from fastapi.staticfiles import StaticFiles
 
 from app import config
 from app.a2a import server as a2a_server
-from app.api import approvals, assistant, dashboard, data_products, policy, schedules, shop, ticks, x402
+from app.api import (
+    approvals,
+    assistant,
+    dashboard,
+    data_products,
+    policy,
+    schedules,
+    shop,
+    ticks,
+    x402,
+)
 
 app = FastAPI(
     title="Solply",
