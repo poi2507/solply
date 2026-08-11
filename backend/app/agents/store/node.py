@@ -264,18 +264,21 @@ def find_supply(state: StoreState) -> dict:
 
 
 def propose_trade(state: StoreState) -> dict:
-    """(구매측) 잉여 지점에 직거래를 제안한다. 가격은 본사 공급가 기준.
+    """(구매측) 잉여 지점에 직거래를 제안한다. 가격 = 본사 공급가에 시세 추세 반영.
 
-    구매한 시세가 있으면 제안 문서에 판단 근거로 남긴다 — 본사 심사가 이 근거를 읽는다.
+    구매한 시세가 제안 문서(basis)와 가격 양쪽에 남는다 — 돈 주고 산 데이터가
+    기록이 아니라 판단을 바꾼다. 반영 폭은 utils.fair_price의 밴드가 지킨다.
     """
     s, sup = state["shortage"], state["supply"]
-    price = round(s["need"] * sup["unit_price_usdc"], 2)
     quote = state.get("market_quote")
+    unit, price_note = utils.fair_price(sup["unit_price_usdc"], quote)
+    price = round(s["need"] * unit, 2)
     basis = f"구매한 외부 시세: {quote['summary']} — pay.sh(x402) 결제" if quote else None
     trade = tools.propose_p2p_trade(
         state["store_id"], sup["store_id"], s["sku"], s["name"], s["need"], price,
         basis=basis,
     )
+    priced = "시세 반영 단가" if price_note else "본사 공급가 기준"
     return {
         "trade": trade,
         "trade_id": trade["id"],
@@ -283,9 +286,46 @@ def propose_trade(state: StoreState) -> dict:
         "messages": [
             (
                 f"{sup['name']}에 직거래를 제안했습니다: {s['name']} {s['need']}개, "
-                f"{price} USDC (본사 공급가 기준), 오늘 픽업."
+                f"{price} USDC ({priced}), 오늘 픽업."
             )
         ],
+        "reasoning": [price_note] if price_note else [],
+    }
+
+
+def respond_counter(state: StoreState) -> dict:
+    """(협상 라운드 2) 본사의 분할 역제안에 잔액·예상 입금을 근거로 응답한다.
+
+    다양성은 난수가 아니라 입력에서 온다 — 같은 역제안이라도 지갑 사정에 따라
+    수락 / 선납 수정안 / 결렬로 갈린다. 지점 응답은 규칙 판단이다 — 심사 쪽
+    LLM 호출(본사 2회)만으로 협상 예산을 지키기 위해서다 (8/11 Vertex 429 실측).
+    """
+    terms = state.get("payload", {}).get("terms", {})
+    per = float(terms.get("per_usdc") or 0)
+    cash = tools.assess_cashflow(state["store_id"], state["invoice_id"])
+    wallet = cash["wallet_usdc"]
+    afford = round(max(0.0, wallet - cash.get("min_reserve_usdc", 0)), 2)
+
+    if per and afford >= per:
+        decision, resp_terms = "accept", {}
+        reason = f"잔액 {wallet} USDC — 회당 {per} USDC 분할을 감당할 수 있어 역제안을 수락합니다."
+    elif per and afford >= max(round(per * 0.3, 2), 0.1):
+        decision, resp_terms = "counter", {"first_usdc": afford}
+        forecast = cash.get("pos_forecast", {}).get("note", "")
+        reason = (
+            f"잔액 {wallet} USDC로는 회당 {per} USDC가 부담입니다 — 지금 가능한 {afford} USDC를 "
+            f"선납하고 잔여는 예정일에 내는 수정안을 제시합니다. {forecast}"
+        ).strip()
+    else:
+        decision, resp_terms = "reject", {}
+        reason = f"잔액 {wallet} USDC로는 선납 여력이 없습니다 — 분할로도 합의가 어렵습니다."
+
+    tools.respond_counter_offer(state["store_id"], state["invoice_id"], decision, resp_terms, reason)
+    return {
+        "proposal": {"decision": decision, "terms": resp_terms},
+        "outcome": "refused" if decision == "reject" else "negotiating",
+        "messages": [reason],
+        "reasoning": [reason],
     }
 
 
@@ -340,8 +380,12 @@ def pay_trade(state: StoreState) -> dict:
 
 
 def report(state: StoreState) -> dict:
-    """지금까지의 판단을 사람이 읽는 한 문단으로 정리한다 (LLM)."""
-    if not state.get("messages"):
+    """지금까지의 판단을 사람이 읽는 한 문단으로 정리한다 (LLM).
+
+    noop으로 끝난 판은 요약을 만들지 않는다 — 판단 없는 판에 LLM 호출을 쓰지
+    않는 것이 협상 다회 왕복의 호출 예산이다 (8/11 라이브: 틱 한 번에 Vertex 429).
+    """
+    if not state.get("messages") or state.get("outcome") == "noop":
         return {}
     summary = judge.narrate(
         agent="store",
@@ -368,6 +412,8 @@ def route_after_context(state: StoreState) -> str:
     intent = state.get("intent", "")
     if intent in _P2P_ROUTE:
         return _P2P_ROUTE[intent]
+    if intent == "proposal.counter":  # 본사 역제안에 대한 재응수 (협상 라운드 2)
+        return "respond_counter"
     if intent in (
         "invoice.pay_adjusted",     # 차감 합의로 재발행된 청구서
         "invoice.pay_scheduled",    # 예약일이 온 청구서

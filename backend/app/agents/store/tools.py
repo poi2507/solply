@@ -193,6 +193,21 @@ def refuse_payment(store_id: str, invoice_id: str, reason: str) -> dict:
     return {"status": "refused", "escalated_to_human": True, "reason": reason}
 
 
+def respond_counter_offer(store_id: str, invoice_id: str, decision: str, terms: dict, reason: str) -> dict:
+    """본사 분할 역제안에 대한 지점의 응답을 협상 기록과 증빙으로 남긴다 (라운드 2)."""
+    negotiation = db.put(
+        "negotiations", db.new_id("NEG"),
+        {"invoice_id": invoice_id, "type": "counter_response",
+         "proposal": "본사 분할 역제안에 대한 지점 응답",
+         "decision": decision, "reasoning": reason, "terms": terms},
+    )
+    utils.log(
+        utils.actor_name(store_id), "proposal.counter_response",
+        {"invoice_id": invoice_id, "decision": decision, "terms": terms, "reason": reason},
+    )
+    return negotiation
+
+
 def record_sales(store_id: str, sku: str, qty: int, note: str = "POS 판매 집계") -> dict:
     """판매 소진을 재고 원장에 반영한다 — 실서비스에선 POS 연동이 이 자리를 채운다."""
     inventory = utils.effective_inventory(store_id)

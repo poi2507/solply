@@ -20,6 +20,8 @@ ACTION_LABELS: dict[str, str] = {
     "proposal.adjustment": "차감 제안",
     "proposal.deferral": "유예 제안",
     "proposal.reviewed": "본사 심사",
+    "proposal.counter_response": "역제안 응답 (지점)",
+    "negotiation.failed": "협상 결렬 (사람에게)",
     # 결제
     "payment.executed": "결제 실행",
     "payment.verified": "수금 검증",

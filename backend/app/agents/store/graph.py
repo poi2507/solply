@@ -42,6 +42,7 @@ def build():
     g.add_node("escalate", node.escalate)
     g.add_node("propose_deferral", node.propose_deferral)
     g.add_node("refuse", node.refuse)
+    g.add_node("respond_counter", node.respond_counter)  # 협상 라운드 2 — 역제안 재응수
     g.add_node("report", node.report)
     # 지점 간 직거래 (P2P)
     g.add_node("check_stock", node.check_stock)
@@ -56,6 +57,7 @@ def build():
         node.route_after_context,
         {
             "verify": "verify", "request_terms": "request_terms", "refuse": "refuse",
+            "respond_counter": "respond_counter",
             "check_stock": "check_stock", "respond_trade": "respond_trade",
             "pay_trade": "pay_trade", "end": END,
         },
@@ -83,7 +85,7 @@ def build():
     )
     for terminal in (
         "propose_adjustment", "pay", "escalate", "propose_deferral", "refuse",
-        "propose_trade", "respond_trade", "pay_trade",
+        "respond_counter", "propose_trade", "respond_trade", "pay_trade",
     ):
         g.add_edge(terminal, "report")
     g.add_edge("report", END)

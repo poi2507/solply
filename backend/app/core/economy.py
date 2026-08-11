@@ -225,6 +225,50 @@ async def _p2p_handshake(trade: dict) -> str:
     return "payment_failed"
 
 
+NEGOTIATION_MAX_ROUNDS = 3  # 구조적 캡: 심사 → 재응수 → 종결. LLM 호출 예산이기도 하다.
+
+
+async def _negotiate_deferral(store_id: str, invoice_id: str) -> str:
+    """유예 제안의 협상 왕복 — 전부 A2A 메시지로 오간다.
+
+    라운드 1  hq 심사        수락(scheduled) / 분할 역제안(counter) / 거절
+    라운드 2  지점 재응수     수락 / 선납 수정안 / 결렬
+    라운드 3  hq 종결        합의 집행(분할 발행) / 수정안 판정 후 집행·결렬
+
+    거절·결렬은 사람 승인 큐로 — 자율 협상의 경계는 사람이다.
+    """
+    proposal = runner.latest_event(db.list_events(), "proposal.deferral")
+    if not proposal or proposal.get("invoice_id") != invoice_id:
+        return "negotiating"
+
+    # 라운드 1 — 본사 심사
+    hq1 = await a2a.send("hq", "proposal.deferral", invoice_id=invoice_id, payload=proposal)
+    if hq1.get("outcome") == "scheduled":
+        return "deferred"
+    counter = (hq1.get("decision") or {}).get("counter_terms")
+    if not counter:  # 거절 — 협상 없이 결렬
+        reason = (hq1.get("reasoning") or ["본사가 유예를 거절했습니다"])[-1]
+        await a2a.send("hq", "proposal.settle", invoice_id=invoice_id,
+                       payload={"failed": True, "reason": reason})
+        return "negotiation_failed"
+
+    # 라운드 2 — 지점 재응수 (수락 / 선납 수정안 / 결렬)
+    st = await a2a.send(store_id, "proposal.counter", invoice_id=invoice_id,
+                        payload={"terms": counter})
+    response = st.get("proposal") or {}
+    if response.get("decision") == "reject":
+        reason = (st.get("reasoning") or ["지점이 분할을 감당할 수 없습니다"])[-1]
+        await a2a.send("hq", "proposal.settle", invoice_id=invoice_id,
+                       payload={"failed": True, "reason": reason})
+        return "negotiation_failed"
+
+    # 라운드 3 — 본사 종결 (합의 집행 또는 수정안 판정)
+    agreement = {**counter, **(response.get("terms") or {})}
+    hq2 = await a2a.send("hq", "proposal.settle", invoice_id=invoice_id,
+                         payload={"agreement": agreement})
+    return "installments_agreed" if hq2.get("outcome") == "scheduled" else "negotiation_failed"
+
+
 def _fulfill_order(store_id: str, sku: str, need: int) -> str | None:
     """본사 이행 — 주문 수량만큼 납품 문서를 만들고 청구서를 발행한다."""
     terms = utils.hq_reorder_terms(sku)
@@ -293,11 +337,8 @@ async def run_procurement() -> list[dict]:
                 continue
             handled = await a2a.send(store_id, "invoice.handle", invoice_id=invoice_id)
             outcome = handled.get("outcome")
-            if outcome == "negotiating":  # 잔액 부족 → 유예 제안 → 본사 심사 한 홉
-                proposal = runner.latest_event(db.list_events(), "proposal.deferral")
-                if proposal and proposal.get("invoice_id") == invoice_id:
-                    await a2a.send("hq", "proposal.deferral", invoice_id=invoice_id, payload=proposal)
-                    outcome = "deferred"
+            if outcome == "negotiating":  # 잔액 부족 → 유예 제안 → 다회 왕복 협상
+                outcome = await _negotiate_deferral(store_id, invoice_id)
             actions.append({"store_id": store_id, "route": "hq_order",
                             "invoice_id": invoice_id, "status": outcome})
         except Exception as exc:  # noqa: BLE001 — 한 지점의 실패가 다른 지점을 막지 않는다

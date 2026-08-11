@@ -191,6 +191,27 @@ def amounts_match(actual: float, expected: float) -> bool:
     return abs(actual - expected) < 1e-6
 
 
+def fair_price(hq_unit_price: float, quote: dict | None, band_pct: float = 10.0) -> tuple[float, str | None]:
+    """구매한 시세의 추세를 공급가에 반영한 제안 단가 — 시세→판단 인과의 유일한 지점.
+
+    추세 = 직전 구매가 대비 변동률. ±band_pct% 밴드로 자른다 — 데모 시세는 몇 초
+    만에 크게 튀므로(153→131), 밴드 없이 반영하면 소음이 가격을 지배한다.
+    시세가 없거나 첫 조회(직전가 없음)면 공급가 그대로. 반환: (단가, 근거 또는 None).
+    """
+    base = round(float(hq_unit_price), 4)
+    if not quote or not quote.get("price_usd") or not quote.get("prev_price_usd"):
+        return base, None
+    prev = float(quote["prev_price_usd"])
+    if prev <= 0 or base <= 0:
+        return base, None
+    trend = (float(quote["price_usd"]) - prev) / prev
+    capped = max(-band_pct / 100, min(band_pct / 100, trend))
+    price = round(base * (1 + capped), 4)
+    note = (f"구매 시세 추세 {trend * 100:+.1f}%를 밴드 ±{band_pct:g}% 안 {capped * 100:+.1f}%로 반영 — "
+            f"단가 {base} → {price} USDC")
+    return price, note
+
+
 def pick_term(accepts: list[dict], term: str) -> dict | None:
     """402 응답의 accepts[]에서 원하는 결제 조건(immediate/deferred/installment)을 고른다."""
     for option in accepts or []:

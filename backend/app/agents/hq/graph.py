@@ -30,6 +30,7 @@ def build():
     g.add_node("review_adjustment", node.review_adjustment)
     g.add_node("apply", node.apply_adjustment)
     g.add_node("review_deferral", node.review_deferral)
+    g.add_node("settle", node.settle_negotiation)  # 협상 종결 — 합의 집행 또는 결렬 정리
     g.add_node("verify", node.verify_settlement)
     g.add_node("review_p2p", node.review_p2p)
     g.add_node("record_p2p", node.record_p2p)
@@ -43,6 +44,7 @@ def build():
             "issue": "issue",
             "review_adjustment": "review_adjustment",
             "review_deferral": "review_deferral",
+            "settle": "settle",
             "verify": "verify",
             "review_p2p": "review_p2p",
             "record_p2p": "record_p2p",
@@ -52,7 +54,7 @@ def build():
     g.add_conditional_edges(
         "review_adjustment", node.route_after_adjustment, {"apply": "apply", "report": "report"}
     )
-    for terminal in ("issue", "apply", "review_deferral", "verify", "review_p2p", "record_p2p"):
+    for terminal in ("issue", "apply", "review_deferral", "settle", "verify", "review_p2p", "record_p2p"):
         g.add_edge(terminal, "report")
     g.add_edge("report", END)
 

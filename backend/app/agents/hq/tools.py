@@ -110,11 +110,13 @@ def adjust_invoice(invoice_id: str, new_amount_usdc: float, reason: str) -> dict
     return invoice
 
 
-def split_invoice(invoice_id: str, parts: int = 2) -> dict:
-    """분할 역제안이 합의 경로가 되도록 청구서를 회차별 자식 청구서로 쪼갠다.
+def split_invoice(invoice_id: str, parts: int = 2, first_usdc: float | None = None) -> dict:
+    """분할 합의를 회차별 자식 청구서로 집행한다.
 
     1회차는 즉시 결제 대상(issued), 나머지는 예약(scheduled) — 기존 x402 왕복과
     예약 실행기를 그대로 태우기 위한 구조다. 원본은 split으로 남아 이력이 이어진다.
+    first_usdc가 오면 재응수 합의(선납 분할) — 1회차를 그 금액으로, 잔여를 나머지
+    회차에 나눈다. 마지막 회차가 반올림 잔액을 흡수해 1센트도 새지 않는다.
     """
     invoice = utils.get_invoice(invoice_id)
     if not invoice:
@@ -124,8 +126,14 @@ def split_invoice(invoice_id: str, parts: int = 2) -> dict:
         # 받을 수 있고 아직 열려 있는 상태의 정의는 core/status.py 한 곳에서만 온다.
         return utils.error(f"분할할 수 없는 상태: {invoice['status']}")
 
-    per = round(invoice["amount_usdc"] / parts, 2)
-    amounts = [per] * (parts - 1) + [round(invoice["amount_usdc"] - per * (parts - 1), 2)]
+    total = invoice["amount_usdc"]
+    per = round(total / parts, 2)
+    amounts = [per] * (parts - 1) + [round(total - per * (parts - 1), 2)]
+    if first_usdc is not None and parts >= 2:
+        first = round(min(max(float(first_usdc), 0.01), total - 0.01 * (parts - 1)), 2)
+        rest_per = round((total - first) / (parts - 1), 2)
+        amounts = ([first] + [rest_per] * (parts - 2)
+                   + [round(total - first - rest_per * (parts - 2), 2)])
     children = []
     for i, amount in enumerate(amounts, start=1):
         children.append(
@@ -149,9 +157,20 @@ def split_invoice(invoice_id: str, parts: int = 2) -> dict:
         ACTOR,
         "invoice.split",
         {"invoice_id": invoice_id, "parts": parts, "amounts": amounts,
+         **({"first_usdc": amounts[0]} if first_usdc is not None else {}),
          "children": [c["id"] for c in children]},
     )
     return {"invoice_id": invoice_id, "children": children, "per_usdc": amounts[0]}
+
+
+def escalate_negotiation(invoice_id: str, reason: str) -> dict:
+    """협상 결렬 — 청구서를 사람 승인 큐로 올린다. 합의 실패의 정리는 사람 몫이다."""
+    invoice = utils.get_invoice(invoice_id)
+    if not invoice:
+        return utils.error(f"청구서 없음: {invoice_id}")
+    updated = store.update("invoices", invoice_id, {"status": "pending_approval"})
+    utils.log(ACTOR, "negotiation.failed", {"invoice_id": invoice_id, "reason": reason})
+    return updated
 
 
 def verify_payment(invoice_id: str, tx_signature: str) -> dict:

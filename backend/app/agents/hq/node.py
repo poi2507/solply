@@ -132,17 +132,17 @@ def review_deferral(state: HQState) -> dict:
     )
 
     if verdict["decision"] == "counter":
-        # 역제안은 말로 끝나지 않는다 — 분할 청구서를 실제로 만들어 협상 테이블에 올린다
-        split = tools.split_invoice(invoice["id"], parts=pol.installment_max)
-        if split.get("error"):
-            return {"outcome": "noop", "messages": [split["error"]]}
+        # 역제안은 즉시 집행하지 않는다 — 조건을 되돌려 지점의 재응수를 받는다.
+        # 집행(분할 발행)은 라운드 3의 settle_negotiation 몫이다 (협상 다회 왕복).
+        per = round(invoice["amount_usdc"] / pol.installment_max, 2)
+        counter_terms = {"kind": "installment", "parts": pol.installment_max, "per_usdc": per}
         return {
-            "decision": {**verdict, "kind": "deferral", "split": split},
+            "decision": {**verdict, "kind": "deferral", "counter_terms": counter_terms},
             "outcome": "negotiating",
             "messages": [
                 (
-                    f"전액 유예 대신 {pol.installment_max}회 분할을 역제안했습니다 "
-                    f"(회당 {split['per_usdc']} USDC, 1회차 즉시·나머지 예약). "
+                    f"전액 유예 대신 {pol.installment_max}회 분할(회당 {per} USDC)을 "
+                    f"역제안했습니다 — 지점의 응답을 기다립니다. "
                 )
                 + verdict["reasoning"]
             ],
@@ -160,6 +160,63 @@ def review_deferral(state: HQState) -> dict:
         ],
         "reasoning": [verdict["reasoning"]],
         "proposal": negotiation,
+    }
+
+
+def settle_negotiation(state: HQState) -> dict:
+    """(협상 종결) 합의를 집행하거나, 결렬을 사람 승인 큐로 넘긴다.
+
+    합의 집행 = 분할 청구서 발행. 지점 수정안(선납)이 오면 코드가 잔여 노출을
+    계산하고 정책 한도로 판정한다 — 사실은 코드, 집행은 문서, 결렬 정리는 사람.
+    """
+    invoice = state["invoice"]
+    payload = state.get("payload", {})
+
+    if payload.get("failed"):
+        tools.escalate_negotiation(invoice["id"], payload.get("reason", "협상 결렬"))
+        return {
+            "outcome": "needs_human",
+            "messages": [f"협상이 결렬됐습니다 — 사람 결정으로 넘깁니다. 사유: {payload.get('reason', '')}"],
+            "reasoning": ["자율 협상의 경계 — 합의 실패는 에이전트가 아니라 사람이 정리한다"],
+        }
+
+    pol = policy_mod.get("hq")
+    agreement = payload.get("agreement", {})
+    parts = int(agreement.get("parts") or pol.installment_max)
+    first = agreement.get("first_usdc")
+
+    if first is not None:
+        # 수정안 판정 — 선납 후 잔여가 외상 한도의 defer_max_pct 안이어야 한다
+        credit = tools.store_credit(invoice["store_id"])
+        remaining = round(invoice["amount_usdc"] - float(first), 2)
+        exposure = remaining / max(credit["credit_limit_usdc"], 0.01) * 100
+        if exposure > pol.defer_max_pct:
+            reason = (
+                f"선납 {first} USDC 후 잔여 {remaining} USDC가 외상 한도의 {exposure:.0f}% — "
+                f"허용 {pol.defer_max_pct:g}%를 넘습니다"
+            )
+            tools.record_decision(invoice["id"], "counter_settle", "지점 수정안(선납 분할)", "reject", reason)
+            tools.escalate_negotiation(invoice["id"], reason)
+            return {
+                "outcome": "needs_human",
+                "messages": [f"수정안을 수용할 수 없습니다 — {reason}. 사람 결정으로 넘깁니다."],
+                "reasoning": [reason],
+            }
+        tools.record_decision(
+            invoice["id"], "counter_settle", "지점 수정안(선납 분할)", "accept",
+            f"선납 후 잔여 노출 {exposure:.0f}% ≤ 허용 {pol.defer_max_pct:g}% — 수정안 수용",
+        )
+
+    split = tools.split_invoice(invoice["id"], parts=parts, first_usdc=first)
+    if split.get("error"):
+        return {"outcome": "noop", "messages": [split["error"]]}
+    return {
+        "outcome": "scheduled",
+        "decision": {"kind": "deferral", "settled": True, "split": split},
+        "messages": [
+            f"협상 타결 — {parts}회 분할로 집행했습니다 (1회차 {split['per_usdc']} USDC 즉시, 나머지 예약)."
+        ],
+        "reasoning": ["합의 조건을 분할 청구서로 즉시 집행 — 협상의 결과는 말이 아니라 문서다"],
     }
 
 
@@ -250,8 +307,8 @@ def record_p2p(state: HQState) -> dict:
 
 
 def report(state: HQState) -> dict:
-    if not state.get("messages"):
-        return {}
+    if not state.get("messages") or state.get("outcome") == "noop":
+        return {}  # noop 판엔 LLM 요약을 쓰지 않는다 — 협상 왕복의 호출 예산
     summary = judge.narrate(
         agent="hq",
         prompt_values=state.get("policy", {}),
@@ -267,6 +324,7 @@ _INTENT_ROUTE = {
     "invoice.issue": "issue",
     "proposal.adjustment": "review_adjustment",
     "proposal.deferral": "review_deferral",
+    "proposal.settle": "settle",
     "payment.verify": "verify",
     "p2p.review": "review_p2p",
     "p2p.record": "record_p2p",
