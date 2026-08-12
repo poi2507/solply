@@ -33,6 +33,8 @@ CREATE INDEX IF NOT EXISTS documents_collection_idx ON documents (collection);
 CREATE INDEX IF NOT EXISTS documents_store_idx ON documents ((data ->> 'store_id'));
 -- 대시보드는 '그날 하루'만 읽는다 — 기록이 몇 달 쌓여도 화면은 하루치만 훑는다
 CREATE INDEX IF NOT EXISTS documents_day_idx ON documents (collection, updated_at DESC);
+-- 재고 합산이 잦다: sum_by("inventory_moves", store_id=...)
+CREATE INDEX IF NOT EXISTS documents_coll_store_idx ON documents (collection, (data ->> 'store_id'));
 
 CREATE TABLE IF NOT EXISTS events (
     id       BIGSERIAL   PRIMARY KEY,
@@ -123,6 +125,26 @@ class PostgresStore:
         with self.pool.connection() as conn:
             rows = conn.execute(sql, params).fetchall()
         return [{**r[0], "updated_at": r[1].isoformat()} for r in rows]
+
+    def sum_by(self, collection: str, group_key: str, value_key: str,
+               **filters: Any) -> dict[str, float]:
+        """그룹별 합계를 DB에서 계산한다 — 수만 행을 파이썬으로 나르지 않는다."""
+        if not (group_key.isidentifier() and value_key.isidentifier()):
+            raise ValueError("허용되지 않는 키")
+        sql = (f"SELECT data ->> '{group_key}', COALESCE(SUM((data ->> '{value_key}')::numeric), 0) "
+               "FROM documents WHERE collection = %s")
+        params: list[Any] = [collection]
+        for key, value in filters.items():
+            if value is None:
+                continue
+            if not key.isidentifier():
+                raise ValueError(f"허용되지 않는 필터 키: {key!r}")
+            sql += f" AND data ->> '{key}' = %s"
+            params.append(str(value))
+        sql += " GROUP BY 1"
+        with self.pool.connection() as conn:
+            rows = conn.execute(sql, params).fetchall()
+        return {r[0]: float(r[1]) for r in rows if r[0] is not None}
 
     def count_docs(self, collection: str, **filters: Any) -> int:
         sql = "SELECT count(*) FROM documents WHERE collection = %s"

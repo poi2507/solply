@@ -74,6 +74,16 @@ class LocalStore:
             docs = [d for d in docs if d.get(key) == value]
         return docs
 
+    def sum_by(self, collection: str, group_key: str, value_key: str,
+               **filters) -> dict[str, float]:
+        sums: dict[str, float] = {}
+        for doc in self.list_docs(collection, **filters):
+            key = doc.get(group_key)
+            if key is None:
+                continue
+            sums[key] = sums.get(key, 0.0) + float(doc.get(value_key) or 0)
+        return sums
+
     def count_docs(self, collection: str, **filters) -> int:
         return len(self.list_docs(collection, **filters))
 

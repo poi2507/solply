@@ -105,11 +105,10 @@ def effective_inventory(store_id: str) -> dict[str, dict]:
         sku: dict(entry)
         for sku, entry in fixtures.load().get("inventory", {}).get(store_id, {}).items()
     }
-    for move in store.list_docs("inventory_moves", store_id=store_id):
-        entry = inventory.setdefault(
-            move["sku"], {"name": move.get("name", move["sku"]), "qty": 0, "safety": 0}
-        )
-        entry["qty"] += move["qty"]
+    # 이동 원장은 수만 행이 된다 — 행을 나르지 않고 DB가 접은 합계만 받는다 (8/12 overview 15초 실측)
+    for sku, qty in store.sum_by("inventory_moves", "sku", "qty", store_id=store_id).items():
+        entry = inventory.setdefault(sku, {"name": sku, "qty": 0, "safety": 0})
+        entry["qty"] += int(qty)
     return inventory
 
 

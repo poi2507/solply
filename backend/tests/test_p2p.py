@@ -53,13 +53,15 @@ def test_inventory_moves_shift_stock(monkeypatch):
         {"store_id": "store-a", "sku": "CHK-10", "name": "냉장 닭", "qty": -4, "reason": "p2p_out", "ref": "P2P-01"},
         {"store_id": "store-a", "sku": "CHK-10", "name": "냉장 닭", "qty": 10, "reason": "received", "ref": "DEL-001"},
     ]
-    monkeypatch.setattr(
-        "app.db.store.list_docs",
-        lambda collection, **k: (
-            [m for m in moves if m["store_id"] == k.get("store_id")]
-            if collection == "inventory_moves" else []
-        ),
-    )
+    def fake_sum_by(collection, group_key, value_key, **k):
+        sums: dict[str, float] = {}
+        if collection != "inventory_moves":
+            return sums
+        for m in moves:
+            if m["store_id"] == k.get("store_id"):
+                sums[m[group_key]] = sums.get(m[group_key], 0) + m[value_key]
+        return sums
+    monkeypatch.setattr("app.db.store.sum_by", fake_sum_by)
     assert utils.effective_inventory("store-b")["CHK-10"]["qty"] == 0 + 4
     assert utils.effective_inventory("store-a")["CHK-10"]["qty"] == 10 - 4 + 10
 
