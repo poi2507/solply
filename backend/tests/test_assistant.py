@@ -27,7 +27,7 @@ def test_agent_assembles_with_all_tools():
 
     runner = _runner()
     assert runner.agent.name == "solply_assistant"
-    assert len(tools.ALL) == 8
+    assert len(tools.ALL) == 9
 
 
 def test_action_tools_survive_bad_targets():
@@ -54,6 +54,35 @@ def test_readonly_tools_return_compact_shapes():
 
     credit = tools.get_store_credit("store-c")
     assert credit["credit_score"] >= 85 and "on_time" in credit
+
+
+def test_negotiation_history_groups_rounds_in_order():
+    """청구서 하나의 3라운드가 한 스레드로, 시간순으로 묶여 나온다."""
+    inv = db.put(
+        "invoices", db.new_id("INV"),
+        {"delivery_id": "DEL-002", "store_id": "store-b", "items": [],
+         "amount_usdc": 9.5, "status": "scheduled", "tx_sig": None},
+    )["id"]
+    rounds = [
+        ("deferral", "counter", None),
+        ("counter_response", "counter", {"first_usdc": 3.73}),
+        ("counter_settle", "accept", None),
+    ]
+    for kind, decision, terms in rounds:
+        db.put(
+            "negotiations", db.new_id("NEG"),
+            {"invoice_id": inv, "type": kind, "proposal": "-",
+             "decision": decision, "reasoning": f"{kind} 사유", "terms": terms},
+        )
+
+    hist = tools.get_negotiation_history(inv)
+
+    assert len(hist["threads"]) == 1
+    thread = hist["threads"][0]
+    assert thread["invoice_id"] == inv and thread["invoice_status"] == "scheduled"
+    assert [r["decision"] for r in thread["rounds"]] == ["counter", "counter", "accept"]
+    assert thread["rounds"][1]["terms"] == {"first_usdc": 3.73}, "선납 조건이 어시스턴트에게 보인다"
+    assert "지점 재응수" in thread["rounds"][1]["step"], "단계는 사람 말로 라벨링된다"
 
 
 def test_provider_errors_never_reach_the_chat_window(monkeypatch):

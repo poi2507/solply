@@ -61,6 +61,46 @@ def get_store_credit(store_id: str) -> dict:
     return hq_tools.store_credit(store_id)
 
 
+NEGOTIATION_STEP_LABEL = {
+    "deferral": "본사 심사 — 지점의 납부 유예 요청",
+    "counter_response": "지점 재응수 — 분할 역제안에 대한 응답",
+    "counter_settle": "본사 종결",
+    "adjustment": "차감 조정 심사",
+    "installment": "분할 납부 심사",
+}
+
+
+def get_negotiation_history(invoice_id: str = "") -> dict:
+    """협상 왕복 기록을 조회한다 — 청구서별로 유예 요청→심사→재응수→종결이 시간순으로 나온다.
+
+    Args:
+        invoice_id: 특정 청구서 ID (예: INV-abc123). 비우면 최근 협상 5건.
+    """
+    negs = db.list_docs("negotiations")
+    if invoice_id:
+        negs = [n for n in negs if n.get("invoice_id") == invoice_id]
+    threads: dict[str, list[dict]] = {}
+    for n in sorted(negs, key=lambda d: d.get("updated_at", "")):
+        row = {
+            "step": NEGOTIATION_STEP_LABEL.get(n["type"], n["type"]),
+            "decision": n["decision"],
+            "reasoning": n.get("reasoning", ""),
+            "at": n.get("updated_at", ""),
+        }
+        if n.get("terms"):
+            row["terms"] = n["terms"]
+        threads.setdefault(n.get("invoice_id") or "?", []).append(row)
+    # 전량을 LLM 프롬프트에 밀어 넣지 않는다 — 최근에 시작된 스레드만
+    return {
+        "threads": [
+            {"invoice_id": inv,
+             "invoice_status": (db.get("invoices", inv) or {}).get("status"),
+             "rounds": rounds}
+            for inv, rounds in list(threads.items())[-5:]
+        ],
+    }
+
+
 def list_pending_approvals() -> list[dict]:
     """사람 승인을 기다리는 결제 목록 — 자동결제 상한을 넘어 에이전트가 멈춘 건들."""
     docs = db.list_docs("invoices", status="pending_approval")
@@ -130,6 +170,7 @@ ALL = [
     get_settlement_overview,
     get_weekly_report,
     get_store_credit,
+    get_negotiation_history,
     list_pending_approvals,
     approve_payment,
     reject_payment,
