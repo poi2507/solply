@@ -39,6 +39,15 @@
   }
   .toast b { color: var(--ink); }
   .toast.warn { border-left-color: var(--warn-vivid); }
+  .guest-wallet {
+    margin-top: 18px; display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 13px 17px; box-shadow: var(--shadow); font-size: 12.5px; color: var(--ink-2);
+  }
+  .guest-wallet .amt { font-family: var(--mono); font-size: 17px; font-weight: 750; color: var(--ink); }
+  .guest-wallet .amt small { font-size: 11px; color: var(--ink-3); font-weight: 400; }
+  .guest-wallet .addr { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+  .guest-wallet .gasless { color: var(--accent); font-weight: 650; font-size: 11.5px; }
   .howto {
     margin-top: 34px; padding: 15px 18px; background: var(--card);
     border: 1px solid var(--line); border-radius: 12px; font-size: 12.5px; color: var(--ink-2);
@@ -58,12 +67,19 @@
     </div>
   </header>
 
+  <div class="guest-wallet" id="guest-wallet">
+    <span>내 지갑 (손님)</span>
+    <span class="amt" id="gw-usdc">조회 중…</span>
+    <span class="addr" id="gw-addr"></span>
+    <span class="gasless">⚡ 수수료 없음 — 가게가 대납합니다</span>
+  </div>
+
   <div id="stores"><div class="empty">진열대를 불러오는 중…</div></div>
 
   <div class="howto">
-    <b style="color:var(--ink)">동작 원리</b> — 손님 결제는 카드(체인 밖)로 이뤄지고, 매출은 지점 금고에 적립됐다가
-    다음 정산 틱에 <b style="color:var(--ink)">온체인 USDC로 지급</b>됩니다. 구매 → 재고 감소 → 에이전트 조달 →
-    x402 정산의 전 과정이 실행 증빙으로 남습니다.
+    <b style="color:var(--ink)">동작 원리</b> — 구매 버튼을 누르면 <b style="color:var(--ink)">손님 지갑에서 본사로
+    USDC가 온체인 이체</b>되고(영수증 링크 제공), 매출은 지점 금고에 적립됐다가 다음 정산 틱에 로열티를 공제한 뒤
+    지점에 지급됩니다. 구매 → 재고 감소 → 에이전트 조달 → x402 정산의 전 과정이 실행 증빙으로 남습니다.
   </div>
 </div>
 <script type="module" src="/assets/shop.js"></script>

@@ -35,6 +35,16 @@ def menu() -> dict:
     return {"stores": stores}
 
 
+@router.get("/wallet")
+def wallet() -> dict:
+    """손님 지갑 — 구매 대금이 나가는 온체인 주머니. 조회 실패해도 진열대는 살아야 한다."""
+    try:
+        bal = payments.balance("guest")
+        return {"address": bal["address"], "usdc": bal["usdc"]}
+    except Exception:  # noqa: BLE001
+        return {"address": None, "usdc": None}
+
+
 class Purchase(BaseModel):
     store_id: str
     sku: str

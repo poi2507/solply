@@ -21,6 +21,16 @@ function toast(html, warn = false) {
   toastTimer = setTimeout(() => el.remove(), 7000);
 }
 
+async function loadWallet() {
+  try {
+    const w = await (await fetch("/api/shop/wallet")).json();
+    $("gw-usdc").innerHTML = w.usdc == null
+      ? '<small>조회 지연 — 잠시 후 갱신</small>'
+      : `${w.usdc} <small>USDC</small>`;
+    $("gw-addr").textContent = w.address ? `${w.address.slice(0, 6)}…${w.address.slice(-6)}` : "";
+  } catch { /* 지갑 조회가 늦어도 진열대는 산다 */ }
+}
+
 async function render() {
   const res = await fetch("/api/shop");
   const { stores } = await res.json();
@@ -61,10 +71,12 @@ async function render() {
         toast("연결에 실패했습니다.", true);
       } finally {
         render();
+        loadWallet();  // 결제가 나갔으니 잔액을 다시 읽는다
       }
     });
   });
 }
 
 render();
+loadWallet();
 setInterval(render, 30000);  // 다른 손님·에이전트의 활동이 진열대에 반영되게
