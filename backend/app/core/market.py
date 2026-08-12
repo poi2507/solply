@@ -173,6 +173,8 @@ def _self_quote(sku: str, actor: str, buyer: str) -> dict | None:
         if settled.status_code != 200 or unit is None:  # 검증 실패 또는 표본 없음
             print(f"[market] 자가 지수 구매 실패({settled.status_code}) — 직전 시세로 진행")
             return cached
+        from app.core import stats
+        stats.add_quote_flow(buyer, protocol.from_atomic(accept["amount"]))
     except Exception as exc:  # noqa: BLE001 — 시세가 조달을 멈출 사유는 아니다
         print(f"[market] 자가 지수 구매 불가 — 시세 없이 진행: {exc}")
         return cached

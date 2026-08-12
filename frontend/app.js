@@ -417,6 +417,7 @@ function renderDataStore(ov) {
 }
 
 // ── 오늘의 자금 흐름 — 곡선 엣지·알약 라벨·흐르는 점선 (공용 헬퍼) ──
+function round2(n) { return Math.round(n * 100) / 100; }
 function flowEdge(x1, y1, x2, y2, cls) {
   const dx = Math.abs(x2 - x1) * 0.5;
   const c1 = x1 + (x2 > x1 ? dx : -dx);
@@ -446,10 +447,29 @@ function storeFlowSvg(ov) {
   const sell = Number(mine.settledUsdc ?? 0);
   const back = Number((flows.card ?? {})[me.id] ?? 0);
   const guest = Number((flows.guest ?? {})[me.id] ?? 0);
-  const myP2p = (ov.trades ?? []).filter(
-    (t) => t.status === "confirmed" && (t.buyer_id === me.id || t.seller_id === me.id));
-  const p2pSum = myP2p.reduce((a, t) => a + Number(t.price_usdc ?? 0), 0);
-  const gc = guest ? "in" : "dim", bc = back ? "in" : "dim", sc = sell ? "out" : "dim";
+  const quotes = Number((flows.quotes ?? {})[me.id] ?? 0);
+  const trades = (ov.trades ?? []).filter((t) => t.status === "confirmed");
+  const gc = guest ? "in" : "dim", bc = back ? "in" : "dim";
+  const sc = sell ? "out" : "dim", qc = quotes ? "out" : "dim";
+
+  // 이웃 지점별 매입·판매 — 업장끼리 사고판 것이 짝별로 보인다
+  const neighbors = (ov.stores ?? []).filter((s) => s.id !== me.id).slice(0, 2);
+  const nbox = neighbors.map((n, k) => {
+    const bought = trades.filter((t) => t.buyer_id === me.id && t.seller_id === n.id)
+      .reduce((a, t) => a + Number(t.price_usdc ?? 0), 0);
+    const soldTo = trades.filter((t) => t.seller_id === me.id && t.buyer_id === n.id)
+      .reduce((a, t) => a + Number(t.price_usdc ?? 0), 0);
+    const y = k === 0 ? 74 : 246;
+    const meY = k === 0 ? 150 : 230;
+    return `
+      <rect x="720" y="${y - 32}" width="156" height="64" rx="12" class="fl-box"/>
+      <text x="798" y="${y - 6}" text-anchor="middle" class="fl-name">${esc(n.name ?? n.id)}</text>
+      <text x="798" y="${y + 15}" text-anchor="middle" class="fl-cap">${esc(n.id)}</text>
+      <line x1="572" y1="${meY}" x2="718" y2="${y}" class="fl-line p2p"
+        marker-start="url(#fl-p2pr)" marker-end="url(#fl-p2p)"/>
+      ${flowPill(645, (meY + y) / 2 - 16, "p2p", `매입 ${fmt(bought)} · 판매 ${fmt(soldTo)}`)}`;
+  }).join("");
+
   return `
   <svg viewBox="0 0 900 320" role="img" aria-label="오늘 내 지점을 중심으로 오간 온체인 자금 흐름">
     ${FLOW_DEFS}
@@ -460,8 +480,8 @@ function storeFlowSvg(ov) {
     <text x="150" y="158" text-anchor="middle" class="fl-name">본사 정산팀</text>
     <text x="150" y="177" text-anchor="middle" class="fl-cap">hq</text>
     <line x1="80" y1="196" x2="220" y2="196" class="fl-sep"/>
-    <text x="150" y="216" text-anchor="middle" class="fl-cap">매출을 금고에 적립했다가</text>
-    <text x="150" y="234" text-anchor="middle" class="fl-cap">로열티 공제 후 지급</text>
+    <text x="150" y="216" text-anchor="middle" class="fl-cap">매출은 금고 적립 후</text>
+    <text x="150" y="234" text-anchor="middle" class="fl-cap">로열티 공제하고 지급</text>
     ${flowEdge(150, 80, 150, 128, gc)}
     ${flowPill(150, 104, gc, `손님 매출 ${fmt(guest)}`)}
     <rect x="390" y="130" width="180" height="120" rx="14" class="fl-box fl-hq"/>
@@ -470,15 +490,12 @@ function storeFlowSvg(ov) {
     <text x="480" y="222" text-anchor="middle" class="fl-cap">신용점수 ${mine.creditScore ?? "—"}</text>
     ${flowEdge(240, 160, 388, 160, bc)}
     ${flowPill(314, 148, bc, `카드정산 ${fmt(back)}`)}
+    ${flowEdge(390, 187, 242, 187, qc)}
+    ${flowPill(316, 187, qc, `시세 구입 ${fmt(quotes)}`)}
     ${flowEdge(390, 214, 242, 214, sc)}
-    ${flowPill(316, 228, sc, `물대 ${fmt(sell)}`)}
-    <rect x="720" y="158" width="160" height="64" rx="12" class="fl-box"/>
-    <text x="800" y="184" text-anchor="middle" class="fl-name">이웃 지점</text>
-    <text x="800" y="205" text-anchor="middle" class="fl-cap">P2P 직거래</text>
-    <line x1="572" y1="190" x2="718" y2="190" class="fl-line p2p"
-      marker-start="url(#fl-p2pr)" marker-end="url(#fl-p2p)"/>
-    ${flowPill(645, 172, "p2p", `P2P ${myP2p.length}건 · ${fmt(p2pSum)}`)}
-    <text x="24" y="308" class="fl-cap">초록은 들어오는 돈, 파랑은 나가는 돈 — 내 지갑 기준</text>
+    ${flowPill(316, 230, sc, `물대 ${fmt(sell)}`)}
+    ${nbox}
+    <text x="24" y="308" class="fl-cap">청록 점선은 이웃 지점과의 P2P 직거래 — 초록 유입 · 파랑 유출 (내 지갑 기준)</text>
     <text x="876" y="308" text-anchor="end" class="fl-cap">모든 흐름은 ${esc(ov.network ?? "devnet")} 온체인 USDC 이체</text>
   </svg>`;
 }
@@ -515,19 +532,28 @@ function renderFlows(ov) {
       ${flowPill(292, outMidY + 3, bc, `카드정산 ${fmt(back)}`)}`;
   }).join("");
 
-  const p2pSeg = (y1, y2) => `<line x1="104" y1="${y1}" x2="104" y2="${y2}"
-    class="fl-line p2p" marker-start="url(#fl-p2pr)" marker-end="url(#fl-p2p)"/>`;
+  const pairSum = (a, b) => p2p
+    .filter((t) => (t.buyer_id === a && t.seller_id === b) || (t.buyer_id === b && t.seller_id === a))
+    .reduce((s2, t) => s2 + Number(t.price_usdc ?? 0), 0);
+  const p2pSeg = (y1, y2, label) => `<line x1="104" y1="${y1}" x2="104" y2="${y2}"
+    class="fl-line p2p" marker-start="url(#fl-p2pr)" marker-end="url(#fl-p2p)"/>
+    ${label ? flowPill(104, (y1 + y2) / 2, "p2p", label) : ""}`;
 
   const royalty = Number(flows.royaltyUsdc ?? 0);
   const dataUsdc = Number(flows.dataUsdc ?? 0);
   const guestUsdc = Number(flows.guestUsdc ?? 0);
+  const quoteSum = Object.values(flows.quotes ?? {}).reduce((a, v) => a + Number(v ?? 0), 0);
+  const external = Math.max(0, round2(dataUsdc - quoteSum));
   const dc = dataUsdc ? "in" : "dim";
   const gc = guestUsdc ? "in" : "dim";
   el.innerHTML = `
   <svg viewBox="0 0 900 360" role="img" aria-label="오늘 본사와 지점 사이를 오간 온체인 자금 흐름">
     ${FLOW_DEFS}
     ${storeBits}
-    ${p2p.length ? p2pSeg(cy[0] + 40, cy[1] - 40) + p2pSeg(cy[1] + 40, cy[2] - 40) : ""}
+    ${p2p.length && stores.length >= 3
+      ? p2pSeg(cy[0] + 40, cy[1] - 40, `${fmt(pairSum(stores[0].id, stores[1].id))}`)
+        + p2pSeg(cy[1] + 40, cy[2] - 40, `${fmt(pairSum(stores[1].id, stores[2].id))}`)
+      : ""}
     <rect x="400" y="90" width="180" height="180" rx="14" class="fl-box fl-hq"/>
     <text x="490" y="118" text-anchor="middle" class="fl-name">본사 정산팀</text>
     <text x="490" y="137" text-anchor="middle" class="fl-cap">hq</text>
@@ -538,7 +564,7 @@ function renderFlows(ov) {
     <text x="490" y="259" text-anchor="middle" class="fl-gain ${dataUsdc ? "" : "mute"}">데이터 판매 +${fmt(dataUsdc)}</text>
     <rect x="716" y="38" width="160" height="64" rx="12" class="fl-box"/>
     <text x="796" y="64" text-anchor="middle" class="fl-name">데이터 상점 구매자</text>
-    <text x="796" y="85" text-anchor="middle" class="fl-cap">에이전트 자급 + 외부</text>
+    <text x="796" y="85" text-anchor="middle" class="fl-cap">자급 ${fmt(quoteSum)} · 외부 ${fmt(external)}</text>
     ${flowEdge(716, 70, 582, 120, dc)}
     ${flowPill(650, 84, dc, `지수 판매 ${fmt(dataUsdc)} (${flows.dataCount ?? 0}건)`)}
     <rect x="716" y="240" width="160" height="64" rx="12" class="fl-box"/>

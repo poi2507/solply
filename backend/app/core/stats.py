@@ -62,3 +62,15 @@ def add_guest_flow(store_id: str, amount: float) -> None:
     guest[store_id] = round(guest.get(store_id, 0.0) + amount, 2)
     doc["guest"] = guest
     db.put("stats", key, doc)
+
+
+def add_quote_flow(buyer: str, amount: float) -> None:
+    """에이전트의 시세 구입 지출 계수기 — 자급 순환의 '사는 쪽'이 그림에 보이게."""
+    from app.core import kst
+
+    key = f"flows-{kst.today()}"
+    doc = db.get("stats", key) or {}
+    quotes = doc.get("quotes", {})
+    quotes[buyer] = round(quotes.get(buyer, 0.0) + amount, 2)
+    doc["quotes"] = quotes
+    db.put("stats", key, doc)
