@@ -26,13 +26,13 @@ def add_card_flow(store_id: str, net: float, royalty: float) -> None:
     from app.core import kst
 
     key = f"flows-{kst.today()}"
-    doc = db.get("stats", key) or {"card": {}, "royalty_usdc": 0.0}
+    doc = db.get("stats", key) or {}
     card = doc.get("card", {})
     card[store_id] = round(card.get(store_id, 0.0) + net, 2)
-    db.put("stats", key, {
-        "card": card,
-        "royalty_usdc": round(doc.get("royalty_usdc", 0.0) + royalty, 2),
-    })
+    # 문서 전체를 새로 만들면 다른 흐름(손님 유입)이 지워진다 — 제자리 갱신만 (8/12 실측)
+    doc["card"] = card
+    doc["royalty_usdc"] = round(doc.get("royalty_usdc", 0.0) + royalty, 2)
+    db.put("stats", key, doc)
 
 
 def card_flows(day: str) -> dict:
@@ -51,11 +51,14 @@ def card_flows(day: str) -> dict:
     return doc
 
 
-def add_guest_flow(amount: float) -> None:
-    """손님 매출의 하루 계수기 — 외부 유입이 다이어그램에 화살표로 선다."""
+def add_guest_flow(store_id: str, amount: float) -> None:
+    """손님 매출의 하루 계수기 — 전체와 지점별을 함께 센다 (지점 화면의 흐름도용)."""
     from app.core import kst
 
     key = f"flows-{kst.today()}"
-    doc = db.get("stats", key) or {"card": {}, "royalty_usdc": 0.0}
+    doc = db.get("stats", key) or {}
     doc["guest_usdc"] = round(doc.get("guest_usdc", 0.0) + amount, 2)
+    guest = doc.get("guest", {})
+    guest[store_id] = round(guest.get(store_id, 0.0) + amount, 2)
+    doc["guest"] = guest
     db.put("stats", key, doc)

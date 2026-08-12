@@ -81,7 +81,7 @@ def purchase(body: Purchase) -> dict:
         utils.log("guest", "shop.sale",
                   {"store_id": body.store_id, "sku": body.sku, "qty": body.qty,
                    "amount_usdc": amount, "tx": tx})
-        stats.add_guest_flow(amount)
+        stats.add_guest_flow(body.store_id, amount)
 
     entry = utils.effective_inventory(body.store_id).get(body.sku, {})
     low = entry.get("qty", 0) < entry.get("safety", 0)

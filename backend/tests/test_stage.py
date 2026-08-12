@@ -81,6 +81,19 @@ def test_revenue_counter_accumulates_and_shows_in_overview():
     assert ov["dataStore"]["priceUsdc"] > 0
 
 
+def test_card_flow_counter_preserves_guest_inflow():
+    """카드정산 계수가 손님 유입을 지우면 안 된다 — 문서 덮어쓰기 회귀 가드 (8/12 실측)."""
+    from app.core import kst, stats
+
+    stats.add_guest_flow("store-a", 1.0)
+    stats.add_card_flow("store-a", 3.0, 1.0)
+
+    doc = db.get("stats", f"flows-{kst.today()}")
+    assert doc["guest_usdc"] >= 1.0, "카드 계수 뒤에도 손님 유입이 남아야 한다"
+    assert doc["guest"]["store-a"] >= 1.0, "지점별 손님 유입도 보존"
+    assert doc["card"]["store-a"] >= 3.0
+
+
 def test_overview_carries_flow_aggregates():
     """자금 흐름 다이어그램의 재료 — 카드정산은 이벤트 스캔이 아니라 계수기로."""
     stats.add_card_flow("store-a", 3.0, 1.0)
