@@ -544,7 +544,10 @@ td .empty, td.empty { text-align: center; }
 .sysinfo dd.cards a { color: var(--accent); }
 
 /* ── 오늘의 자금 흐름 ─────────────────────────────────────────── */
-.flow-panel { margin: 0 var(--pad) 18px; }
+.flow-panel { margin: 14px 0 0; }
+.flow-panel.closed .panel-head { border-bottom: 0; padding-bottom: 0; }
+.flow-panel.closed { padding-bottom: 16px; }
+#flowmap { margin-top: 14px; }
 #flowmap svg { display: block; width: 100%; height: auto; }
 .fl-box { fill: var(--card); stroke: var(--line); }
 .fl-hq { fill: var(--accent-quiet); stroke: #bfe6d6; }

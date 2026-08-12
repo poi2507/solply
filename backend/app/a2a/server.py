@@ -7,6 +7,7 @@
 수신 자체가 실행 증빙이다 — 모든 메시지가 a2a.message 이벤트로 남는다.
 """
 
+import asyncio
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
@@ -69,7 +70,8 @@ async def message_send(agent_id: str, body: dict) -> JSONResponse:
         kwargs["store_id"] = agent_id  # 명함의 주인이 곧 실행 주체 — 메시지로 남을 흉내 못 낸다
 
     try:
-        final = await runner.run(agents[agent_id], intent, **kwargs)
+        # 그래프 안의 동기 LLM 판단이 메인 루프를 막지 않도록 스레드 루프에서 돌린다
+        final = await asyncio.to_thread(asyncio.run, runner.run(agents[agent_id], intent, **kwargs))
     except Exception as exc:  # noqa: BLE001 — 그래프 실패는 불투명한 500이 아니라 표준 오류로
         utils.log(
             f"{agent_id}-agent", "a2a.message",

@@ -676,7 +676,10 @@ $("stage-tick")?.addEventListener("click", (e) =>
 function applyFlowOpen() {
   const open = localStorage.getItem("solply.flowOpen") === "1";
   const map = $("flowmap");
-  if (map) map.hidden = !open;
+  if (map) {
+    map.hidden = !open;
+    map.closest(".flow-panel")?.classList.toggle("closed", !open);
+  }
   const btn = $("flow-toggle");
   if (btn) btn.textContent = open ? "접기" : "펼치기";
 }

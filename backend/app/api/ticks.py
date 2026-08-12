@@ -8,6 +8,7 @@
 잠금 문서로 한 번에 하나만 돌리고, 죽은 틱의 잠금은 TTL이 자연 해제한다.
 """
 
+import asyncio
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException
@@ -35,7 +36,9 @@ async def run_tick() -> dict:
             )
     store.put("locks", "tick", {"started_at": datetime.now(UTC).isoformat()})
     try:
-        summary = await economy.tick()
+        # 작업 스레드의 전용 루프에서 돌린다 — 틱 안의 동기 LLM·DB 호출이
+        # 서버의 메인 이벤트 루프를 붙잡으면 모든 요청이 줄을 선다 (8/12 health 33초 실측)
+        summary = await asyncio.to_thread(asyncio.run, economy.tick())
     finally:
         store.put("locks", "tick", {"started_at": None})
     return {"ok": True, **summary}

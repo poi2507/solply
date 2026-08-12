@@ -6,6 +6,10 @@
 실행: uv run uvicorn app.main:app --reload --port 8080
 """
 
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -25,7 +29,17 @@ from app.api import (
     x402,
 )
 
+
+@asynccontextmanager
+async def _lifespan(app):
+    # 그래프·틱이 asyncio.to_thread로 내려간다 — 기본 실행기(코어+4)로는 중첩이 빠듯하다
+    loop = asyncio.get_running_loop()
+    loop.set_default_executor(ThreadPoolExecutor(max_workers=16, thread_name_prefix="graph"))
+    yield
+
+
 app = FastAPI(
+    lifespan=_lifespan,
     title="Solply",
     description="프랜차이즈 식자재 대금 자율 정산 — Settle On Ledger, for supply",
     version="0.1.0",

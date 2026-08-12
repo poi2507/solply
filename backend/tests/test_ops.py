@@ -373,7 +373,7 @@ def test_trade_statuses_the_code_writes_are_declared():
     written = set()
     for py in app_dir.rglob("*.py"):
         body = py.read_text()
-        for m in re.finditer(r'p2p_trades"[^)]*?"status":\s*"([a-z_]+)"', body, re.S):
+        for m in re.finditer(r'p2p_trades"[^)]*?"status":\s*"([a-z_]+)"', body, re.DOTALL):
             written.add(m.group(1))
     assert written <= declared, f"TradeStatus에 없는 직거래 상태: {written - declared}"
 
@@ -486,7 +486,7 @@ def test_every_inventory_move_reason_has_a_label():
     for py in app_dir.rglob("*.py"):
         body = py.read_text()
         # record_move(store_id, sku, name, qty, reason, ref) — 5번째 인자가 사유다
-        for m in re.finditer(r"record_move\((?:[^()]|\([^()]*\))*?\)", body, re.S):
+        for m in re.finditer(r"record_move\((?:[^()]|\([^()]*\))*?\)", body, re.DOTALL):
             args, depth, cur = [], 0, ""
             for ch in m.group(0)[m.group(0).index("(") + 1: -1]:
                 if ch in "([{":
