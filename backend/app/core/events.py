@@ -11,6 +11,10 @@
 """
 
 ACTION_LABELS: dict[str, str] = {
+    "p2p.escrow_deposited": "에스크로 예치",
+    "p2p.released": "에스크로 지급",
+    "p2p.refunded": "에스크로 환불",
+    "p2p.delivery_failed": "인도 실패",
     "shop.sale": "손님 구매 결제",
     "shop.pay_failed": "손님 결제 실패",
     # 청구서
@@ -47,7 +51,6 @@ ACTION_LABELS: dict[str, str] = {
     "p2p.reviewed": "본사 직거래 심사",
     "p2p.payment_required": "직거래 대금 요구",
     "p2p.paid": "직거래 대금 결제",
-    "p2p.confirmed": "직거래 확정",
     "p2p.recorded": "직거래 장부 반영",
     "p2p.verification_failed": "직거래 검증 실패",
     "p2p.blocked_over_limit": "직거래 한도 초과 차단",

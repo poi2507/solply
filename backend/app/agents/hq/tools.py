@@ -220,18 +220,57 @@ def review_p2p_trade(trade_id: str, decision: str, reasoning: str) -> dict:
 
 
 def record_p2p_settlement(trade_id: str) -> dict:
-    """확정된 직거래를 본사 장부에 기록한다 — 본사·가맹점이 같은 장부를 본다."""
+    """(에스크로 종결) 인도가 확인되면 예치금을 판매측에 지급하고, 아니면 환불한다.
+
+    본사는 직거래의 심판이자 담보 기관이다 — 돈은 인도 확인 전까지 에스크로에
+    잠겨 있고, 이 도구가 풀거나 되돌린다. 지급 실패는 상태를 예치로 남겨
+    다음 틱이 재시도한다 (돈이 증발하는 경로가 없다).
+    """
+    from app import config
+    from app.solana import payments
+
     trade = store.get("p2p_trades", trade_id)
     if not trade:
         return utils.error(f"직거래 건 없음: {trade_id}")
-    if trade["status"] != status_mod.TradeStatus.CONFIRMED:
-        return utils.error(f"확정 전이라 기록할 수 없음: {trade['status']}")
+    if trade["status"] == status_mod.TradeStatus.CONFIRMED:
+        return trade  # 이미 종결 — 재호출에 안전
+    if trade["status"] != status_mod.TradeStatus.ESCROWED:
+        return utils.error(f"예치 전이라 종결할 수 없음: {trade['status']}")
+
+    delivered = any(
+        m["ref"] == trade_id and m["reason"] == "p2p_out"
+        for m in store.list_docs("inventory_moves", store_id=trade["seller_id"])
+    )
+    amount = trade["price_usdc"]
+    if delivered:
+        to = payments.balance(trade["seller_id"])["address"]
+        result = payments.pay(config.ESCROW_WALLET, to, amount, f"{trade_id}-RELEASE")
+        trade = store.update(
+            "p2p_trades", trade_id,
+            {"status": status_mod.TradeStatus.CONFIRMED, "release_tx": result["signature"]},
+        )
+        utils.log(
+            ACTOR, "p2p.released",
+            {"trade_id": trade_id, "seller_id": trade["seller_id"], "amount_usdc": amount,
+             "tx": result["signature"]},
+        )
+    else:
+        to = payments.balance(trade["buyer_id"])["address"]
+        result = payments.pay(config.ESCROW_WALLET, to, amount, f"{trade_id}-REFUND")
+        trade = store.update(
+            "p2p_trades", trade_id,
+            {"status": status_mod.TradeStatus.REFUNDED, "refund_tx": result["signature"]},
+        )
+        utils.log(
+            ACTOR, "p2p.refunded",
+            {"trade_id": trade_id, "buyer_id": trade["buyer_id"], "amount_usdc": amount,
+             "tx": result["signature"], "reason": "인도 미확인 — 예치금 반환"},
+        )
     utils.log(
-        ACTOR,
-        "p2p.recorded",
+        ACTOR, "p2p.recorded",
         {"trade_id": trade_id, "buyer_id": trade["buyer_id"], "seller_id": trade["seller_id"],
-         "sku": trade["sku"], "qty": trade["qty"], "amount_usdc": trade["price_usdc"],
-         "tx": trade.get("tx_sig")},
+         "sku": trade["sku"], "qty": trade["qty"], "amount_usdc": amount,
+         "tx": trade.get("release_tx") or trade.get("refund_tx")},
     )
     return trade
 

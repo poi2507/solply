@@ -568,10 +568,12 @@ function renderTrades(trades) {
   const STATUS = TRADE_STATUS_LABEL;
   // 고정 설명은 패널 머리로 올리고, 행에는 변하는 정보만 남긴다 — 30행이 같은 문장을 반복하면 소음이다
   el.innerHTML = cut.rows.map((t) => {
-    const tx = t.tx_sig
-      ? ` <a class="txlink" href="${explorerUrl(t.tx_sig, currentNetwork)}" target="_blank" rel="noopener" title="온체인 트랜잭션">${short(t.tx_sig, 6, 4)}↗</a>`
+    const sig = t.release_tx ?? t.refund_tx ?? t.tx_sig;  // 종결 tx가 있으면 그것부터
+    const tx = sig
+      ? ` <a class="txlink" href="${explorerUrl(sig, currentNetwork)}" target="_blank" rel="noopener" title="온체인 트랜잭션">${short(sig, 6, 4)}↗</a>`
       : "";
-    const tone = t.status === "confirmed" ? "accept" : t.status === "rejected" ? "reject" : "counter";
+    const tone = t.status === "confirmed" ? "accept"
+      : ["rejected", "refunded"].includes(t.status) ? "reject" : "counter";
     const m = /시세:\s*(\S+)\s+([\d.]+)\s*USD(?:.*?대비\s*([+\-−]?[\d.]+%))?/.exec(t.basis ?? "");
     const basis = m ? `시세 ${m[1]} ${m[2]}${m[3] ? ` · ${m[3]}` : ""}` : "";
     return `

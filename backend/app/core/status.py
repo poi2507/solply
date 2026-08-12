@@ -84,7 +84,9 @@ class TradeStatus(StrEnum):
     ACCEPTED = "accepted"    # 판매 지점이 수락 (안전재고를 지키고도 팔 수 있음)
     REJECTED = "rejected"    # 판매측 또는 본사가 거절
     APPROVED = "approved"    # 본사 승인 — 결제의 전제
-    CONFIRMED = "confirmed"  # 온체인 결제·대조까지 끝남
+    ESCROWED = "escrowed"    # 구매 대금이 본사 에스크로에 예치됨 (인도 확인 대기)
+    CONFIRMED = "confirmed"  # 인도 확인 후 에스크로가 판매측에 지급 — 거래 종결
+    REFUNDED = "refunded"    # 인도 실패 — 에스크로가 구매측에 환불
 
 
 TRADE_LABELS: dict[str, str] = {
@@ -92,5 +94,7 @@ TRADE_LABELS: dict[str, str] = {
     TradeStatus.ACCEPTED: "수락",
     TradeStatus.REJECTED: "거절",
     TradeStatus.APPROVED: "본사 승인",
+    TradeStatus.ESCROWED: "에스크로 예치",
     TradeStatus.CONFIRMED: "확정",
+    TradeStatus.REFUNDED: "환불됨",
 }

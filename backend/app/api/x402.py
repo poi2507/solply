@@ -95,13 +95,18 @@ def trade_challenge(trade_id: str) -> JSONResponse:
     trade = store.get("p2p_trades", trade_id)
     if not trade:
         raise HTTPException(404, f"직거래 건 없음: {trade_id}")
-    if trade["status"] == status_mod.TradeStatus.CONFIRMED:
+    if trade["status"] in (status_mod.TradeStatus.CONFIRMED, status_mod.TradeStatus.REFUNDED):
         return JSONResponse(
             {"status": "already_settled", "tradeId": trade_id, "txSig": trade.get("tx_sig")}
         )
+    if trade["status"] == status_mod.TradeStatus.ESCROWED:
+        return JSONResponse(
+            {"status": "escrow_deposited", "tradeId": trade_id, "txSig": trade.get("tx_sig")}
+        )
 
-    seller_address = payments.balance(trade["seller_id"])["address"]
-    requirements = protocol.build_trade_requirements(trade, seller_address, config.NETWORK)
+    # 대금은 판매자가 아니라 본사 에스크로로 — 인도가 확인돼야 판매자에게 풀린다
+    escrow_address = payments.balance(config.ESCROW_WALLET)["address"]
+    requirements = protocol.build_trade_requirements(trade, escrow_address, config.NETWORK)
     store.log_event(
         f"{trade['seller_id']}-agent",
         "p2p.payment_required",
@@ -138,19 +143,29 @@ def trade_settle(
     verified = bool(tx.get("found") and tx.get("success") and amount_ok and memo_ok)
 
     if verified:
-        store.update("p2p_trades", trade_id, {"status": status_mod.TradeStatus.CONFIRMED, "tx_sig": signature})
-        # 인수 확정 = 재고 이동 — 판 쪽은 줄고 산 쪽은 는다 (재고 원장)
+        # 예치 확인 — 돈이 에스크로에 잠긴 것을 확인해야 판매자가 물건을 넘긴다
+        store.update("p2p_trades", trade_id,
+                     {"status": status_mod.TradeStatus.ESCROWED, "tx_sig": signature})
         from app.agents import utils as agent_utils
 
-        agent_utils.record_move(
-            trade["seller_id"], trade["sku"], trade["name"], -trade["qty"], "p2p_out", trade_id
-        )
-        agent_utils.record_move(
-            trade["buyer_id"], trade["sku"], trade["name"], trade["qty"], "p2p_in", trade_id
-        )
+        stock = agent_utils.effective_inventory(trade["seller_id"]).get(trade["sku"], {})
+        if stock.get("qty", 0) >= trade["qty"]:
+            # 인도 = 재고 이동 — 판 쪽은 줄고 산 쪽은 는다 (재고 원장)
+            agent_utils.record_move(
+                trade["seller_id"], trade["sku"], trade["name"], -trade["qty"], "p2p_out", trade_id
+            )
+            agent_utils.record_move(
+                trade["buyer_id"], trade["sku"], trade["name"], trade["qty"], "p2p_in", trade_id
+            )
+        else:
+            # 예치는 됐는데 재고가 사라진 경우 — 인도 없이 두면 본사가 환불한다
+            store.log_event(
+                f"{trade['seller_id']}-agent", "p2p.delivery_failed",
+                {"trade_id": trade_id, "have": stock.get("qty", 0), "need": trade["qty"]},
+            )
     store.log_event(
         f"{trade['seller_id']}-agent",
-        "p2p.confirmed" if verified else "p2p.verification_failed",
+        "p2p.escrow_deposited" if verified else "p2p.verification_failed",
         {"trade_id": trade_id, "tx": signature, "amount_ok": amount_ok, "memo_ok": memo_ok},
     )
 

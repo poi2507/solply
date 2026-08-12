@@ -246,8 +246,30 @@ async def _p2p_handshake(trade: dict) -> str:
     paid = await a2a.send(trade["buyer_id"], "p2p.pay", trade_id=trade_id)
     if paid.get("outcome") == "paid":
         await a2a.send("hq", "p2p.record", trade_id=trade_id)
-        return "confirmed"
+        final = (db.get("p2p_trades", trade_id) or {}).get("status")
+        if final == status_mod.TradeStatus.CONFIRMED:
+            return "confirmed"
+        if final == status_mod.TradeStatus.REFUNDED:
+            return "refunded"
+        return "escrow_pending"  # 지급 일시 실패 — 스위프가 재시도한다
     return "payment_failed"
+
+
+async def settle_escrows() -> list[dict]:
+    """예치된 채 남은 직거래를 종결한다 — 릴리스·환불 실패의 재시도 경로.
+
+    에스크로의 약속: 돈이 증발하는 경로가 없다. 일시 오류로 예치에 멈춘
+    거래는 틱마다 다시 종결을 시도한다.
+    """
+    settled = []
+    for trade in db.list_docs("p2p_trades", status=status_mod.TradeStatus.ESCROWED):
+        try:
+            await a2a.send("hq", "p2p.record", trade_id=trade["id"])
+            final = (db.get("p2p_trades", trade["id"]) or {}).get("status")
+            settled.append({"trade_id": trade["id"], "status": final})
+        except Exception as exc:  # noqa: BLE001 — 다음 틱이 또 시도한다
+            settled.append({"trade_id": trade["id"], "error": str(exc)[:120]})
+    return settled
 
 
 NEGOTIATION_MAX_ROUNDS = 3  # 구조적 캡: 심사 → 재응수 → 종결. LLM 호출 예산이기도 하다.
@@ -451,6 +473,7 @@ async def tick(rng: random.Random | None = None) -> dict:
     summary = {
         "sales": await _stage(lambda: run_sales(rng)),
         "card_settlements": await _stage(settle_cards),
+        "escrow_settlements": await _stage(settle_escrows),
         "procurement": await _stage(run_procurement),
         "hq_restocked": await _stage(restock_hq),
         "scheduled_runs": await _stage(run_scheduled_payments),

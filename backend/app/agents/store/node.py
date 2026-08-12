@@ -371,8 +371,8 @@ def pay_trade(state: StoreState) -> dict:
         "tx_signature": result["signature"],
         "messages": [
             (
-                f"직거래 대금 {result['amount']} USDC를 판매 지점에 결제하고 서명을 제출했습니다. "
-                f"판매 지점이 온체인 대조 후 재고 인수를 확정했습니다. tx {result['signature'][:16]}…"
+                f"직거래 대금 {result['amount']} USDC를 본사 에스크로에 예치하고 서명을 제출했습니다. "
+                f"인도가 확인되면 본사가 판매 지점에 지급합니다. tx {result['signature'][:16]}…"
             )
         ],
         "reasoning": ["본사 승인 확인 후 결제 — 승인 없는 직거래는 결제하지 않는다"],

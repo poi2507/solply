@@ -342,7 +342,8 @@ def test_every_status_the_code_writes_is_declared():
             written.add(m.group(1))
     # 청구서가 아닌 문서(직거래·도구 반환값)의 상태는 제외한다
     others = {"proposed", "accepted", "approved", "confirmed", "rejected",
-              "needs_human_approval", "already_settled", "hq_out_of_stock"}
+              "needs_human_approval", "already_settled", "hq_out_of_stock",
+              "escrow_deposited"}  # 직거래 402 응답의 상태 표기 (문서 상태 아님)
     assert (written - others) <= declared, f"enum에 없는 청구서 상태: {written - others - declared}"
 
 

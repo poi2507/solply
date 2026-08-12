@@ -164,7 +164,8 @@ def test_seller_rejects_when_safety_stock_breaks(monkeypatch):
 
 # ── 직거래 x402 왕복 (판매 지점이 resource server) ───────────────────
 
-def test_trade_challenge_offers_seller_terms(monkeypatch):
+def test_trade_challenge_routes_payment_to_escrow(monkeypatch):
+    """대금의 목적지는 판매자가 아니라 본사 에스크로 — 인도 확인 전까지 잠긴다."""
     monkeypatch.setattr(
         "app.solana.payments.balance", lambda w: {"address": f"{w.upper()}-ADDR", "usdc": 0, "sol": 1}
     )
@@ -174,11 +175,12 @@ def test_trade_challenge_offers_seller_terms(monkeypatch):
     assert resp.status_code == 402
     accepts = resp.json()["accepts"]
     assert len(accepts) == 1
-    assert accepts[0]["payTo"] == "STORE-A-ADDR"
+    assert accepts[0]["payTo"] == "ESCROW-ADDR"
     assert protocol.from_atomic(accepts[0]["amount"]) == pytest.approx(trade["price_usdc"])
 
 
-def test_trade_settle_confirms_after_onchain_match(monkeypatch):
+def test_trade_settle_escrows_after_onchain_match(monkeypatch):
+    """예치 검증 통과 → 상태는 확정이 아니라 '예치', 인도(재고 이동)까지 일어난다."""
     trade = make_trade(status="paid")
     monkeypatch.setattr(
         "app.solana.payments.verify_tx",
@@ -191,8 +193,81 @@ def test_trade_settle_confirms_after_onchain_match(monkeypatch):
     resp = client.post(f"/x402/trades/{trade['id']}/settle", headers={"PAYMENT-SIGNATURE": header})
 
     assert resp.status_code == 200
-    assert db.get("p2p_trades", trade["id"])["status"] == "confirmed"
-    assert [e for e in db.list_events() if e["action"] == "p2p.confirmed"]
+    assert db.get("p2p_trades", trade["id"])["status"] == "escrowed"
+    assert [e for e in db.list_events() if e["action"] == "p2p.escrow_deposited"]
+    moved = [m for m in db.list_docs("inventory_moves") if m["ref"] == trade["id"]]
+    assert {(m["store_id"], m["qty"]) for m in moved} == {("store-a", -4), ("store-b", 4)}
+
+
+def test_escrow_releases_to_seller_after_delivery(monkeypatch):
+    """인도 확인 → 에스크로가 판매자에게 지급, 거래 확정 + 지급 tx 기록."""
+    from app.agents.hq import tools as hq_tools
+
+    trade = make_trade(status="escrowed")
+    utils.record_move("store-a", "CHK-10", "냉장 닭 10kg", -4, "p2p_out", trade["id"])
+    utils.record_move("store-b", "CHK-10", "냉장 닭 10kg", 4, "p2p_in", trade["id"])
+    paid = []
+    monkeypatch.setattr(
+        "app.solana.payments.balance", lambda w: {"address": f"{w.upper()}-ADDR", "usdc": 50, "sol": 1}
+    )
+    monkeypatch.setattr(
+        "app.solana.payments.pay",
+        lambda src, to, amt, memo: paid.append((src, to, amt, memo)) or {"signature": "REL-1"},
+    )
+
+    result = hq_tools.record_p2p_settlement(trade["id"])
+
+    assert paid == [("escrow", "STORE-A-ADDR", 10.0, f"{trade['id']}-RELEASE")]
+    assert result["status"] == "confirmed" and result["release_tx"] == "REL-1"
+    assert [e for e in db.list_events() if e["action"] == "p2p.released"]
+
+
+def test_escrow_refunds_buyer_when_delivery_missing(monkeypatch):
+    """인도 기록이 없으면 환불 — 돈이 증발하는 경로가 없다."""
+    from app.agents.hq import tools as hq_tools
+
+    trade = make_trade(status="escrowed")  # 인도 이동 없음
+    paid = []
+    monkeypatch.setattr(
+        "app.solana.payments.balance", lambda w: {"address": f"{w.upper()}-ADDR", "usdc": 50, "sol": 1}
+    )
+    monkeypatch.setattr(
+        "app.solana.payments.pay",
+        lambda src, to, amt, memo: paid.append((src, to, amt, memo)) or {"signature": "REF-1"},
+    )
+
+    result = hq_tools.record_p2p_settlement(trade["id"])
+
+    assert paid == [("escrow", "STORE-B-ADDR", 10.0, f"{trade['id']}-REFUND")]
+    assert result["status"] == "refunded" and result["refund_tx"] == "REF-1"
+    assert [e for e in db.list_events() if e["action"] == "p2p.refunded"]
+
+
+def test_escrow_sweep_retries_stuck_release(monkeypatch):
+    """지급이 일시 실패해 예치로 남은 거래를 틱 스위프가 다시 종결한다."""
+    import asyncio
+
+    from app.core import economy
+
+    trade = make_trade(status="escrowed")
+    utils.record_move("store-a", "CHK-10", "냉장 닭 10kg", -4, "p2p_out", trade["id"])
+    monkeypatch.setattr(
+        "app.solana.payments.balance", lambda w: {"address": f"{w.upper()}-ADDR", "usdc": 50, "sol": 1}
+    )
+    monkeypatch.setattr(
+        "app.solana.payments.pay", lambda *a: {"signature": "REL-2"},
+    )
+
+    async def fake_send(agent_id, intent, **kwargs):
+        from app.agents.hq import tools as hq_tools
+        assert (agent_id, intent) == ("hq", "p2p.record")
+        hq_tools.record_p2p_settlement(kwargs["trade_id"])
+        return {"outcome": "ok"}
+    monkeypatch.setattr("app.core.economy.a2a.send", fake_send)
+
+    result = asyncio.run(economy.settle_escrows())
+
+    assert any(r["trade_id"] == trade["id"] and r["status"] == "confirmed" for r in result)
 
 
 def test_trade_settle_refuses_wrong_amount(monkeypatch):

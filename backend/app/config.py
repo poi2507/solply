@@ -17,6 +17,8 @@ FRONTEND_DIR = Path(os.getenv("SOLPLY_FRONTEND_DIR", BASE_DIR.parent / "frontend
 # ── 체인 ──
 NETWORK = os.getenv("SOLANA_NETWORK", "localnet")
 PAYMENTS_API_URL = os.getenv("PAYMENTS_API_URL", "http://localhost:3000")
+# P2P 직거래 예치금 금고 — 잔액이 곧 "지금 예치 중인 대금"인 온체인 감사 장부
+ESCROW_WALLET = os.getenv("ESCROW_WALLET", "escrow")
 # 본사 x402 엔드포인트 (가맹점 에이전트가 정산 왕복에 사용) — 우리 API 서버 자신이다
 SOLPLY_API_URL = os.getenv("SOLPLY_API_URL", "http://localhost:8080")
 
