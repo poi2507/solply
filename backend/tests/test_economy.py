@@ -241,6 +241,9 @@ def test_shop_menu_lists_stores_with_prices():
     assert {s["id"] for s in menu["stores"]} == {"store-a", "store-b", "store-c"}
     item = menu["stores"][0]["items"][0]
     assert {"sku", "name", "qty", "safety", "price_usdc"} <= set(item)
+    assert item["price_usdc"] == pytest.approx(
+        round(economy._sku_price(item["sku"]) * economy.RETAIL_MARGIN, 2)
+    ), "진열대는 소비자 가격 — 공급가 그대로면 손님 결제와 금고 적립이 어긋난다"
 
 
 def test_visitor_purchase_moves_ledger_and_till():
@@ -274,6 +277,8 @@ def test_visitor_purchase_carries_onchain_receipt(monkeypatch):
     assert res.status_code == 200
     data = res.json()
     assert data["tx"] == "SIG-GUEST-1" and data["paid_usdc"] > 0
+    assert data["paid_usdc"] == pytest.approx(data["revenue"]), \
+        "손님이 낸 돈 == 금고 적립액 — 어긋나면 본사가 받은 것보다 더 내준다"
     flows = db.get("stats", f"flows-{kst.today()}")
     assert flows["guest_usdc"] == pytest.approx(before + data["paid_usdc"])
     sale = [e for e in db.list_events() if e["action"] == "shop.sale"][-1]

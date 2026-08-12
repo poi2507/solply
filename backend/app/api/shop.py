@@ -27,8 +27,10 @@ def menu() -> dict:
             "id": store_id,
             "name": profile["name"],
             "items": [
+                # 진열대는 소비자 가격 — 공급가에 요리 마진(1.35)이 붙는다
                 {"sku": sku, "name": e.get("name", sku), "qty": e["qty"],
-                 "safety": e["safety"], "price_usdc": economy._sku_price(sku)}
+                 "safety": e["safety"],
+                 "price_usdc": round(economy._sku_price(sku) * economy.RETAIL_MARGIN, 2)}
                 for sku, e in inventory.items()
             ],
         })
@@ -61,9 +63,9 @@ def purchase(body: Purchase) -> dict:
         raise HTTPException(409, result["error"])
 
     # 손님 지갑 → 본사 — 카드 매출이 밴사·본사를 거쳐 지점에 정산되는 실제 구조.
-    # 금고 적립(sell)→카드정산 지급은 그대로 두고, 유입만 실돈이 된다.
+    # 청구액 = 금고 적립액(소비자 가격, 마진 포함) — 다르면 본사 장부가 어긋난다 (8/12 팀장 발견).
     # 결제가 막혀도(지갑 고갈·RPC) 판매 기록은 이미 남았다 — 데모가 멈추지 않는다.
-    amount = round(economy._sku_price(body.sku) * body.qty, 2)
+    amount = result["revenue"]
     tx = None
     try:
         receipt = payments.pay(

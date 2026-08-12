@@ -26,9 +26,10 @@ const WALLET_DIR = (process.env.SOLPLY_WALLET_DIR ?? "~/.config/solana/solply").
   "~",
   homedir(),
 );
-// guest — 손님 지갑. 프랜차이즈 풀(본사+지점) 밖에서 매출을 실어 나른다.
+// guest — 손님 지갑, trader — 데이터 상점의 외부 거래처 지갑.
+// 둘 다 프랜차이즈 풀(본사+지점) 밖에서 돈을 실어 나른다.
 // Gasless 대납 덕에 SOL 없이 USDC만 있으면 된다.
-const WALLET_NAMES = ["hq", "store-a", "store-b", "store-c", "guest"] as const;
+const WALLET_NAMES = ["hq", "store-a", "store-b", "store-c", "guest", "trader"] as const;
 export type WalletName = (typeof WALLET_NAMES)[number];
 
 // Gasless — 트랜잭션 수수료(SOL)와 토큰 계좌(ATA) 생성비를 대납하는 지갑.

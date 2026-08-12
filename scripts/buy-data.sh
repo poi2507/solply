@@ -2,17 +2,17 @@
 # 데이터 상점 구매 시연 — 402 견적 → USDC 지불 → 증빙 제출 → 지수 수령
 #
 # 사용: ./scripts/buy-data.sh [market|demand] [SKU] [구매자지갑]
-#   예: ./scripts/buy-data.sh market CHK-10 store-a
+#   예: ./scripts/buy-data.sh market CHK-10 trader
 #
-# 구매자 지갑은 데모 대역으로 우리 지갑(store-a)을 쓴다 — 외부 유통사 역할.
-# 실제 외부 구매자라면 자기 지갑으로 USDC를 보내고 서명만 제출하면 된다
-# (서버는 서명을 조회 키로만 쓰므로 누가 냈는지는 체인이 증명한다).
+# 구매자 기본값은 trader — 데이터 상점의 외부 거래처 지갑(프랜차이즈 풀 밖).
+# 서버는 서명을 조회 키로만 쓰므로 누가 냈는지는 체인이 증명한다 —
+# 어떤 외부 지갑이든 USDC를 보내고 서명만 제출하면 지수를 받는다.
 set -euo pipefail
 
 API=${API:-https://solply-api-965647250280.us-central1.run.app}
 PRODUCT=${1:-market}
 SKU=${2:-CHK-10}
-BUYER=${3:-store-a}
+BUYER=${3:-trader}
 
 echo "① 견적 요청 (402 기대) — $PRODUCT/$SKU"
 QUOTE=$(curl -s "$API/x402/data/$PRODUCT/$SKU")
