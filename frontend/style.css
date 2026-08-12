@@ -244,8 +244,8 @@ td.r { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 .caret { display: inline-block; width: 10px; color: var(--ink-3); font-size: 10px; margin-right: 6px; }
 tr.open .caret { color: var(--accent); }
 .child-mark { color: var(--ink-3); margin-right: 5px; }
-.txlink { font-family: var(--mono); font-size: 11.5px; color: var(--info); text-decoration: none; }
-.txlink:hover, .txlink:focus-visible { text-decoration: underline; outline: none; }
+.txlink { font-family: var(--mono); font-size: 11px; color: var(--ink-3); text-decoration: none; }
+.txlink:hover, .txlink:focus-visible { color: var(--accent); text-decoration: underline; outline: none; }
 .dash { color: var(--ink-3); }
 
 /* 상태 — 배지 대신 발광하는 점과 글자. 점은 비비드, 글자는 읽히는 깊은 톤 */
@@ -511,10 +511,10 @@ td .empty, td.empty { text-align: center; }
 .foot-note { margin-top: 50px; padding-top: 18px; border-top: 1px solid var(--line); font-size: 11.5px; color: var(--ink-3); }
 
 /* ── 협상 스레드 — 다회 왕복을 말풍선으로 ─────────────────────────── */
-.thread { padding: 12px 0 6px; border-bottom: 1px solid var(--line-soft); }
+.thread { padding: 10px 0 4px; border-bottom: 1px solid var(--line-soft); }
 .thread:last-child { border-bottom: none; }
 .thread-head { font-size: 11.5px; color: var(--ink-3); letter-spacing: .02em; margin-bottom: 8px; }
-.msg { display: flex; gap: 8px; margin: 6px 0; align-items: flex-start; }
+.msg { display: flex; gap: 8px; margin: 4px 0; align-items: flex-start; }
 .msg .who3 { flex: none; font-size: 10.5px; color: var(--ink-3); padding-top: 7px; width: 28px; }
 .msg.hq { flex-direction: row-reverse; text-align: right; }
 .msg .bubble { max-width: 78%; background: var(--raise); border: 1px solid var(--line-soft);
@@ -522,7 +522,10 @@ td .empty, td.empty { text-align: center; }
 .msg.store .bubble { border-bottom-left-radius: 4px; }
 .msg.hq .bubble { border-bottom-right-radius: 4px; background: #eef6f2; }
 .msg .bubble b { display: block; font-size: 12.5px; color: var(--ink); }
-.msg .bubble span { display: block; color: var(--ink-2); font-size: 12px; margin-top: 2px; }
+.msg .bubble span {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  color: var(--ink-2); font-size: 12px; margin-top: 2px;
+}
 .msg .bubble.good b { color: var(--good, #0c8a54); }
 .msg .bubble.warn b { color: var(--warn, #a8720a); }
 .msg .bubble.risk b { color: var(--risk, #b23b3b); }
@@ -626,3 +629,39 @@ td .empty, td.empty { text-align: center; }
 .fl-ptext.in { fill: var(--good); }
 .fl-ptext.out { fill: var(--info); }
 .fl-ptext.dim { fill: var(--ink-3); font-weight: 400; }
+
+/* ── 직거래 압축 행 · 시세 근거 칩 ─────────────────────────────── */
+.negotiations .row.slim { padding: 9px 0; }
+.row.slim .head { margin-bottom: 0; }
+.basis {
+  font-size: 11px; color: var(--ink-3); background: var(--raise);
+  border: 1px solid var(--line-soft); border-radius: 4px;
+  padding: 1px 6px; margin-left: 4px; white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 재고 원장 지점 그룹 소제목 ───────────────────────────────── */
+.stock-group td {
+  padding: 13px 0 3px; border-bottom: none;
+  font-size: 11px; font-weight: 700; letter-spacing: .05em; color: var(--ink-3);
+}
+
+/* ── 어시스턴트 존재감 ────────────────────────────────────────── */
+.chat-fab {
+  background: var(--accent); color: #fff; border-color: var(--accent);
+  box-shadow: 0 8px 24px rgba(0, 143, 98, .35);
+}
+.chat-fab::before { background: #fff; box-shadow: 0 0 0 3px rgba(255, 255, 255, .25); }
+.chat-fab:hover, .chat-fab:focus-visible { filter: brightness(1.06); border-color: var(--accent); }
+.chat-drawer { border-radius: 16px; box-shadow: 0 24px 70px rgba(23, 33, 27, .24); }
+.chat-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 18px 12px; }
+.chat-chips button {
+  font: inherit; font-size: 11.5px; padding: 5px 11px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--card); color: var(--ink-2); cursor: pointer;
+}
+.chat-chips button:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── 숫자 정렬 안정화 ─────────────────────────────────────────── */
+.metric .value, .ledger td.r, .wallet .usdc, .ds-stats b, .row .head b {
+  font-variant-numeric: tabular-nums;
+}

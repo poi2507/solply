@@ -87,7 +87,7 @@ function renderStores(stores, targetId = "stores") {
 
 // ── 쪽 넘기기 ─────────────────────────────────────────────────────
 // 하루치라도 청구서·직거래는 수십~수백 건이 된다. 한 화면에 30건씩 보여주고 넘긴다.
-const PAGE_SIZE = 30;
+const PAGE_SIZE = 15;
 const page = { invoices: 0, trades: 0, negs: 0 };
 
 function paginate(key, items, size = PAGE_SIZE) {
@@ -508,22 +508,24 @@ function renderTrades(trades) {
   }
   const cut = paginate("trades", trades);
   if (head) {
-    head.innerHTML = pagerHtml("trades", cut, "본사가 승인한 지점 간 거래");
+    head.innerHTML = pagerHtml("trades", cut, "재고 부족분을 옆 지점에서 조달 — 시세 지수 근거 · x402 결제");
     bindPager(head);
   }
   const STATUS = TRADE_STATUS_LABEL;
+  // 고정 설명은 패널 머리로 올리고, 행에는 변하는 정보만 남긴다 — 30행이 같은 문장을 반복하면 소음이다
   el.innerHTML = cut.rows.map((t) => {
     const tx = t.tx_sig
-      ? ` · <a class="txlink" href="${explorerUrl(t.tx_sig, currentNetwork)}" target="_blank" rel="noopener">${short(t.tx_sig, 8, 6)}</a>`
+      ? ` <a class="txlink" href="${explorerUrl(t.tx_sig, currentNetwork)}" target="_blank" rel="noopener" title="온체인 트랜잭션">${short(t.tx_sig, 6, 4)}↗</a>`
       : "";
     const tone = t.status === "confirmed" ? "accept" : t.status === "rejected" ? "reject" : "counter";
+    const m = /시세:\s*(\S+)\s+([\d.]+)\s*USD(?:.*?대비\s*([+\-−]?[\d.]+%))?/.exec(t.basis ?? "");
+    const basis = m ? `시세 ${m[1]} ${m[2]}${m[3] ? ` · ${m[3]}` : ""}` : "";
     return `
-    <div class="row">
+    <div class="row slim">
       <span class="kind">P2P</span>
       <div class="body">
-        <div class="head">${esc(t.buyer_id)} ← ${esc(t.seller_id)} · ${esc(t.name ?? t.sku)} ×${t.qty} · ${fmt(t.price_usdc)} USDC</div>
-        <div class="why">재고 부족분을 본사 청구 대신 옆 지점에서 조달했습니다${tx}</div>
-        ${t.basis ? `<div class="why">판단 근거 — ${esc(t.basis)}</div>` : ""}
+        <div class="head">${esc(t.buyer_id)} ← ${esc(t.seller_id)} · ${esc(t.name ?? t.sku)} ×${t.qty} ·
+          <b>${fmt(t.price_usdc)}</b> USDC${basis ? ` <span class="basis">${esc(basis)}</span>` : ""}${tx}</div>
       </div>
       <span class="verdict ${tone}">${STATUS[t.status] ?? esc(t.status)}</span>
     </div>`;
@@ -672,6 +674,32 @@ $("stage-negotiate")?.addEventListener("click", (e) =>
 $("stage-tick")?.addEventListener("click", (e) =>
   stageCall(e.target, "/api/ticks/run", "틱 실행 중…"));
 
+// ── 역할별 패널 순서 — 각 역할의 이야기 순서대로 배치한다 ──────────
+const MAIN_ORDER = {
+  hq: ["p-stores", "p-negotiations", "approvals-panel", "schedules-panel",
+       "p-datastore", "p-invoices", "p-inventory", "p-trades", "p-feedwide", "p-mystore"],
+  store: ["p-mystore", "approvals-panel", "schedules-panel", "p-invoices",
+          "p-negotiations", "p-inventory", "p-trades", "p-stores", "p-datastore", "p-feedwide"],
+  admin: ["p-feedwide", "p-datastore", "p-invoices", "p-inventory",
+          "p-stores", "p-mystore", "approvals-panel", "schedules-panel", "p-negotiations", "p-trades"],
+};
+const SIDE_ORDER = {
+  hq: ["s-stage", "s-report", "s-feedside", "s-policy", "s-system", "s-wallets"],
+  store: ["s-wallets", "s-policy", "s-feedside", "s-report", "s-stage", "s-system"],
+  admin: ["s-stage", "s-system", "s-wallets", "s-policy", "s-report", "s-feedside"],
+};
+function orderPanels(kind) {
+  const move = (ids, parent) => {
+    if (!parent) return;
+    for (const id of ids) {
+      const el = $(id);
+      if (el) parent.appendChild(el);
+    }
+  };
+  move(MAIN_ORDER[kind] ?? [], document.querySelector(".col-main"));
+  move(SIDE_ORDER[kind] ?? [], document.querySelector(".col-side"));
+}
+
 // ── 자금 흐름 접기/펼치기 — 기본은 접힘, 선택은 기억한다 ──────────
 function applyFlowOpen() {
   const open = localStorage.getItem("solply.flowOpen") === "1";
@@ -750,6 +778,12 @@ if (chatForm) {
     log.scrollTop = log.scrollHeight;
     return li;
   };
+  $("chat-chips")?.addEventListener("click", (e) => {
+    const question = e.target.dataset?.q;
+    if (!question) return;
+    input.value = question;
+    chatForm.requestSubmit();
+  });
   chatForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     const message = input.value.trim();
@@ -801,9 +835,12 @@ function renderInventory(rows, moves) {
   const table = $("stock-table");
   if (!table) return;
 
+  const multi = new Set(rows.map((r) => r.store)).size > 1;
+  let lastStore = null;
   table.innerHTML = rows.length
-    ? rows.map((r) => `<tr>
-        <td class="col-store">${esc(r.store)}</td>
+    ? rows.map((r) => `${multi && r.store !== lastStore
+        ? `<tr class="stock-group"><td colspan="5">${esc((lastStore = r.store))}</td></tr>` : ""}<tr>
+        <td class="col-store">${multi ? "" : esc(r.store)}</td>
         <td>${esc(r.name)}</td>
         <td class="r stock-qty"><b>${r.qty}</b><i> / 안전 ${r.safety}</i></td>
         <td class="stockbar-cell">${stockBar(r.qty, r.safety)}</td>
@@ -960,12 +997,20 @@ async function refresh() {
   }
 
   // 지갑 조회는 온체인 왕복이라 느리다 — 화면을 붙잡지 않고 도착하는 대로 채운다
+  const wbox = $("wallets");
+  if (wbox && !wbox.childElementCount) {
+    wbox.innerHTML = '<div class="empty">온체인 잔액 조회 중…</div>';
+  }
   getJSON("/api/wallets").then((w) => {
     lastWallets = w.wallets;
     const shown = me.kind === "store" ? w.wallets.filter((x) => x.wallet === me.id) : w.wallets;
     renderWallets(shown);
     if (lastView) renderMetrics(role.metricsFor(me, lastView, lastWallets));
-  }).catch(() => {});
+  }).catch(() => {
+    if (wbox && wbox.querySelector(".empty")) {
+      wbox.innerHTML = '<div class="empty">잔액 조회가 늦어지고 있습니다 — 잠시 후 자동 갱신됩니다</div>';
+    }
+  });
 }
 
 function connect() {
@@ -1064,6 +1109,7 @@ function start() {
   $("who-chip").className = `who-chip ${me.kind}`;
   $("role-caption").textContent = me.caption;
   role.applyVisibility(me.kind);
+  orderPanels(me.kind);
 
   // 정책은 본사·가맹점만, 자기 것만 편집한다
   const policyHost = $("policy");

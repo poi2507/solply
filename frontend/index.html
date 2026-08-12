@@ -73,7 +73,7 @@
     <main class="col-main">
 
       <!-- 본사: 전 지점 현황 -->
-      <section class="panel" data-role="hq">
+      <section class="panel" data-role="hq" id="p-stores">
         <div class="panel-head">
           <h2>가맹점 현황</h2>
           <span class="hint">신용점수는 온체인 납부 이력에서 계산됩니다</span>
@@ -82,7 +82,7 @@
       </section>
 
       <!-- 가맹점: 내 지점만 -->
-      <section class="panel" data-role="store">
+      <section class="panel" data-role="store" id="p-mystore">
         <div class="panel-head">
           <h2>내 지점</h2>
           <span class="hint">본사가 보는 내 신용 상태</span>
@@ -90,7 +90,7 @@
         <div class="stores" id="my-store"></div>
       </section>
 
-      <section class="panel" data-role="hq store admin">
+      <section class="panel" data-role="hq store admin" id="p-invoices">
         <div class="panel-head">
           <h2 id="invoices-title">청구서</h2>
           <span class="hint" id="invoice-count"></span>
@@ -111,7 +111,7 @@
         </div>
       </section>
 
-      <section class="panel" data-role="hq store admin">
+      <section class="panel" data-role="hq store admin" id="p-inventory">
         <div class="panel-head">
           <h2>재고 원장</h2>
           <span class="hint">입고 · 출고 · 판매 · 지점 간 이동이 전부 기록으로 남습니다</span>
@@ -144,7 +144,7 @@
         <div id="schedules" class="negotiations"></div>
       </section>
 
-      <section class="panel" data-role="hq store">
+      <section class="panel" data-role="hq store" id="p-negotiations">
         <div class="panel-head">
           <h2 id="negotiations-title">협상 기록</h2>
           <span class="hint" id="negotiations-count">에이전트가 제안하고 심사한 결과</span>
@@ -152,7 +152,7 @@
         <div id="negotiations" class="negotiations"></div>
       </section>
 
-      <section class="panel" data-role="hq store">
+      <section class="panel" data-role="hq store" id="p-trades">
         <div class="panel-head">
           <h2>지점 간 직거래</h2>
           <span class="hint" id="trade-count">가맹점끼리 협상하고 본사가 승인한 P2P 재고 거래</span>
@@ -160,7 +160,7 @@
         <div id="trades" class="negotiations"></div>
       </section>
 
-      <section class="panel" data-role="hq admin">
+      <section class="panel" data-role="hq admin" id="p-datastore">
         <div class="panel-head">
           <h2>데이터 상점</h2>
           <span class="hint">실거래가 남긴 지수를 x402로 판다 — 에이전트도 여기서 판단 재료를 산다</span>
@@ -169,7 +169,7 @@
       </section>
 
       <!-- 관리자: 실행 증빙을 본문에 크게 -->
-      <section class="panel feed-panel wide" data-role="admin">
+      <section class="panel feed-panel wide" data-role="admin" id="p-feedwide">
         <div class="panel-head">
           <h2>실행 로그</h2>
           <span class="hint" id="event-total"></span>
@@ -181,7 +181,7 @@
 
     <aside class="col-side">
 
-      <section class="panel" data-role="hq store">
+      <section class="panel" data-role="hq store" id="s-policy">
         <div class="panel-head">
           <h2 id="policy-title">거래 정책</h2>
           <span class="hint">에이전트의 판단 경계</span>
@@ -189,7 +189,7 @@
         <div id="policy"></div>
       </section>
 
-      <section class="panel" data-role="hq">
+      <section class="panel" data-role="hq" id="s-report">
         <div class="panel-head">
           <h2>정산 리포트</h2>
           <button id="report-btn" class="btn">생성</button>
@@ -197,7 +197,7 @@
         <p class="report-text">이번 주기 처리 내역 요약 — 결과는 창으로 뜹니다.</p>
       </section>
 
-      <section class="panel" data-role="hq admin">
+      <section class="panel" data-role="hq admin" id="s-stage">
         <div class="panel-head">
           <h2>시연 실행</h2>
           <span class="hint">실제 거래가 발생합니다</span>
@@ -209,19 +209,19 @@
         <p id="stage-result" class="report-text"></p>
       </section>
 
-      <section class="panel" data-role="admin">
+      <section class="panel" data-role="admin" id="s-system">
         <div class="panel-head"><h2>시스템</h2></div>
         <dl class="sysinfo" id="sysinfo"></dl>
       </section>
 
-      <section class="panel" data-role="admin store">
+      <section class="panel" data-role="admin store" id="s-wallets">
         <div class="panel-head">
           <h2 id="wallets-title">지갑</h2>
         </div>
         <div class="wallets" id="wallets"></div>
       </section>
 
-      <section class="panel feed-panel" data-role="hq store">
+      <section class="panel feed-panel" data-role="hq store" id="s-feedside">
         <div class="panel-head">
           <h2>최근 활동</h2>
           <span class="hint" id="event-total-side"></span>
@@ -249,8 +249,13 @@
     <button class="linkish" id="chat-close">닫기</button>
   </div>
   <ol class="chat-log" id="chat-log">
-    <li class="msg bot">정산 현황을 물어보거나 승인·예약 실행을 맡겨 주세요.<br>예: "승인 대기 있어?" · "이번 주 정산 요약해줘"</li>
+    <li class="msg bot">정산 현황을 물어보거나 승인·예약 실행을 맡겨 주세요.</li>
   </ol>
+  <div class="chat-chips" id="chat-chips">
+    <button type="button" data-q="승인 대기 있어?">승인 대기 있어?</button>
+    <button type="button" data-q="최근 협상 어떻게 진행됐어?">최근 협상 경위</button>
+    <button type="button" data-q="이번 주 정산 요약해줘">이번 주 요약</button>
+  </div>
   <form id="chat-form" class="chat-form">
     <input id="chat-input" type="text" placeholder="메시지 입력…" autocomplete="off">
     <button type="submit" class="btn btn-approve">전송</button>
