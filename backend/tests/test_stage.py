@@ -82,9 +82,8 @@ def test_revenue_counter_accumulates_and_shows_in_overview():
 
 
 def test_overview_carries_flow_aggregates():
-    """자금 흐름 다이어그램의 재료 — 카드정산·로열티·데이터 판매의 하루 합계."""
-    db.log_event("hq-agent", "card.settled",
-                 {"store_id": "store-a", "amount_usdc": 3.0, "royalty_usdc": 1.0})
+    """자금 흐름 다이어그램의 재료 — 카드정산은 이벤트 스캔이 아니라 계수기로."""
+    stats.add_card_flow("store-a", 3.0, 1.0)
     ov = client.get("/api/overview").json()
     flows = ov["flows"]
     assert flows["card"].get("store-a", 0) >= 3.0

@@ -86,16 +86,9 @@ def overview(day: str | None = None) -> dict:
     trades = store.list_docs("p2p_trades", day=day)
     moves = store.list_docs("inventory_moves", day=day)
 
-    # 자금 흐름 다이어그램의 재료 — 물대·P2P는 위 문서들에 이미 있으니
-    # 여기서는 문서가 없는 흐름만 집계한다: 카드정산(이벤트)과 데이터 판매(주문서)
-    card_flows: dict[str, float] = {}
-    royalty_today = 0.0
-    for e in store.recent_events(2000, day=day, action="card.settled"):
-        p = e["payload"]
-        card_flows[p["store_id"]] = round(
-            card_flows.get(p["store_id"], 0.0) + float(p.get("amount_usdc") or 0), 2
-        )
-        royalty_today = round(royalty_today + float(p.get("royalty_usdc") or 0), 2)
+    # 자금 흐름 다이어그램의 재료 — 물대·P2P는 위 문서들에 이미 있고,
+    # 카드정산은 계수기 문서 하나로 읽는다 (폴링마다 이벤트를 훑으면 서비스가 질식한다 — 8/12 실측)
+    flow_doc = stats_mod.card_flows(day)
     data_today = store.list_docs("data_orders", day=day, state="fulfilled")
     return {
         "day": day,
@@ -129,8 +122,8 @@ def overview(day: str | None = None) -> dict:
         "stores": stores,
         # 자금 흐름(보고 있는 하루) — 다이어그램이 이 숫자로 화살표를 그린다
         "flows": {
-            "card": card_flows,
-            "royaltyUsdc": royalty_today,
+            "card": flow_doc.get("card", {}),
+            "royaltyUsdc": flow_doc.get("royalty_usdc", 0.0),
             "dataUsdc": round(sum(float(o.get("price_usdc") or 0) for o in data_today), 2),
             "dataCount": len(data_today),
         },

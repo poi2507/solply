@@ -204,6 +204,7 @@ def settle_cards() -> list[dict]:
              "royalty_usdc": royalty, "tx": result["signature"]},
         )
         stats.add("royalty", royalty)
+        stats.add_card_flow(store_id, net, royalty)
         paid.append({"store_id": store_id, "amount_usdc": net, "royalty_usdc": royalty})
     return paid
 
