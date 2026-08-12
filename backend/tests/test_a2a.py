@@ -91,3 +91,10 @@ def test_client_send_round_trips(monkeypatch):
 
     assert final["outcome"] == "noop", "없는 거래 → load_context가 noop으로 끝낸다"
     assert "직거래 건을 찾을 수 없습니다" in " ".join(final.get("messages", []))
+
+
+def test_reply_keys_carry_negotiation_fields():
+    """응답 필터가 협상 필드를 떨어뜨리면 라운드 1의 역제안이 결렬로 오판된다 (8/13 실측)."""
+    from app.a2a.server import REPLY_KEYS
+
+    assert {"outcome", "decision", "proposal", "reasoning"} <= set(REPLY_KEYS)

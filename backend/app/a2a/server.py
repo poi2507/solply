@@ -21,6 +21,9 @@ router = APIRouter(prefix="/a2a", tags=["a2a"])
 REPLY_KEYS = (
     "outcome", "messages", "reasoning", "tx_signature",
     "invoice_id", "trade_id", "invoice", "trade", "proposal",
+    # decision — 협상 오케스트레이터가 역제안 조건(counter_terms)을 여기서 읽는다.
+    # 빠지면 라운드 1의 counter가 결렬로 오판된다 (8/13 라이브 실측).
+    "decision",
 )
 
 
