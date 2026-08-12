@@ -166,7 +166,10 @@ async def scenario_c() -> None:
     if not proposal:
         return print(f"  {C['dim']}유예 제안이 나오지 않았습니다{C['0']}")
 
-    await act("hq", "proposal.deferral", "본사", "hq", invoice_id=invoice_id, payload=proposal)
+    # 다회 왕복 협상 — 운영과 같은 경로(A2A message/send → 심사·재응수·종결)를 탄다
+    from app.core import economy
+    outcome = await economy._negotiate_deferral("store-c", invoice_id)
+    print(f"  {C['dim']}협상 결과: {outcome}{C['0']}")
 
     # ── 예약일 도래 — 시간을 당겨 합의된 예약 납부를 실제로 실행한다 ──
     invoice = db.get("invoices", invoice_id)
@@ -205,15 +208,17 @@ async def scenario_f() -> None:
     if not proposal or proposal.get("invoice_id") != invoice_id:
         return print(f"  {C['dim']}유예 제안이 나오지 않았습니다{C['0']}")
 
-    countered = await act(
-        "hq", "proposal.deferral", "본사", "hq", invoice_id=invoice_id, payload=proposal
-    )
-    split = (countered.get("decision") or {}).get("split")
-    if not split:
-        return print(f"  {C['dim']}역제안(분할)이 나오지 않았습니다{C['0']}")
+    # 다회 왕복 협상 — 심사(역제안) → 지점 재응수 → 종결까지 A2A로 오간다
+    from app.core import economy
+    outcome = await economy._negotiate_deferral("store-b", invoice_id)
+    print(f"  {C['dim']}협상 결과: {outcome}{C['0']}")
+    if outcome not in ("installments_agreed", "deferred"):
+        return print(f"  {C['dim']}합의 불발 — 사람 승인 큐에서 이어진다{C['0']}")
+    if db.get("invoices", invoice_id)["status"] != "split":
+        return  # 전액 유예 합의 — 분할 회차가 없다
 
-    # 가맹점이 역제안을 재평가 — 1회차는 지금, 2회차는 예약
-    part1, part2 = split["children"][0]["id"], split["children"][1]["id"]
+    # 합의 집행분 재확인 — 1회차는 지금, 2회차는 예약 (자식 ID는 -P{n}로 결정적)
+    part1, part2 = f"{invoice_id}-P1", f"{invoice_id}-P2"
     paid = await act(
         "store", "invoice.pay_installment", "B지점", "b",
         store_id="store-b", invoice_id=part1,
@@ -308,6 +313,13 @@ async def main() -> None:
         # till을 지우면 지점이 이미 돈 주고 산 재고의 매출이 증발해 지점→본사로
         # 부가 편향된다 (라이브에서 3시간마다 리셋이 돌며 실제로 그렇게 샜다).
         db.reset(keep=("policies", "till"))
+
+    # A2A는 자기 앱으로의 in-process 왕복 — 데모 스크립트는 서버 없이도 돌아야 한다
+    from httpx import ASGITransport
+
+    from app.a2a import client as a2a_client
+    from app.main import app as _app
+    a2a_client._TRANSPORT = ASGITransport(app=_app)
 
     banner("SOLPLY — 프랜차이즈 식자재 대금 자율 정산", "hq")
     mode = "규칙 기반(mock)" if config.LLM_PROVIDER == "mock" else f"{config.LLM_PROVIDER} · {config.HQ_MODEL}"

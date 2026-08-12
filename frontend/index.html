@@ -4,7 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Solply — 식자재 대금 자율 정산</title>
-<link rel="stylesheet" href="/assets/style.css">
+  <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="%2300a870"/><text x="16" y="23" font-family="Arial" font-size="20" font-weight="800" fill="white" text-anchor="middle">L</text></svg>'>
+  <link rel="stylesheet" href="/assets/style.css">
 </head>
 <body>
 
@@ -57,6 +58,15 @@
   </header>
 
   <section class="metrics" id="metrics"></section>
+
+  <!-- 오늘의 자금 흐름 — 패널 숫자들이 어디서 어디로 흘렀는지 한 장으로 -->
+  <section class="panel flow-panel" data-role="hq admin">
+    <div class="panel-head">
+      <h2>오늘의 자금 흐름</h2>
+      <span class="hint">온체인 정산이 확인된 오늘 합계 — 숫자는 USDC</span>
+    </div>
+    <div id="flowmap"></div>
+  </section>
 
   <div class="grid">
     <main class="col-main">

@@ -175,7 +175,7 @@ body::after {
   display: flex; align-items: baseline; justify-content: space-between;
   gap: 14px; padding-bottom: 11px; border-bottom: 1px solid var(--line);
 }
-.panel-head h2 { margin: 0; font-size: 13px; font-weight: 650; }
+.panel-head h2 { margin: 0; font-size: 13px; font-weight: 650; white-space: nowrap; flex-shrink: 0; }
 .panel-head .hint { font-size: 11.5px; color: var(--ink-3); text-align: right; }
 
 /* ── 청구서 표 ── */
@@ -542,3 +542,29 @@ td .empty, td.empty { text-align: center; }
 /* 실행 로그의 체인 링크 */
 .feed .txlink { flex: none; font-size: 11px; margin-left: 6px; }
 .sysinfo dd.cards a { color: var(--accent); }
+
+/* ── 오늘의 자금 흐름 ─────────────────────────────────────────── */
+.flow-panel { margin: 0 var(--pad) 18px; }
+#flowmap svg { display: block; width: 100%; height: auto; }
+.fl-box { fill: var(--card); stroke: var(--line); }
+.fl-hq { fill: var(--accent-quiet); stroke: #bfe6d6; }
+.fl-name { font-size: 13px; font-weight: 650; fill: var(--ink); }
+.fl-cap { font-size: 11px; fill: var(--ink-3); }
+.fl-line { fill: none; stroke-width: 1.6; }
+.fl-line.in { stroke: var(--good); }
+.fl-line.out { stroke: var(--info); }
+.fl-line.dim { stroke: var(--line); stroke-dasharray: 4 4; }
+.fl-head.in { fill: var(--good); }
+.fl-head.out { fill: var(--info); }
+.fl-head.dim { fill: var(--line); }
+.fl-label { font-size: 11px; font-weight: 600; }
+.fl-label.in { fill: var(--good); }
+.fl-label.out { fill: var(--info); }
+.fl-label.dim { fill: var(--ink-3); font-weight: 400; }
+.fl-gain { font-size: 11.5px; font-weight: 600; fill: var(--good); }
+.fl-gain.mute { fill: var(--ink-3); font-weight: 400; }
+
+/* 협상 스레드의 실상태 칩 */
+.thread-head .chip { margin-left: 6px; }
+.chip.stat-good { color: var(--good); border-color: #cfe9dd; }
+.chip.stat-risk { color: var(--risk); border-color: #f0d2cf; }

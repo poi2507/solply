@@ -306,7 +306,7 @@ function toggle(id) {
 }
 
 // ── 목록형 ────────────────────────────────────────────────────────
-function renderNegotiations(negs) {
+function renderNegotiations(negs, invoices = []) {
   const el = $("negotiations");
   if (!negs.length) {
     el.innerHTML = '<div class="empty">협상 기록이 없습니다</div>';
@@ -329,6 +329,12 @@ function renderNegotiations(negs) {
     </div>`;
   const threadHtml = [...threads.entries()].map(([inv, rows]) => {
     rows.sort((a, b) => (a.updated_at ?? "").localeCompare(b.updated_at ?? ""));
+    const invDoc = invoices.find((i) => i.id === inv);
+    const stTone = !invDoc ? ""
+      : ["scheduled", "split", "settled"].includes(invDoc.status) ? "stat-good"
+      : ["pending_approval", "refused"].includes(invDoc.status) ? "stat-risk" : "";
+    const chip = invDoc
+      ? `<span class="chip ${stTone}">${esc(STATUS_LABEL[invDoc.status] ?? invDoc.status)}</span>` : "";
     const msgs = [];
     for (const n of rows) {
       if (n.type === "deferral") {
@@ -348,12 +354,13 @@ function renderNegotiations(negs) {
       } else {
         const [title, tone] =
           n.decision === "accept" ? ["수정안 수용 — 분할 청구서 집행", "good"]
-          : ["수정안 거절 — 사람 결정으로", "risk"];
+          : n.proposal === "협상 결렬" ? ["결렬 — 사람 결정 대기", "risk"]
+          : ["수정안 거절 — 사람 결정 대기", "risk"];
         msgs.push(bubble("hq", title, n.reasoning ?? "", tone));
       }
     }
     return `<div class="thread">
-      <div class="thread-head">${esc(inv)} · A2A 협상 (message/send ${rows.length + 1}통)</div>
+      <div class="thread-head">${esc(inv)} · A2A 협상 (message/send ${rows.length + 1}통) ${chip}</div>
       ${msgs.join("")}
     </div>`;
   }).join("");
@@ -392,6 +399,58 @@ function renderDataStore(ov) {
         </div>
         <span class="verdict accept">이행</span>
       </div>`).join("") : '<div class="empty">아직 판매 기록이 없습니다</div>'}`;
+}
+
+// ── 오늘의 자금 흐름 — 패널 숫자들이 어디서 어디로 흘렀는지 SVG 한 장으로 ──
+function renderFlows(ov) {
+  const el = $("flowmap");
+  if (!el) return;
+  const flows = ov.flows ?? {};
+  const card = flows.card ?? {};
+  const stores = ov.stores ?? [];
+  const p2p = (ov.trades ?? []).filter((t) => t.status === "confirmed");
+  const p2pSum = p2p.reduce((a, t) => a + Number(t.price_usdc ?? 0), 0);
+
+  const cy = [62, 170, 278];                    // 지점 상자 세로 중심
+  const hqY = [138, 170, 202];                  // 본사 상자에 닿는 높이
+  const arrow = (x1, y1, x2, y2, cls, label, ly) => `
+    <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" class="fl-line ${cls}" marker-end="url(#fl-${cls})"/>
+    <text x="${(x1 + x2) / 2}" y="${ly}" class="fl-label ${cls}" text-anchor="middle">${label}</text>`;
+
+  const storeBits = stores.slice(0, 3).map((s, i) => {
+    const y = cy[i];
+    const sell = Number(s.settledUsdc ?? 0);
+    const back = Number(card[s.id] ?? 0);
+    return `
+      <rect x="24" y="${y - 27}" width="138" height="54" rx="9" class="fl-box"/>
+      <text x="93" y="${y - 4}" text-anchor="middle" class="fl-name">${esc(s.name ?? s.id)}</text>
+      <text x="93" y="${y + 14}" text-anchor="middle" class="fl-cap">${esc(s.id)}</text>
+      ${arrow(162, y - 10, 378, hqY[i] - 6, sell ? "in" : "dim", `물대 ${fmt(sell)}`, (y - 10 + hqY[i] - 6) / 2 - 6)}
+      ${arrow(378, hqY[i] + 12, 162, y + 12, back ? "out" : "dim", `카드정산 ${fmt(back)}`, (y + 12 + hqY[i] + 12) / 2 + 15)}`;
+  }).join("");
+
+  const royalty = Number(flows.royaltyUsdc ?? 0);
+  const dataUsdc = Number(flows.dataUsdc ?? 0);
+  el.innerHTML = `
+  <svg viewBox="0 0 880 340" role="img" aria-label="오늘 본사와 지점 사이를 오간 온체인 자금 흐름">
+    <defs>
+      <marker id="fl-in" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" class="fl-head in"/></marker>
+      <marker id="fl-out" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" class="fl-head out"/></marker>
+      <marker id="fl-dim" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" class="fl-head dim"/></marker>
+    </defs>
+    ${storeBits}
+    <rect x="380" y="108" width="170" height="124" rx="10" class="fl-box fl-hq"/>
+    <text x="465" y="134" text-anchor="middle" class="fl-name">본사 정산팀</text>
+    <text x="465" y="156" text-anchor="middle" class="fl-cap">hq</text>
+    <text x="465" y="184" text-anchor="middle" class="fl-gain ${royalty ? "" : "mute"}">로열티 원천징수 +${fmt(royalty)}</text>
+    <text x="465" y="204" text-anchor="middle" class="fl-gain ${dataUsdc ? "" : "mute"}">데이터 판매 +${fmt(dataUsdc)}</text>
+    <rect x="700" y="60" width="156" height="54" rx="9" class="fl-box"/>
+    <text x="778" y="83" text-anchor="middle" class="fl-name">데이터 상점 구매자</text>
+    <text x="778" y="101" text-anchor="middle" class="fl-cap">에이전트 자급 + 외부</text>
+    ${arrow(700, 96, 552, 146, dataUsdc ? "in" : "dim", `지수 판매 ${fmt(dataUsdc)} (${flows.dataCount ?? 0}건)`, 108)}
+    <text x="24" y="330" class="fl-cap">지점 ⇄ 지점 직거래(P2P) 오늘 ${p2p.length}건 · ${fmt(p2pSum)} USDC</text>
+    <text x="856" y="330" text-anchor="end" class="fl-cap">모든 화살표는 ${esc(ov.network ?? "devnet")} 온체인 USDC 이체</text>
+  </svg>`;
 }
 
 function renderTrades(trades) {
@@ -792,9 +851,10 @@ async function refresh() {
       : me.kind === "hq" ? (ov.inventoryMoves ?? []).filter((m) => m.store_id === "hq")
       : ov.inventoryMoves;
     renderInventory(stockRows, stockMoves);
-    renderNegotiations(view.negotiations);
+    renderNegotiations(view.negotiations, [...(view.invoices ?? []), ...(view.openInvoices ?? [])]);
     renderTrades(view.trades);
     renderDataStore(ov);
+    renderFlows(ov);
     // 날짜로 자르지 않은 목록을 쓴다 — 어제 멈춘 결제가 오늘 사라지면 안 된다
     const openList = view.openInvoices ?? ov.openInvoices ?? view.invoices;
     renderSchedules(openList);

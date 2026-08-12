@@ -105,8 +105,12 @@ class LocalStore:
     def count_events(self, actor: str | None = None, day: str | None = None) -> int:
         return len(self._events(actor=actor, day=day))
 
-    def recent_events(self, limit: int, day: str | None = None) -> list[dict]:
-        return self._events(day=day)[-limit:][::-1]
+    def recent_events(self, limit: int, day: str | None = None,
+                      action: str | None = None) -> list[dict]:
+        events = self._events(day=day)
+        if action:
+            events = [e for e in events if e["action"] == action]
+        return events[-limit:][::-1]
 
     def _events(self, actor: str | None = None, day: str | None = None) -> list[dict]:
         with self._lock:

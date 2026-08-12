@@ -150,6 +150,10 @@ def test_settle_failure_reaches_human_queue():
     )
     assert out["outcome"] == "needs_human"
     assert db.get("invoices", "INV-NEG-7")["status"] == "pending_approval"
+    ends = [n for n in db.list_docs("negotiations")
+            if n["invoice_id"] == "INV-NEG-7" and n["type"] == "counter_settle"]
+    assert ends and ends[-1]["decision"] == "reject", \
+        "결렬도 협상 기록으로 남는다 — 안 남기면 스레드가 '응답 대기'로 멈춰 보인다"
 
 
 def test_split_with_first_amount_preserves_total():

@@ -199,13 +199,19 @@ class PostgresStore:
         with self.pool.connection() as conn:
             return conn.execute(sql, params).fetchone()[0]
 
-    def recent_events(self, limit: int, day: str | None = None) -> list[dict]:
-        sql = "SELECT ts, actor, action, payload FROM events"
+    def recent_events(self, limit: int, day: str | None = None,
+                      action: str | None = None) -> list[dict]:
+        sql, where = "SELECT ts, actor, action, payload FROM events", []
         params: list[Any] = []
         if day:
             start, end = kst.bounds(day)
-            sql += " WHERE ts >= %s AND ts < %s"
+            where.append("ts >= %s AND ts < %s")
             params += [start, end]
+        if action:
+            where.append("action = %s")
+            params.append(action)
+        if where:
+            sql += " WHERE " + " AND ".join(where)
         sql += " ORDER BY id DESC LIMIT %s"
         params.append(limit)
         with self.pool.connection() as conn:

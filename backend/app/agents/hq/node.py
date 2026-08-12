@@ -173,7 +173,10 @@ def settle_negotiation(state: HQState) -> dict:
     payload = state.get("payload", {})
 
     if payload.get("failed"):
-        tools.escalate_negotiation(invoice["id"], payload.get("reason", "협상 결렬"))
+        reason = payload.get("reason", "협상 결렬")
+        # 결렬도 협상 기록으로 남긴다 — 안 남기면 스레드가 "응답 대기"로 영원히 멈춰 보인다
+        tools.record_decision(invoice["id"], "counter_settle", "협상 결렬", "reject", reason)
+        tools.escalate_negotiation(invoice["id"], reason)
         return {
             "outcome": "needs_human",
             "messages": [f"협상이 결렬됐습니다 — 사람 결정으로 넘깁니다. 사유: {payload.get('reason', '')}"],

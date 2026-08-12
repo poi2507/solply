@@ -85,6 +85,18 @@ def overview(day: str | None = None) -> dict:
 
     trades = store.list_docs("p2p_trades", day=day)
     moves = store.list_docs("inventory_moves", day=day)
+
+    # 자금 흐름 다이어그램의 재료 — 물대·P2P는 위 문서들에 이미 있으니
+    # 여기서는 문서가 없는 흐름만 집계한다: 카드정산(이벤트)과 데이터 판매(주문서)
+    card_flows: dict[str, float] = {}
+    royalty_today = 0.0
+    for e in store.recent_events(2000, day=day, action="card.settled"):
+        p = e["payload"]
+        card_flows[p["store_id"]] = round(
+            card_flows.get(p["store_id"], 0.0) + float(p.get("amount_usdc") or 0), 2
+        )
+        royalty_today = round(royalty_today + float(p.get("royalty_usdc") or 0), 2)
+    data_today = store.list_docs("data_orders", day=day, state="fulfilled")
     return {
         "day": day,
         "today": kst.today(),
@@ -115,6 +127,13 @@ def overview(day: str | None = None) -> dict:
             "allTrades": store.count_docs("p2p_trades"),
         },
         "stores": stores,
+        # 자금 흐름(보고 있는 하루) — 다이어그램이 이 숫자로 화살표를 그린다
+        "flows": {
+            "card": card_flows,
+            "royaltyUsdc": royalty_today,
+            "dataUsdc": round(sum(float(o.get("price_usdc") or 0) for o in data_today), 2),
+            "dataCount": len(data_today),
+        },
         # 본사 수익 계기판 — 구독료 밖 두 매출원(로열티·데이터 판매)의 실측 누적
         "hqRevenue": stats_mod.snapshot(),
         # 데이터 상점 — 상품 가격과 최근 판매 (외부 구매 + 에이전트 자급 구매)
