@@ -141,6 +141,18 @@ def run_sales(rng: random.Random) -> list[dict]:
     발주·정산이 경제 규모(총 몇백 USDC)에 비해 폭주한다. 한산한 틱이 기본이고
     가끔 손님이 몰리는 정도로 둔다.
     """
+    # 실수요 우선 — 오늘 손님이 실제로 산 만큼 시뮬 수요가 물러난다.
+    # 시뮬은 손님이 없을 때 배경을 채우는 보정재다. 한 번 차감한 몫은
+    # 원장(offset 문서)에 적어 다음 틱이 같은 구매를 두 번 빼지 않는다.
+    day = kst.today()
+    guest_sold: dict[str, int] = {}
+    for m in db.list_docs("inventory_moves", day=day, reason="sold", ref="손님 구매 (라이브)"):
+        key = f"{m['store_id']}:{m['sku']}"
+        guest_sold[key] = guest_sold.get(key, 0) + abs(m["qty"])
+    offset_key = f"demand-offset-{day}"
+    offsets = db.get("stats", offset_key) or {}
+    offset_dirty = False
+
     sold = []
     for store_id in fixtures.load()["stores"]:
         for sku, entry in utils.effective_inventory(store_id).items():
@@ -149,9 +161,20 @@ def run_sales(rng: random.Random) -> list[dict]:
             qty = min(entry["qty"], rng.choices((0, 1, 2), weights=sale_weights(entry))[0])
             if qty <= 0:
                 continue
+            key = f"{store_id}:{sku}"
+            credit = guest_sold.get(key, 0) - int(offsets.get(key, 0) or 0)
+            if credit > 0:
+                take = min(qty, credit)
+                offsets[key] = int(offsets.get(key, 0) or 0) + take
+                offset_dirty = True
+                qty -= take
+            if qty <= 0:
+                continue
             result = sell(store_id, sku, qty, "영업 판매")
             if not result.get("error"):
                 sold.append(result)
+    if offset_dirty:
+        db.put("stats", offset_key, offsets)
     return sold
 
 

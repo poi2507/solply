@@ -298,6 +298,24 @@ def test_visitor_purchase_survives_payment_outage(monkeypatch):
     assert [e for e in db.list_events() if e["action"] == "shop.pay_failed"]
 
 
+def test_real_guest_demand_displaces_sim_sales():
+    """실수요 우선 — 오늘 손님이 산 만큼 시뮬 판매가 물러나고, 같은 몫이 두 번 차감되지 않는다."""
+    class Rush:
+        def choices(self, population, weights=None):
+            return [1]
+
+    utils.record_move("store-a", "CHK-10", "냉장 닭", 5, "received", "TEST-GUESTDEMAND")
+    economy.sell("store-a", "CHK-10", 1, "손님 구매 (라이브)")
+
+    first = economy.run_sales(Rush())
+    assert not any(s["store_id"] == "store-a" and s["sku"] == "CHK-10" for s in first), \
+        "손님이 산 만큼 시뮬이 물러난다"
+
+    second = economy.run_sales(Rush())
+    assert any(s["store_id"] == "store-a" and s["sku"] == "CHK-10" for s in second), \
+        "차감은 원장에 기록되어 한 번만 — 다음 틱은 평소처럼 돈다"
+
+
 def test_visitor_purchase_guards():
     assert client.post("/api/shop/purchase",
                        json={"store_id": "store-x", "sku": "CHK-10", "qty": 1}).status_code == 404
