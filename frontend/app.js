@@ -88,20 +88,20 @@ function renderStores(stores, targetId = "stores") {
 // ── 쪽 넘기기 ─────────────────────────────────────────────────────
 // 하루치라도 청구서·직거래는 수십~수백 건이 된다. 한 화면에 30건씩 보여주고 넘긴다.
 const PAGE_SIZE = 30;
-const page = { invoices: 0, trades: 0 };
+const page = { invoices: 0, trades: 0, negs: 0 };
 
-function paginate(key, items) {
-  const pages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+function paginate(key, items, size = PAGE_SIZE) {
+  const pages = Math.max(1, Math.ceil(items.length / size));
   if (page[key] > pages - 1) page[key] = pages - 1;  // 목록이 줄면 마지막 쪽으로 당긴다
-  const from = page[key] * PAGE_SIZE;
-  return { rows: items.slice(from, from + PAGE_SIZE), from, pages, total: items.length };
+  const from = page[key] * size;
+  return { rows: items.slice(from, from + size), from, pages, total: items.length };
 }
 
 /** 쪽 표시 + 이동 버튼. 한 쪽에 다 들어가면 건수만 적는다. */
 function pagerHtml(key, cut, tail = "") {
   const suffix = tail ? ` · ${tail}` : "";
   if (cut.pages <= 1) return `${cut.total}건${suffix}`;
-  const to = Math.min(cut.from + PAGE_SIZE, cut.total);
+  const to = cut.from + cut.rows.length;
   return `${cut.total}건 중 ${cut.from + 1}–${to}${suffix}
     <span class="pager">
       <button class="daybtn" data-page="${key}:-1" ${page[key] === 0 ? "disabled" : ""}
@@ -308,7 +308,9 @@ function toggle(id) {
 // ── 목록형 ────────────────────────────────────────────────────────
 function renderNegotiations(negs, invoices = []) {
   const el = $("negotiations");
+  const head = $("negotiations-count");
   if (!negs.length) {
+    if (head) head.textContent = "에이전트가 제안하고 심사한 결과";
     el.innerHTML = '<div class="empty">협상 기록이 없습니다</div>';
     return;
   }
@@ -327,7 +329,7 @@ function renderNegotiations(negs, invoices = []) {
       <span class="who3">${side === "store" ? "지점" : "본사"}</span>
       <div class="bubble ${tone}"><b>${esc(title)}</b>${body ? `<span>${esc(body)}</span>` : ""}</div>
     </div>`;
-  const threadHtml = [...threads.entries()].map(([inv, rows]) => {
+  const threadHtml = (inv, rows) => {
     rows.sort((a, b) => (a.updated_at ?? "").localeCompare(b.updated_at ?? ""));
     const invDoc = invoices.find((i) => i.id === inv);
     const stTone = !invDoc ? ""
@@ -363,8 +365,8 @@ function renderNegotiations(negs, invoices = []) {
       <div class="thread-head">${esc(inv)} · A2A 협상 (message/send ${rows.length + 1}통) ${chip}</div>
       ${msgs.join("")}
     </div>`;
-  }).join("");
-  const otherHtml = others.map((n) => `
+  };
+  const rowHtml = (n) => `
     <div class="row">
       <span class="kind">${KIND_LABEL[n.type] ?? esc(n.type)}</span>
       <div class="body">
@@ -372,8 +374,21 @@ function renderNegotiations(negs, invoices = []) {
         <div class="why"><b>본사 판단:</b> ${esc(n.reasoning ?? "")}</div>
       </div>
       <span class="verdict ${esc(n.decision)}">${VERDICT_LABEL[n.decision] ?? esc(n.decision)}</span>
-    </div>`).join("");
-  el.innerHTML = threadHtml + otherHtml;
+    </div>`;
+
+  // 스레드는 부피가 크다 — 한 쪽에 6덩이씩만
+  const units = [
+    ...[...threads.entries()].map(([inv, rows]) => ({ thread: [inv, rows] })),
+    ...others.map((n) => ({ row: n })),
+  ];
+  const cut = paginate("negs", units, 6);
+  if (head) {
+    head.innerHTML = pagerHtml("negs", cut);
+    bindPager(head);
+  }
+  el.innerHTML = cut.rows
+    .map((u) => (u.thread ? threadHtml(u.thread[0], u.thread[1]) : rowHtml(u.row)))
+    .join("");
 }
 
 function renderDataStore(ov) {
@@ -613,8 +628,8 @@ async function stageCall(btn, url, runningText) {
     const res = await fetch(url, { method: "POST" });
     const body = await res.json().catch(() => ({}));
     out.textContent = res.ok
-      ? `완료 — ${body.invoice_id ? `${body.invoice_id} → ${body.outcome}` : "틱 한 바퀴 실행됨"}. 협상 기록·실행 로그를 보세요.`
-      : `안 됨 — ${body.detail ?? res.status}`;
+      ? `완료 — ${body.invoice_id ? `${body.invoice_id} → ${body.outcome}` : "틱 실행됨"} (협상 기록에 표시)`
+      : `실패 — ${body.detail ?? res.status}`;
   } catch (err) {
     out.textContent = `오류 — ${err}`;
   } finally {
@@ -624,21 +639,38 @@ async function stageCall(btn, url, runningText) {
   }
 }
 $("stage-negotiate")?.addEventListener("click", (e) =>
-  stageCall(e.target, "/api/demo/negotiate", "협상 재생 중… (라운드가 실제로 돕니다)"));
+  stageCall(e.target, "/api/demo/negotiate", "협상 진행 중…"));
 $("stage-tick")?.addEventListener("click", (e) =>
   stageCall(e.target, "/api/ticks/run", "틱 실행 중…"));
 
 // ── 리포트 · 어시스턴트 ───────────────────────────────────────────
+function openModal(title, body) {
+  $("modal-title").textContent = title;
+  $("modal-body").textContent = body;
+  $("modal-backdrop").hidden = false;
+}
+function closeModal() {
+  $("modal-backdrop").hidden = true;
+}
+$("modal-close")?.addEventListener("click", closeModal);
+$("modal-backdrop")?.addEventListener("click", (e) => {
+  if (e.target === e.currentTarget) closeModal();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeModal();
+});
+
 const reportBtn = $("report-btn");
 if (reportBtn) {
   reportBtn.addEventListener("click", async () => {
     reportBtn.disabled = true;
     reportBtn.textContent = "생성 중…";
+    openModal("정산 리포트", "요약을 작성하고 있습니다…");
     try {
       const r = await getJSON("/api/report");
-      $("report-text").textContent = r.report || "아직 요약할 정산 내역이 없습니다.";
+      $("modal-body").textContent = r.report || "아직 요약할 정산 내역이 없습니다.";
     } catch {
-      $("report-text").textContent = "리포트 생성에 실패했습니다.";
+      $("modal-body").textContent = "리포트 생성에 실패했습니다. 잠시 뒤 다시 시도해 주세요.";
     } finally {
       reportBtn.disabled = false;
       reportBtn.textContent = "생성";
@@ -869,7 +901,7 @@ async function refresh() {
       const el = $(id);
       if (el) el.textContent = `${dayNote} ${ev.total}건 · 누적 ${ev.allTime ?? ev.total}건`;
     }
-    const feedHtml = ev.events.map((e) => eventRow(e, false)).join("")
+    const feedHtml = ev.events.slice(0, 30).map((e) => eventRow(e, false)).join("")
       || '<li class="empty" style="display:block">아직 활동이 없습니다</li>';
     for (const id of ["feed", "feed-side"]) {
       const el = $(id);
@@ -907,7 +939,7 @@ function connect() {
       if (!feed || feed.hidden) continue;
       feed.querySelector(".empty")?.remove();
       feed.insertAdjacentHTML("afterbegin", eventRow(evt, true));
-      while (feed.children.length > 80) feed.lastElementChild.remove();
+      while (feed.children.length > 40) feed.lastElementChild.remove();
     }
     beacon.className = "beacon hot";
     beacon.innerHTML = "<i></i>에이전트 작동 중";
