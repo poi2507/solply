@@ -18,7 +18,7 @@ def fetch_market_quote(store_id: str, sku: str) -> dict | None:
     판단 재료도 공짜가 아니다 — 데이터 비용을 에이전트가 지불하고
     결제 영수증(payment-receipt)이 실행 증빙으로 남는다.
     """
-    return market.quote(sku, actor=utils.actor_name(store_id))
+    return market.quote(sku, actor=utils.actor_name(store_id), buyer=store_id)
 
 
 def list_open_invoices(store_id: str) -> list[dict]:

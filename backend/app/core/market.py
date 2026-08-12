@@ -1,4 +1,9 @@
-"""시세 구매 — 에이전트의 판단 재료를 pay.sh(x402)로 사서 쓴다.
+"""시세 구매 — 에이전트의 판단 재료를 x402로 사서 쓴다.
+
+기본 출처(QUOTE_SOURCE=self)는 **우리 데이터 상점의 체결가 지수**다: 에이전트가
+자기 지갑(devnet USDC)으로 402를 지불하고 산다 — 생태계가 만든 체결 데이터가
+다시 판단 재료가 되는 자급 순환. 지수→가격→지수의 순환 참조는 fair_price의
+±10% 밴드가 안정화한다. paysh 출처는 주최측 데모 디버거(샌드박스) 폴백이다.
 
 무료 크롤링이 아니라 유료 데이터다. `pay --sandbox curl`이 402 챌린지를 만나
 스스로 지불하고, 응답의 payment-receipt(온체인 참조 포함)를 증빙으로 남긴다.
@@ -14,9 +19,13 @@ import shutil
 import subprocess
 from datetime import UTC, datetime
 
+import httpx
+
 from app import config
 from app.agents import utils
+from app.core import protocol
 from app.db import store as db
+from app.solana import payments
 
 QUOTES = "market_quotes"
 
@@ -60,7 +69,7 @@ def _parse(raw: str) -> tuple[dict | None, dict | None]:
 # (같은 심볼이 몇 초 만에 153 → 131로 바뀌고, 없는 심볼에도 값을 만들어 준다).
 # 원문 그대로 "제공 mpp-demo"라고 쓰면 보는 사람이 데모인 줄 모르므로 풀어 적는다.
 # 실제 시세 피드를 붙이면 그 제공자 이름이 그대로 나온다.
-PROVIDER_LABELS = {"mpp-demo": "pay.sh 데모 시세"}
+PROVIDER_LABELS = {"mpp-demo": "pay.sh 데모 시세", "solply-index": "Solply 자체 체결가 지수"}
 
 
 def _summary(symbol: str, price: float, prev: float | None, source: str) -> str:
@@ -72,9 +81,16 @@ def _summary(symbol: str, price: float, prev: float | None, source: str) -> str:
     return f"{symbol} {price} USD ({trend}, 제공 {provider})"
 
 
-def quote(sku: str, actor: str) -> dict | None:
-    """시세 한 건을 구매한다. TTL 내 재사용, 실패하면 직전 시세라도 돌려준다."""
-    if not config.PAYSH_ENABLED or shutil.which(config.PAYSH_BIN) is None:
+def quote(sku: str, actor: str, buyer: str | None = None) -> dict | None:
+    """시세 한 건을 구매한다. TTL 내 재사용, 실패하면 직전 시세라도 돌려준다.
+
+    PAYSH_ENABLED는 두 출처 공통의 킬 스위치다 (테스트·촬영 중 구매 차단).
+    """
+    if not config.PAYSH_ENABLED:
+        return None
+    if config.QUOTE_SOURCE == "self" and buyer:
+        return _self_quote(sku, actor, buyer)
+    if shutil.which(config.PAYSH_BIN) is None:
         return None
     symbol = _symbol(sku)
     now = datetime.now(UTC)
@@ -118,5 +134,69 @@ def quote(sku: str, actor: str) -> dict | None:
         "source": source,
         "paid_via": "pay.sh --sandbox (x402)",
         "receipt_ref": (receipt or {}).get("reference", ""),
+    })
+    return doc
+
+
+def _self_quote(sku: str, actor: str, buyer: str) -> dict | None:
+    """우리 데이터 상점에서 체결가 지수를 산다 — 402 견적 → devnet 지불 → 인도.
+
+    구매자는 에이전트 자신의 지갑이다. 어떤 실패도 조달을 멈추지 않는다는
+    계약은 그대로: 실패하면 직전 지수, 그것도 없으면 None.
+    """
+    now = datetime.now(UTC)
+    cached = db.get(QUOTES, sku)
+    if cached:
+        age = (now - datetime.fromisoformat(cached["fetched_at"])).total_seconds()
+        if age < config.PAYSH_QUOTE_TTL_S:
+            return cached
+
+    try:
+        base = config.SOLPLY_API_URL
+        challenge = httpx.get(f"{base}/x402/data/market/{sku}", timeout=15)
+        if challenge.status_code != 402:
+            return cached
+        req = challenge.json()
+        accept = req["accepts"][0]
+        order_id = req["extensions"]["solply.dataOrder"]["id"]
+
+        paid = payments.pay(buyer, accept["payTo"],
+                            protocol.from_atomic(accept["amount"]), accept["extra"]["memo"])
+        header = protocol.encode_header(
+            {"x402Version": protocol.X402_VERSION, "payload": {"signature": paid["signature"]}}
+        )
+        settled = httpx.post(f"{base}{req['resource']['url']}",
+                             headers={"PAYMENT-SIGNATURE": header}, timeout=30)
+        body = settled.json()
+        index = body.get("data") or {}
+        unit = index.get("unit_price_usdc")
+        if settled.status_code != 200 or unit is None:  # 검증 실패 또는 표본 없음
+            print(f"[market] 자가 지수 구매 실패({settled.status_code}) — 직전 시세로 진행")
+            return cached
+    except Exception as exc:  # noqa: BLE001 — 시세가 조달을 멈출 사유는 아니다
+        print(f"[market] 자가 지수 구매 불가 — 시세 없이 진행: {exc}")
+        return cached
+
+    prev = float(cached["price_usd"]) if cached else None
+    # price_usd 키는 fair_price 호환용 — 자가 지수의 단위는 USDC다
+    doc = db.put(QUOTES, sku, {
+        "symbol": sku,
+        "price_usd": float(unit),
+        "prev_price_usd": prev,
+        "source": "solply-index",
+        "samples": index.get("samples"),
+        "summary": _summary(sku, float(unit), prev, "solply-index"),
+        "receipt": {"reference": (body.get("receipt") or {}).get("transaction", ""),
+                    "explorer": (body.get("receipt") or {}).get("explorer", "")},
+        "fetched_at": now.isoformat(),
+    })
+    utils.log(actor, "market.quote_purchased", {
+        "sku": sku,
+        "price_usd": float(unit),
+        "samples": index.get("samples"),
+        "source": "solply-index",
+        "paid_via": "x402 (자가 지수 · devnet)",
+        "receipt_ref": (body.get("receipt") or {}).get("transaction", ""),
+        "order_id": order_id,
     })
     return doc

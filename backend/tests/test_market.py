@@ -33,6 +33,7 @@ _FAKE_OUT = (
 @pytest.fixture()
 def paysh_on(monkeypatch):
     monkeypatch.setattr(config, "PAYSH_ENABLED", True)
+    monkeypatch.setattr(config, "QUOTE_SOURCE", "paysh")  # 폴백 경로를 검증한다
     monkeypatch.setattr("app.core.market.shutil.which", lambda _: "/usr/local/bin/pay")
 
 
@@ -86,7 +87,7 @@ def test_quote_disabled_or_failing_never_blocks(paysh_on, monkeypatch):
 def test_find_supply_buys_quote_as_judgment_input(monkeypatch):
     monkeypatch.setattr(
         "app.core.market.quote",
-        lambda sku, actor: {"summary": "CHK 309.85 USD (첫 조회 — 기준 시세로 기록, 제공 mpp-demo)"},
+        lambda sku, actor, buyer=None: {"summary": "CHK 309.85 USD (첫 조회 — 기준 시세로 기록, 제공 mpp-demo)"},
     )
     state = {
         "store_id": "store-b",
@@ -120,3 +121,63 @@ def test_unknown_provider_is_shown_as_is():
     from app.core import market
 
     assert "제공 KAMIS" in market._summary("CHK", 3.2, None, "KAMIS")
+
+
+# ── 자급 시세 (QUOTE_SOURCE=self — 기본값) ──────────────────────────────
+
+@pytest.fixture()
+def self_source(monkeypatch):
+    monkeypatch.setattr(config, "PAYSH_ENABLED", True)
+    monkeypatch.setattr(config, "QUOTE_SOURCE", "self")
+
+
+class _Resp:
+    def __init__(self, code, body):
+        self.status_code, self._body = code, body
+
+    def json(self):
+        return self._body
+
+
+def test_self_quote_buys_from_our_data_store(self_source, monkeypatch):
+    """에이전트가 자기 지갑으로 우리 지수를 산다 — 자급 순환의 최소 단위."""
+    challenge = {
+        "accepts": [{"amount": "100000", "payTo": "HQ-ADDR", "extra": {"memo": "ORD-T1"}}],
+        "resource": {"url": "/x402/data/orders/ORD-T1/settle"},
+        "extensions": {"solply.dataOrder": {"id": "ORD-T1"}},
+    }
+    settled = {"receipt": {"transaction": "SIG-SELF", "explorer": "http://x"},
+               "data": {"unit_price_usdc": 0.47, "samples": 12, "trend_pct": -2.0}}
+    monkeypatch.setattr("app.core.market.httpx.get", lambda url, timeout: _Resp(402, challenge))
+    monkeypatch.setattr("app.core.market.httpx.post",
+                        lambda url, headers, timeout: _Resp(200, settled))
+    paid = []
+    monkeypatch.setattr(
+        "app.core.market.payments.pay",
+        lambda b, to, amt, memo: paid.append((b, to, amt, memo)) or {"signature": "SIG-SELF"},
+    )
+
+    quote = market.quote("CHK-10", actor="store-b-agent", buyer="store-b")
+
+    assert paid == [("store-b", "HQ-ADDR", 0.1, "ORD-T1")], "402가 시킨 금액·주소·memo 그대로"
+    assert quote["price_usd"] == 0.47 and quote["source"] == "solply-index"
+    assert "Solply 자체 체결가 지수" in quote["summary"]
+    event = [e for e in db.list_events() if e["action"] == "market.quote_purchased"][-1]
+    assert event["payload"]["source"] == "solply-index"
+    assert event["payload"]["receipt_ref"] == "SIG-SELF"
+
+
+def test_self_quote_failure_keeps_procurement_alive(self_source, monkeypatch):
+    """상점이 죽어도 조달은 계속 — 직전 지수로 버틴다 (기존 계약 유지)."""
+    db.put(market.QUOTES, "OIL-18", {
+        "symbol": "OIL-18", "price_usd": 0.6, "prev_price_usd": None,
+        "source": "solply-index", "summary": "OIL-18 0.6",
+        "fetched_at": "2000-01-01T00:00:00+00:00",  # TTL 밖 — 재구매 시도하게
+    })
+
+    def boom(url, timeout):
+        raise OSError("상점 연결 불가")
+    monkeypatch.setattr("app.core.market.httpx.get", boom)
+
+    quote = market.quote("OIL-18", actor="store-a-agent", buyer="store-a")
+    assert quote["price_usd"] == 0.6, "실패 시 직전 지수 반환"

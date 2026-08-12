@@ -54,6 +54,9 @@ PAYSH_ENABLED = os.getenv("PAYSH_ENABLED", "1").lower() not in ("0", "false")
 PAYSH_BIN = os.getenv("PAYSH_BIN", "pay")
 PAYSH_QUOTE_URL = os.getenv("PAYSH_QUOTE_URL", "https://debugger.pay.sh/mpp/quote")
 PAYSH_QUOTE_TTL_S = int(os.getenv("PAYSH_QUOTE_TTL_S", "600"))
+# 시세 출처 — self: 우리 데이터 상점의 체결가 지수를 x402로 구매 (자급 순환, devnet 실결제)
+#            paysh: 주최측 데모 디버거 (샌드박스 — 값이 무의미한 폴백)
+QUOTE_SOURCE = os.getenv("QUOTE_SOURCE", "self")
 
 # ── 저장소 ──
 # local | postgres  (Cloud SQL로 옮길 때도 DATABASE_URL만 바꾼다)
