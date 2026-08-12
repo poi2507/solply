@@ -419,43 +419,55 @@ function renderDataStore(ov) {
 // ── 오늘의 자금 흐름 — 패널 숫자들이 어디서 어디로 흘렀는지 SVG 한 장으로 ──
 function renderFlows(ov) {
   const el = $("flowmap");
-  if (!el) return;
+  if (!el || el.hidden) return;
   const flows = ov.flows ?? {};
   const card = flows.card ?? {};
   const stores = ov.stores ?? [];
   const p2p = (ov.trades ?? []).filter((t) => t.status === "confirmed");
   const p2pSum = p2p.reduce((a, t) => a + Number(t.price_usdc ?? 0), 0);
 
-  // 행 단위 수평 흐름 — 교차하는 대각선 없이, 지점 행마다 두 개의 평행 화살표만
-  const cy = [70, 180, 290];
-  const label = (x, y, cls, text) =>
-    `<text x="${x}" y="${y}" class="fl-label ${cls}" text-anchor="middle">${text}</text>`;
-  const harrow = (x1, x2, y, cls) =>
-    `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" class="fl-line ${cls}" marker-end="url(#fl-${cls})"/>`;
+  // 곡선 엣지 + 선 위 알약 라벨 + 흐르는 점선 — 방향이 움직임으로 보인다
+  const edge = (x1, y1, x2, y2, cls) => {
+    const dx = Math.abs(x2 - x1) * 0.5;
+    const c1 = x1 + (x2 > x1 ? dx : -dx);
+    const c2 = x2 - (x2 > x1 ? dx : -dx);
+    const d = `M ${x1} ${y1} C ${c1} ${y1}, ${c2} ${y2}, ${x2} ${y2}`;
+    return `<path d="${d}" class="fl-path ${cls}" marker-end="url(#fl-${cls})"/>`
+      + (cls === "dim" ? "" : `<path d="${d}" class="fl-anim ${cls}"/>`);
+  };
+  const pillW = (t) => [...t].reduce(
+    (a, ch) => a + (/[가-힣]/.test(ch) ? 11 : /[0-9.()]/.test(ch) ? 6.6 : 6), 0) + 18;
+  const pill = (cx, cy, cls, text) => {
+    const w = pillW(text);
+    return `<g><rect x="${cx - w / 2}" y="${cy - 11}" width="${w}" height="22" rx="11"
+      class="fl-pill ${cls}"/><text x="${cx}" y="${cy + 4}" class="fl-ptext ${cls}">${text}</text></g>`;
+  };
 
+  const cy = [70, 180, 290];
+  const inPort = [120, 180, 240];
+  const outPort = [136, 196, 256];
   const storeBits = stores.slice(0, 3).map((s, i) => {
     const y = cy[i];
     const sell = Number(s.settledUsdc ?? 0);
     const back = Number(card[s.id] ?? 0);
-    const sellCls = sell ? "in" : "dim";
-    const backCls = back ? "out" : "dim";
+    const sc = sell ? "in" : "dim", bc = back ? "out" : "dim";
+    const inMidY = (y - 13 + inPort[i]) / 2, outMidY = (y + 13 + outPort[i]) / 2;
     return `
-      <rect x="24" y="${y - 32}" width="160" height="64" rx="10" class="fl-box"/>
+      <rect x="24" y="${y - 32}" width="160" height="64" rx="12" class="fl-box"/>
       <text x="104" y="${y - 6}" text-anchor="middle" class="fl-name">${esc(s.name ?? s.id)}</text>
       <text x="104" y="${y + 15}" text-anchor="middle" class="fl-cap">${esc(s.id)}</text>
-      ${harrow(184, 376, y - 13, sellCls)}
-      ${label(280, y - 21, sellCls, `물대 ${fmt(sell)}`)}
-      ${harrow(380, 190, y + 15, backCls)}
-      ${label(280, y + 34, backCls, `카드정산 ${fmt(back)}`)}`;
+      ${edge(184, y - 13, 398, inPort[i], sc)}
+      ${edge(400, outPort[i], 186, y + 13, bc)}
+      ${pill(292, inMidY - 3, sc, `물대 ${fmt(sell)}`)}
+      ${pill(292, outMidY + 3, bc, `카드정산 ${fmt(back)}`)}`;
   }).join("");
 
-  // P2P 직거래 — 지점 상자 사이를 오가는 점선 (지점끼리의 돈)
   const p2pSeg = (y1, y2) => `<line x1="104" y1="${y1}" x2="104" y2="${y2}"
     class="fl-line p2p" marker-start="url(#fl-p2pr)" marker-end="url(#fl-p2p)"/>`;
 
   const royalty = Number(flows.royaltyUsdc ?? 0);
   const dataUsdc = Number(flows.dataUsdc ?? 0);
-  const dataCls = dataUsdc ? "in" : "dim";
+  const dc = dataUsdc ? "in" : "dim";
   el.innerHTML = `
   <svg viewBox="0 0 900 360" role="img" aria-label="오늘 본사와 지점 사이를 오간 온체인 자금 흐름">
     <defs>
@@ -467,21 +479,21 @@ function renderFlows(ov) {
     </defs>
     ${storeBits}
     ${p2p.length ? p2pSeg(cy[0] + 40, cy[1] - 40) + p2pSeg(cy[1] + 40, cy[2] - 40) : ""}
-    <rect x="380" y="34" width="180" height="292" rx="12" class="fl-box fl-hq"/>
-    <text x="470" y="68" text-anchor="middle" class="fl-name">본사 정산팀</text>
-    <text x="470" y="88" text-anchor="middle" class="fl-cap">hq</text>
-    <text x="470" y="180" text-anchor="middle" class="fl-total">${fmt(ov.totals?.settledUsdc ?? 0)}</text>
-    <text x="470" y="202" text-anchor="middle" class="fl-cap">오늘 정산 완료 (USDC)</text>
-    <line x1="400" y1="262" x2="540" y2="262" class="fl-sep"/>
-    <text x="470" y="288" text-anchor="middle" class="fl-gain ${royalty ? "" : "mute"}">로열티 원천징수 +${fmt(royalty)}</text>
-    <text x="470" y="310" text-anchor="middle" class="fl-gain ${dataUsdc ? "" : "mute"}">데이터 판매 +${fmt(dataUsdc)}</text>
-    <rect x="716" y="38" width="160" height="64" rx="10" class="fl-box"/>
+    <rect x="400" y="90" width="180" height="180" rx="14" class="fl-box fl-hq"/>
+    <text x="490" y="118" text-anchor="middle" class="fl-name">본사 정산팀</text>
+    <text x="490" y="137" text-anchor="middle" class="fl-cap">hq</text>
+    <text x="490" y="182" text-anchor="middle" class="fl-total">${fmt(ov.totals?.settledUsdc ?? 0)}</text>
+    <text x="490" y="202" text-anchor="middle" class="fl-cap">오늘 정산 완료 (USDC)</text>
+    <line x1="420" y1="219" x2="560" y2="219" class="fl-sep"/>
+    <text x="490" y="240" text-anchor="middle" class="fl-gain ${royalty ? "" : "mute"}">로열티 원천징수 +${fmt(royalty)}</text>
+    <text x="490" y="259" text-anchor="middle" class="fl-gain ${dataUsdc ? "" : "mute"}">데이터 판매 +${fmt(dataUsdc)}</text>
+    <rect x="716" y="38" width="160" height="64" rx="12" class="fl-box"/>
     <text x="796" y="64" text-anchor="middle" class="fl-name">데이터 상점 구매자</text>
     <text x="796" y="85" text-anchor="middle" class="fl-cap">에이전트 자급 + 외부</text>
-    ${harrow(716, 564, 70, dataCls)}
-    ${label(640, 62, dataCls, `지수 판매 ${fmt(dataUsdc)} (${flows.dataCount ?? 0}건)`)}
-    <text x="24" y="352" class="fl-cap">⇢ 점선은 지점 ⇄ 지점 직거래(P2P) — 오늘 ${p2p.length}건 · ${fmt(p2pSum)} USDC</text>
-    <text x="876" y="352" text-anchor="end" class="fl-cap">모든 화살표는 ${esc(ov.network ?? "devnet")} 온체인 USDC 이체</text>
+    ${edge(716, 70, 582, 120, dc)}
+    ${pill(650, 84, dc, `지수 판매 ${fmt(dataUsdc)} (${flows.dataCount ?? 0}건)`)}
+    <text x="24" y="352" class="fl-cap">점선은 지점 ⇄ 지점 직거래(P2P) — 오늘 ${p2p.length}건 · ${fmt(p2pSum)} USDC</text>
+    <text x="876" y="352" text-anchor="end" class="fl-cap">모든 흐름은 ${esc(ov.network ?? "devnet")} 온체인 USDC 이체</text>
   </svg>`;
 }
 
@@ -659,6 +671,22 @@ $("stage-negotiate")?.addEventListener("click", (e) =>
   stageCall(e.target, "/api/demo/negotiate", "협상 진행 중…"));
 $("stage-tick")?.addEventListener("click", (e) =>
   stageCall(e.target, "/api/ticks/run", "틱 실행 중…"));
+
+// ── 자금 흐름 접기/펼치기 — 기본은 접힘, 선택은 기억한다 ──────────
+function applyFlowOpen() {
+  const open = localStorage.getItem("solply.flowOpen") === "1";
+  const map = $("flowmap");
+  if (map) map.hidden = !open;
+  const btn = $("flow-toggle");
+  if (btn) btn.textContent = open ? "접기" : "펼치기";
+}
+$("flow-toggle")?.addEventListener("click", () => {
+  const open = localStorage.getItem("solply.flowOpen") === "1";
+  localStorage.setItem("solply.flowOpen", open ? "0" : "1");
+  applyFlowOpen();
+  refresh();
+});
+applyFlowOpen();
 
 // ── 리포트 · 어시스턴트 ───────────────────────────────────────────
 function openModal(title, body) {

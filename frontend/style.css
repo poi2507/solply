@@ -595,3 +595,31 @@ td .empty, td.empty { text-align: center; }
   padding: 18px 20px; overflow-y: auto;
   font-size: 13px; line-height: 1.8; color: var(--ink-2); white-space: pre-wrap;
 }
+
+/* 자금 흐름 — 곡선 엣지·알약 라벨·흐르는 점선 */
+.fl-box { filter: drop-shadow(0 1px 2px rgba(23, 33, 27, .07)); }
+.fl-path { fill: none; stroke-width: 2; opacity: .3; }
+.fl-path.in { stroke: var(--good); }
+.fl-path.out { stroke: var(--info); }
+.fl-path.dim { stroke: var(--line); stroke-dasharray: 4 4; opacity: .9; }
+.fl-anim {
+  fill: none; stroke-width: 2.4; stroke-linecap: round;
+  stroke-dasharray: 3 11;
+  animation: fl-flow 1.1s linear infinite;
+}
+.fl-anim.in { stroke: var(--good-vivid); }
+.fl-anim.out { stroke: var(--info-vivid); }
+@keyframes fl-flow { to { stroke-dashoffset: -14; } }
+@media (prefers-reduced-motion: reduce) {
+  .fl-anim { animation: none; opacity: 0; }
+  .fl-path { opacity: .85; }
+}
+.fl-pill { fill: var(--card); stroke: var(--line); }
+.fl-pill.in { stroke: #bfe3d3; }
+.fl-pill.out { stroke: #c9dcf4; }
+.fl-pill.dim { stroke: var(--line-soft); }
+.fl-ptext { font-size: 11px; font-weight: 650; }
+.fl-ptext { text-anchor: middle; }
+.fl-ptext.in { fill: var(--good); }
+.fl-ptext.out { fill: var(--info); }
+.fl-ptext.dim { fill: var(--ink-3); font-weight: 400; }
