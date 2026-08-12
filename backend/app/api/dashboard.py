@@ -124,6 +124,7 @@ def overview(day: str | None = None) -> dict:
         "flows": {
             "card": flow_doc.get("card", {}),
             "royaltyUsdc": flow_doc.get("royalty_usdc", 0.0),
+            "guestUsdc": flow_doc.get("guest_usdc", 0.0),
             "dataUsdc": round(sum(float(o.get("price_usdc") or 0) for o in data_today), 2),
             "dataCount": len(data_today),
         },

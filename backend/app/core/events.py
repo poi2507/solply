@@ -11,6 +11,8 @@
 """
 
 ACTION_LABELS: dict[str, str] = {
+    "shop.sale": "손님 구매 결제",
+    "shop.pay_failed": "손님 결제 실패",
     # 청구서
     "invoice.created": "청구서 발행",
     "invoice.adjusted": "청구 금액 정정",

@@ -467,7 +467,9 @@ function renderFlows(ov) {
 
   const royalty = Number(flows.royaltyUsdc ?? 0);
   const dataUsdc = Number(flows.dataUsdc ?? 0);
+  const guestUsdc = Number(flows.guestUsdc ?? 0);
   const dc = dataUsdc ? "in" : "dim";
+  const gc = guestUsdc ? "in" : "dim";
   el.innerHTML = `
   <svg viewBox="0 0 900 360" role="img" aria-label="오늘 본사와 지점 사이를 오간 온체인 자금 흐름">
     <defs>
@@ -492,6 +494,11 @@ function renderFlows(ov) {
     <text x="796" y="85" text-anchor="middle" class="fl-cap">에이전트 자급 + 외부</text>
     ${edge(716, 70, 582, 120, dc)}
     ${pill(650, 84, dc, `지수 판매 ${fmt(dataUsdc)} (${flows.dataCount ?? 0}건)`)}
+    <rect x="716" y="240" width="160" height="64" rx="12" class="fl-box"/>
+    <text x="796" y="266" text-anchor="middle" class="fl-name">손님 (guest)</text>
+    <text x="796" y="287" text-anchor="middle" class="fl-cap">/shop 방문 구매</text>
+    ${edge(716, 272, 582, 240, gc)}
+    ${pill(650, 268, gc, `손님 매출 ${fmt(guestUsdc)}`)}
     <text x="24" y="352" class="fl-cap">점선은 지점 ⇄ 지점 직거래(P2P) — 오늘 ${p2p.length}건 · ${fmt(p2pSum)} USDC</text>
     <text x="876" y="352" text-anchor="end" class="fl-cap">모든 흐름은 ${esc(ov.network ?? "devnet")} 온체인 USDC 이체</text>
   </svg>`;

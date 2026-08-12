@@ -51,7 +51,12 @@ async function render() {
         });
         const data = await res.json();
         if (!res.ok) { toast(esc(data.detail ?? "구매 실패"), true); return; }
-        toast(`<b>구매 완료</b> — ${esc(data.next)}`, data.low_stock);
+        const receipt = data.tx
+          ? ` · <a href="https://explorer.solana.com/tx/${esc(data.tx)}?cluster=${esc(data.network ?? "devnet")}"
+               target="_blank" rel="noopener" style="color:inherit; font-weight:650">
+               ${esc(String(data.paid_usdc))} USDC 온체인 영수증 ↗</a>`
+          : "";
+        toast(`<b>구매 완료</b> — ${esc(data.next)}${receipt}`, data.low_stock);
       } catch {
         toast("연결에 실패했습니다.", true);
       } finally {

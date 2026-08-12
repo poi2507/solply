@@ -259,6 +259,40 @@ def test_visitor_purchase_moves_ledger_and_till():
     assert move["reason"] == "sold" and move["ref"] == "손님 구매 (라이브)"
 
 
+def test_visitor_purchase_carries_onchain_receipt(monkeypatch):
+    """손님 결제 성공 — 응답에 온체인 영수증이 실리고 유입 계수기·이벤트가 남는다."""
+    from app.core import kst
+
+    monkeypatch.setattr("app.api.shop.payments.balance",
+                        lambda w: {"address": f"{w}-ADDR", "usdc": 100.0})
+    monkeypatch.setattr("app.api.shop.payments.pay",
+                        lambda *a, **k: {"signature": "SIG-GUEST-1"})
+    before = (db.get("stats", f"flows-{kst.today()}") or {}).get("guest_usdc", 0.0)
+
+    res = client.post("/api/shop/purchase", json={"store_id": "store-c", "sku": "CHK-10", "qty": 1})
+
+    assert res.status_code == 200
+    data = res.json()
+    assert data["tx"] == "SIG-GUEST-1" and data["paid_usdc"] > 0
+    flows = db.get("stats", f"flows-{kst.today()}")
+    assert flows["guest_usdc"] == pytest.approx(before + data["paid_usdc"])
+    sale = [e for e in db.list_events() if e["action"] == "shop.sale"][-1]
+    assert sale["payload"]["tx"] == "SIG-GUEST-1"
+
+
+def test_visitor_purchase_survives_payment_outage(monkeypatch):
+    """지갑 고갈·RPC 장애에도 구매 기록은 남는다 — 데모가 멈추지 않는다."""
+    def boom(*a, **k):
+        raise RuntimeError("guest wallet dry")
+    monkeypatch.setattr("app.api.shop.payments.balance", boom)
+
+    res = client.post("/api/shop/purchase", json={"store_id": "store-a", "sku": "CHK-10", "qty": 1})
+
+    assert res.status_code == 200
+    assert res.json()["tx"] is None
+    assert [e for e in db.list_events() if e["action"] == "shop.pay_failed"]
+
+
 def test_visitor_purchase_guards():
     assert client.post("/api/shop/purchase",
                        json={"store_id": "store-x", "sku": "CHK-10", "qty": 1}).status_code == 404

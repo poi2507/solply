@@ -49,3 +49,13 @@ def card_flows(day: str) -> dict:
             royalty = round(royalty + float(payload.get("royalty_usdc") or 0), 2)
         doc = db.put("stats", key, {"card": card, "royalty_usdc": royalty})
     return doc
+
+
+def add_guest_flow(amount: float) -> None:
+    """손님 매출의 하루 계수기 — 외부 유입이 다이어그램에 화살표로 선다."""
+    from app.core import kst
+
+    key = f"flows-{kst.today()}"
+    doc = db.get("stats", key) or {"card": {}, "royalty_usdc": 0.0}
+    doc["guest_usdc"] = round(doc.get("guest_usdc", 0.0) + amount, 2)
+    db.put("stats", key, doc)

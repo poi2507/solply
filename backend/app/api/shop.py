@@ -9,8 +9,10 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
+from app import config
 from app.agents import utils
-from app.core import economy, fixtures
+from app.core import economy, fixtures, stats
+from app.solana import payments
 
 router = APIRouter(prefix="/api/shop", tags=["shop"])
 
@@ -48,10 +50,34 @@ def purchase(body: Purchase) -> dict:
     if result.get("error"):
         raise HTTPException(409, result["error"])
 
+    # 손님 지갑 → 본사 — 카드 매출이 밴사·본사를 거쳐 지점에 정산되는 실제 구조.
+    # 금고 적립(sell)→카드정산 지급은 그대로 두고, 유입만 실돈이 된다.
+    # 결제가 막혀도(지갑 고갈·RPC) 판매 기록은 이미 남았다 — 데모가 멈추지 않는다.
+    amount = round(economy._sku_price(body.sku) * body.qty, 2)
+    tx = None
+    try:
+        receipt = payments.pay(
+            "guest", payments.balance("hq")["address"], amount,
+            f"SHOP-{body.store_id}-{body.sku}",
+        )
+        tx = receipt.get("signature")
+    except Exception as exc:  # noqa: BLE001 — 결제 실패는 기록하고 계속
+        utils.log("guest", "shop.pay_failed",
+                  {"store_id": body.store_id, "sku": body.sku,
+                   "amount_usdc": amount, "reason": str(exc)[:120]})
+    if tx:
+        utils.log("guest", "shop.sale",
+                  {"store_id": body.store_id, "sku": body.sku, "qty": body.qty,
+                   "amount_usdc": amount, "tx": tx})
+        stats.add_guest_flow(amount)
+
     entry = utils.effective_inventory(body.store_id).get(body.sku, {})
     low = entry.get("qty", 0) < entry.get("safety", 0)
     return {
         **result,
+        "paid_usdc": amount if tx else None,
+        "tx": tx,
+        "network": config.NETWORK,
         "low_stock": low,
         "next": (
             "재고가 안전선 아래로 내려갔습니다 — 다음 틱(10분 내)에 에이전트가 "
