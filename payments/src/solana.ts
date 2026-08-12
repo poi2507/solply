@@ -29,6 +29,13 @@ const WALLET_DIR = (process.env.SOLPLY_WALLET_DIR ?? "~/.config/solana/solply").
 const WALLET_NAMES = ["hq", "store-a", "store-b", "store-c"] as const;
 export type WalletName = (typeof WALLET_NAMES)[number];
 
+// Gasless — 트랜잭션 수수료(SOL)와 토큰 계좌(ATA) 생성비를 대납하는 지갑.
+// 지점은 SOL 0으로도 USDC를 낼 수 있다: 점주는 가스가 뭔지 몰라도 된다 (결선 기준 2).
+// 빈 문자열이면 예전처럼 보내는 지갑이 자기 수수료를 낸다.
+// (완전판 A2A로 지갑 키가 회사별로 갈라지면, 대납은 본사 쪽 결제 서비스가
+//  fee-payer 서명만 제공하는 별도 협력 흐름이 된다 — 경량판에서는 같은 금고라 단순하다.)
+const FEE_PAYER = (process.env.FEE_PAYER_WALLET ?? "hq") as WalletName | "";
+
 export const connection = new Connection(RPC_URL, "confirmed");
 
 export function isWalletName(name: string): name is WalletName {
@@ -71,13 +78,17 @@ export async function sendUsdc(
   const wallet = loadKeypair(fromName);
   const to = new PublicKey(recipient);
 
+  // Gasless: 수수료·계좌 생성비는 대납 지갑이, 이체 서명은 보내는 지갑이.
+  const gasless = FEE_PAYER !== "" && FEE_PAYER !== fromName;
+  const feePayer = gasless ? loadKeypair(FEE_PAYER as WalletName) : wallet;
+
   const fromAta = await getOrCreateAssociatedTokenAccount(
     connection,
-    wallet,
+    feePayer,
     USDC_MINT,
     wallet.publicKey,
   );
-  const toAta = await getOrCreateAssociatedTokenAccount(connection, wallet, USDC_MINT, to);
+  const toAta = await getOrCreateAssociatedTokenAccount(connection, feePayer, USDC_MINT, to);
 
   const tx = new Transaction().add(
     createTransferInstruction(
@@ -97,7 +108,11 @@ export async function sendUsdc(
     );
   }
 
-  const signature = await connection.sendTransaction(tx, [wallet]);
+  tx.feePayer = feePayer.publicKey;
+  const signature = await connection.sendTransaction(
+    tx,
+    gasless ? [feePayer, wallet] : [wallet],
+  );
   await connection.confirmTransaction(signature, "confirmed");
   return {
     signature,
@@ -105,6 +120,7 @@ export async function sendUsdc(
     recipient,
     amount,
     memo,
+    feePayer: gasless ? (FEE_PAYER as string) : fromName,
     explorer: `https://explorer.solana.com/tx/${signature}?cluster=devnet`,
   };
 }
@@ -143,6 +159,8 @@ export async function verifyTransaction(signature: string) {
     success: tx.meta?.err == null,
     transfer,
     memo,
+    // 수수료를 누가 냈는가 — 첫 계정이 fee payer라는 것이 솔라나 규약이다 (Gasless 증빙)
+    feePayer: tx.transaction.message.accountKeys[0]?.pubkey?.toBase58?.() ?? null,
     explorer: `https://explorer.solana.com/tx/${signature}?cluster=devnet`,
   };
 }

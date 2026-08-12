@@ -31,7 +31,9 @@ app.post("/pay", async (req, res) => {
   }
   try {
     const result = await sendUsdc(from, recipient, Number(amount), memo ?? "");
-    console.log(`[PAY] ${from} → ${recipient} | ${amount} USDC | ${memo ?? ""} | ${result.signature}`);
+    console.log(
+      `[PAY] ${from} → ${recipient} | ${amount} USDC | ${memo ?? ""} | fee:${result.feePayer} | ${result.signature}`,
+    );
     res.json({ status: "confirmed", ...result });
   } catch (e) {
     console.error("[PAY:ERROR]", e);
