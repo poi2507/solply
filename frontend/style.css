@@ -550,7 +550,12 @@ td .empty, td.empty { text-align: center; }
 .fl-hq { fill: var(--accent-quiet); stroke: #bfe6d6; }
 .fl-name { font-size: 13px; font-weight: 650; fill: var(--ink); }
 .fl-cap { font-size: 11px; fill: var(--ink-3); }
-.fl-line { fill: none; stroke-width: 1.6; }
+.fl-line { fill: none; stroke-width: 2; }
+.fl-line.p2p { stroke: var(--accent-cyan); stroke-dasharray: 5 4; opacity: .75; }
+.fl-head.p2p { fill: var(--accent-cyan); }
+.fl-sep { stroke: #bfe6d6; }
+.fl-total { font-size: 24px; font-weight: 750; fill: var(--ink); font-variant-numeric: tabular-nums; }
+.fl-label { paint-order: stroke; stroke: var(--card); stroke-width: 4px; }
 .fl-line.in { stroke: var(--good); }
 .fl-line.out { stroke: var(--info); }
 .fl-line.dim { stroke: var(--line); stroke-dasharray: 4 4; }

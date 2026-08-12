@@ -426,45 +426,62 @@ function renderFlows(ov) {
   const p2p = (ov.trades ?? []).filter((t) => t.status === "confirmed");
   const p2pSum = p2p.reduce((a, t) => a + Number(t.price_usdc ?? 0), 0);
 
-  const cy = [62, 170, 278];                    // 지점 상자 세로 중심
-  const hqY = [138, 170, 202];                  // 본사 상자에 닿는 높이
-  const arrow = (x1, y1, x2, y2, cls, label, ly) => `
-    <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" class="fl-line ${cls}" marker-end="url(#fl-${cls})"/>
-    <text x="${(x1 + x2) / 2}" y="${ly}" class="fl-label ${cls}" text-anchor="middle">${label}</text>`;
+  // 행 단위 수평 흐름 — 교차하는 대각선 없이, 지점 행마다 두 개의 평행 화살표만
+  const cy = [70, 180, 290];
+  const label = (x, y, cls, text) =>
+    `<text x="${x}" y="${y}" class="fl-label ${cls}" text-anchor="middle">${text}</text>`;
+  const harrow = (x1, x2, y, cls) =>
+    `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" class="fl-line ${cls}" marker-end="url(#fl-${cls})"/>`;
 
   const storeBits = stores.slice(0, 3).map((s, i) => {
     const y = cy[i];
     const sell = Number(s.settledUsdc ?? 0);
     const back = Number(card[s.id] ?? 0);
+    const sellCls = sell ? "in" : "dim";
+    const backCls = back ? "out" : "dim";
     return `
-      <rect x="24" y="${y - 27}" width="138" height="54" rx="9" class="fl-box"/>
-      <text x="93" y="${y - 4}" text-anchor="middle" class="fl-name">${esc(s.name ?? s.id)}</text>
-      <text x="93" y="${y + 14}" text-anchor="middle" class="fl-cap">${esc(s.id)}</text>
-      ${arrow(162, y - 10, 378, hqY[i] - 6, sell ? "in" : "dim", `물대 ${fmt(sell)}`, (y - 10 + hqY[i] - 6) / 2 - 6)}
-      ${arrow(378, hqY[i] + 12, 162, y + 12, back ? "out" : "dim", `카드정산 ${fmt(back)}`, (y + 12 + hqY[i] + 12) / 2 + 15)}`;
+      <rect x="24" y="${y - 32}" width="160" height="64" rx="10" class="fl-box"/>
+      <text x="104" y="${y - 6}" text-anchor="middle" class="fl-name">${esc(s.name ?? s.id)}</text>
+      <text x="104" y="${y + 15}" text-anchor="middle" class="fl-cap">${esc(s.id)}</text>
+      ${harrow(184, 376, y - 13, sellCls)}
+      ${label(280, y - 21, sellCls, `물대 ${fmt(sell)}`)}
+      ${harrow(380, 190, y + 15, backCls)}
+      ${label(280, y + 34, backCls, `카드정산 ${fmt(back)}`)}`;
   }).join("");
+
+  // P2P 직거래 — 지점 상자 사이를 오가는 점선 (지점끼리의 돈)
+  const p2pSeg = (y1, y2) => `<line x1="104" y1="${y1}" x2="104" y2="${y2}"
+    class="fl-line p2p" marker-start="url(#fl-p2pr)" marker-end="url(#fl-p2p)"/>`;
 
   const royalty = Number(flows.royaltyUsdc ?? 0);
   const dataUsdc = Number(flows.dataUsdc ?? 0);
+  const dataCls = dataUsdc ? "in" : "dim";
   el.innerHTML = `
-  <svg viewBox="0 0 880 340" role="img" aria-label="오늘 본사와 지점 사이를 오간 온체인 자금 흐름">
+  <svg viewBox="0 0 900 360" role="img" aria-label="오늘 본사와 지점 사이를 오간 온체인 자금 흐름">
     <defs>
-      <marker id="fl-in" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" class="fl-head in"/></marker>
-      <marker id="fl-out" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" class="fl-head out"/></marker>
-      <marker id="fl-dim" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" class="fl-head dim"/></marker>
+      <marker id="fl-in" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" class="fl-head in"/></marker>
+      <marker id="fl-out" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" class="fl-head out"/></marker>
+      <marker id="fl-dim" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" class="fl-head dim"/></marker>
+      <marker id="fl-p2p" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" class="fl-head p2p"/></marker>
+      <marker id="fl-p2pr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto-start-reverse"><path d="M0,0 L8,4 L0,8 Z" class="fl-head p2p"/></marker>
     </defs>
     ${storeBits}
-    <rect x="380" y="108" width="170" height="124" rx="10" class="fl-box fl-hq"/>
-    <text x="465" y="134" text-anchor="middle" class="fl-name">본사 정산팀</text>
-    <text x="465" y="156" text-anchor="middle" class="fl-cap">hq</text>
-    <text x="465" y="184" text-anchor="middle" class="fl-gain ${royalty ? "" : "mute"}">로열티 원천징수 +${fmt(royalty)}</text>
-    <text x="465" y="204" text-anchor="middle" class="fl-gain ${dataUsdc ? "" : "mute"}">데이터 판매 +${fmt(dataUsdc)}</text>
-    <rect x="700" y="60" width="156" height="54" rx="9" class="fl-box"/>
-    <text x="778" y="83" text-anchor="middle" class="fl-name">데이터 상점 구매자</text>
-    <text x="778" y="101" text-anchor="middle" class="fl-cap">에이전트 자급 + 외부</text>
-    ${arrow(700, 96, 552, 146, dataUsdc ? "in" : "dim", `지수 판매 ${fmt(dataUsdc)} (${flows.dataCount ?? 0}건)`, 108)}
-    <text x="24" y="330" class="fl-cap">지점 ⇄ 지점 직거래(P2P) 오늘 ${p2p.length}건 · ${fmt(p2pSum)} USDC</text>
-    <text x="856" y="330" text-anchor="end" class="fl-cap">모든 화살표는 ${esc(ov.network ?? "devnet")} 온체인 USDC 이체</text>
+    ${p2p.length ? p2pSeg(cy[0] + 40, cy[1] - 40) + p2pSeg(cy[1] + 40, cy[2] - 40) : ""}
+    <rect x="380" y="34" width="180" height="292" rx="12" class="fl-box fl-hq"/>
+    <text x="470" y="68" text-anchor="middle" class="fl-name">본사 정산팀</text>
+    <text x="470" y="88" text-anchor="middle" class="fl-cap">hq</text>
+    <text x="470" y="180" text-anchor="middle" class="fl-total">${fmt(ov.totals?.settledUsdc ?? 0)}</text>
+    <text x="470" y="202" text-anchor="middle" class="fl-cap">오늘 정산 완료 (USDC)</text>
+    <line x1="400" y1="262" x2="540" y2="262" class="fl-sep"/>
+    <text x="470" y="288" text-anchor="middle" class="fl-gain ${royalty ? "" : "mute"}">로열티 원천징수 +${fmt(royalty)}</text>
+    <text x="470" y="310" text-anchor="middle" class="fl-gain ${dataUsdc ? "" : "mute"}">데이터 판매 +${fmt(dataUsdc)}</text>
+    <rect x="716" y="38" width="160" height="64" rx="10" class="fl-box"/>
+    <text x="796" y="64" text-anchor="middle" class="fl-name">데이터 상점 구매자</text>
+    <text x="796" y="85" text-anchor="middle" class="fl-cap">에이전트 자급 + 외부</text>
+    ${harrow(716, 564, 70, dataCls)}
+    ${label(640, 62, dataCls, `지수 판매 ${fmt(dataUsdc)} (${flows.dataCount ?? 0}건)`)}
+    <text x="24" y="352" class="fl-cap">⇢ 점선은 지점 ⇄ 지점 직거래(P2P) — 오늘 ${p2p.length}건 · ${fmt(p2pSum)} USDC</text>
+    <text x="876" y="352" text-anchor="end" class="fl-cap">모든 화살표는 ${esc(ov.network ?? "devnet")} 온체인 USDC 이체</text>
   </svg>`;
 }
 
