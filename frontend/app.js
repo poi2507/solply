@@ -461,12 +461,13 @@ function storeFlowSvg(ov) {
       .reduce((a, t) => a + Number(t.price_usdc ?? 0), 0);
     const y = k === 0 ? 74 : 246;
     const meY = k === 0 ? 150 : 230;
+    // 다른 흐름들과 같은 곡선 — 양끝에서 수평으로 드나들어 상자 모서리를 찌르지 않는다
+    const d = `M 572 ${meY} C 645 ${meY}, 645 ${y}, 718 ${y}`;
     return `
       <rect x="720" y="${y - 32}" width="156" height="64" rx="12" class="fl-box"/>
       <text x="798" y="${y - 6}" text-anchor="middle" class="fl-name">${esc(n.name ?? n.id)}</text>
       <text x="798" y="${y + 15}" text-anchor="middle" class="fl-cap">${esc(n.id)}</text>
-      <line x1="572" y1="${meY}" x2="718" y2="${y}" class="fl-line p2p"
-        marker-start="url(#fl-p2pr)" marker-end="url(#fl-p2p)"/>
+      <path d="${d}" class="fl-line p2p" marker-start="url(#fl-p2pr)" marker-end="url(#fl-p2p)"/>
       ${flowPill(645, (meY + y) / 2, "p2p", `매입 ${fmt(bought)} · 판매 ${fmt(soldTo)}`)}`;
   }).join("");
 
