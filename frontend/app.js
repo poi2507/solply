@@ -467,7 +467,7 @@ function storeFlowSvg(ov) {
       <text x="798" y="${y + 15}" text-anchor="middle" class="fl-cap">${esc(n.id)}</text>
       <line x1="572" y1="${meY}" x2="718" y2="${y}" class="fl-line p2p"
         marker-start="url(#fl-p2pr)" marker-end="url(#fl-p2p)"/>
-      ${flowPill(645, (meY + y) / 2 - 16, "p2p", `매입 ${fmt(bought)} · 판매 ${fmt(soldTo)}`)}`;
+      ${flowPill(645, (meY + y) / 2, "p2p", `매입 ${fmt(bought)} · 판매 ${fmt(soldTo)}`)}`;
   }).join("");
 
   return `
@@ -565,8 +565,10 @@ function renderFlows(ov) {
     <rect x="716" y="38" width="160" height="64" rx="12" class="fl-box"/>
     <text x="796" y="64" text-anchor="middle" class="fl-name">데이터 상점 구매자</text>
     <text x="796" y="85" text-anchor="middle" class="fl-cap">자급 ${fmt(quoteSum)} · 외부 ${fmt(external)}</text>
-    ${flowEdge(716, 70, 582, 120, dc)}
-    ${flowPill(650, 84, dc, `지수 판매 ${fmt(dataUsdc)} (${flows.dataCount ?? 0}건)`)}
+    <path d="M 582 100 C 640 100, 660 52, 714 52" class="fl-line p2p" marker-end="url(#fl-p2p)"/>
+    ${flowPill(648, 60, "p2p", `지수 인도 ${flows.dataCount ?? 0}건`)}
+    ${flowEdge(716, 86, 582, 132, dc)}
+    ${flowPill(650, 116, dc, `지수 판매 ${fmt(dataUsdc)}`)}
     <rect x="716" y="240" width="160" height="64" rx="12" class="fl-box"/>
     <text x="796" y="266" text-anchor="middle" class="fl-name">손님 (guest)</text>
     <text x="796" y="287" text-anchor="middle" class="fl-cap">/shop 방문 구매</text>
