@@ -509,3 +509,36 @@ tr.detail > td { padding: 4px 12px 22px 2px; border-bottom: 1px solid var(--line
 .empty { padding: 24px 0; color: var(--ink-3); font-size: 12.5px; }
 td .empty, td.empty { text-align: center; }
 .foot-note { margin-top: 50px; padding-top: 18px; border-top: 1px solid var(--line); font-size: 11.5px; color: var(--ink-3); }
+
+/* ── 협상 스레드 — 다회 왕복을 말풍선으로 ─────────────────────────── */
+.thread { padding: 12px 0 6px; border-bottom: 1px solid var(--line-soft); }
+.thread:last-child { border-bottom: none; }
+.thread-head { font-size: 11.5px; color: var(--ink-3); letter-spacing: .02em; margin-bottom: 8px; }
+.msg { display: flex; gap: 8px; margin: 6px 0; align-items: flex-start; }
+.msg .who3 { flex: none; font-size: 10.5px; color: var(--ink-3); padding-top: 7px; width: 28px; }
+.msg.hq { flex-direction: row-reverse; text-align: right; }
+.msg .bubble { max-width: 78%; background: var(--raise); border: 1px solid var(--line-soft);
+  border-radius: 12px; padding: 7px 11px; font-size: 12.5px; line-height: 1.5; }
+.msg.store .bubble { border-bottom-left-radius: 4px; }
+.msg.hq .bubble { border-bottom-right-radius: 4px; background: #eef6f2; }
+.msg .bubble b { display: block; font-size: 12.5px; color: var(--ink); }
+.msg .bubble span { display: block; color: var(--ink-2); font-size: 12px; margin-top: 2px; }
+.msg .bubble.good b { color: var(--good, #0c8a54); }
+.msg .bubble.warn b { color: var(--warn, #a8720a); }
+.msg .bubble.risk b { color: var(--risk, #b23b3b); }
+
+/* ── 데이터 상점 ──────────────────────────────────────────────────── */
+.ds-stats { display: flex; gap: 10px; margin: 10px 0 8px; }
+.ds-stats > div { flex: 1; background: var(--raise); border: 1px solid var(--line-soft);
+  border-radius: 10px; padding: 9px 12px; }
+.ds-stats b { display: block; font-size: 17px; font-variant-numeric: tabular-nums; }
+.ds-stats span { font-size: 11px; color: var(--ink-3); }
+.ds-note { font-size: 12px; color: var(--ink-3); margin-bottom: 8px; line-height: 1.55; }
+
+/* ── 무대 트리거 ──────────────────────────────────────────────────── */
+.stage-actions { display: flex; gap: 8px; margin: 10px 0 6px; }
+.btn.ghost { background: transparent; color: var(--accent); border: 1px solid var(--line); }
+
+/* 실행 로그의 체인 링크 */
+.feed .txlink { flex: none; font-size: 11px; margin-left: 6px; }
+.sysinfo dd.cards a { color: var(--accent); }

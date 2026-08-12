@@ -11,6 +11,7 @@ from app.agents import utils as agent_utils
 from app.core import credit, fixtures, kst
 from app.core import events as events_mod
 from app.core import policy as policy_mod
+from app.core import stats as stats_mod
 from app.core import status as status_mod
 from app.db import store
 from app.solana import payments
@@ -114,6 +115,16 @@ def overview(day: str | None = None) -> dict:
             "allTrades": store.count_docs("p2p_trades"),
         },
         "stores": stores,
+        # 본사 수익 계기판 — 구독료 밖 두 매출원(로열티·데이터 판매)의 실측 누적
+        "hqRevenue": stats_mod.snapshot(),
+        # 데이터 상점 — 상품 가격과 최근 판매 (외부 구매 + 에이전트 자급 구매)
+        "dataStore": {
+            "priceUsdc": policy_mod.get("hq").data_price_usdc,
+            "recentSales": sorted(
+                store.list_docs("data_orders", state="fulfilled"),
+                key=lambda o: o.get("updated_at", ""), reverse=True,
+            )[:5],
+        },
         # 승인·예약 패널은 날짜로 자르지 않는다 — 어제 멈춘 결제가
         # 오늘 화면에서 사라지면 돈이 묶인 채로 아무 표시도 남지 않는다
         "openInvoices": sorted(open_invoices, key=lambda i: i.get("updated_at", ""), reverse=True),

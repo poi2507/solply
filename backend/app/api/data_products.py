@@ -12,7 +12,7 @@ from fastapi import APIRouter, Header, HTTPException
 from fastapi.responses import JSONResponse
 
 from app import config
-from app.core import data_products, protocol
+from app.core import data_products, protocol, stats
 from app.core import policy as policy_mod
 from app.db import store
 from app.solana import payments
@@ -83,6 +83,7 @@ def settle(
 
     if verified:
         order = store.update("data_orders", order_id, {"state": "fulfilled", "tx_sig": signature})
+        stats.add("data_sales", order["price_usdc"])
         store.log_event(
             "hq-agent", "data.sold",
             {"order_id": order_id, "product": order["product"], "sku": order["sku"],

@@ -103,10 +103,13 @@ export function metricsFor(role, scoped, wallets) {
     ];
   }
 
+  const rev = scoped.hqRevenue ?? {};
+  const extra = (rev.royalty_usdc ?? 0) + (rev.data_sales_usdc ?? 0);
   return [
     { label: "정산 완료", value: t.settledUsdc, unit: "USDC", foot: `이 날 ${t.settledCount}건`, accent: true },
     { label: "미수금", value: t.outstandingUsdc, unit: "USDC", foot: `미결 전체 ${t.outstandingCount ?? 0}건`, warn: (t.outstandingUsdc ?? 0) > 0 },
+    { label: "부가 수익", value: extra, unit: "USDC",
+      foot: `로열티 ${rev.royalty_count ?? 0}건 · 데이터 ${rev.data_sales_count ?? 0}건 누적` },
     { label: "에이전트 협상", value: t.negotiations, unit: "건", foot: "이 날 자동 합의", plain: true },
-    { label: "누적 청구서", value: t.allInvoices ?? t.invoices, unit: "건", foot: "전체 기간 발행", plain: true },
   ];
 }

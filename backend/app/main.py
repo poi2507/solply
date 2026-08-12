@@ -17,6 +17,7 @@ from app.api import (
     assistant,
     dashboard,
     data_products,
+    demo,
     policy,
     schedules,
     shop,
@@ -32,6 +33,7 @@ app = FastAPI(
 
 app.include_router(a2a_server.router)
 app.include_router(data_products.router)
+app.include_router(demo.router)
 app.include_router(approvals.router)
 app.include_router(assistant.router)
 app.include_router(dashboard.router)

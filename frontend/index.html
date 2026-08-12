@@ -25,6 +25,9 @@
       운영자가 아니라면 — <a href="/shop" style="color:var(--accent); font-weight:650">손님으로 구매해보기 →</a>
       <span style="color:var(--ink-3)">여러분의 구매가 에이전트 조달을 일으킵니다.</span>
     </p>
+    <p class="gate-help" style="margin:6px 0 0; color:var(--ink-3)">
+      심사 중이시라면 — <b>본사</b>에서 협상 기록·데이터 상점을, <b>관리자</b>에서 실행 로그와 무대 트리거를 보세요.
+    </p>
   </div>
 </div>
 
@@ -146,6 +149,14 @@
         <div id="trades" class="negotiations"></div>
       </section>
 
+      <section class="panel" data-role="hq admin">
+        <div class="panel-head">
+          <h2>데이터 상점</h2>
+          <span class="hint">실거래가 남긴 지수를 x402로 판다 — 에이전트도 여기서 판단 재료를 산다</span>
+        </div>
+        <div id="datastore" class="negotiations"></div>
+      </section>
+
       <!-- 관리자: 실행 증빙을 본문에 크게 -->
       <section class="panel feed-panel wide" data-role="admin">
         <div class="panel-head">
@@ -173,6 +184,18 @@
           <button id="report-btn" class="btn">생성</button>
         </div>
         <p id="report-text" class="report-text">에이전트의 이번 주기 처리 내역을 Gemini가 한 문단으로 요약합니다.</p>
+      </section>
+
+      <section class="panel" data-role="hq admin">
+        <div class="panel-head">
+          <h2>무대 트리거</h2>
+          <span class="hint">목업이 아니라 실제 협상을 지금 발화시킨다</span>
+        </div>
+        <div class="stage-actions">
+          <button id="stage-negotiate" class="btn">협상 한 판 재생</button>
+          <button id="stage-tick" class="btn ghost">틱 지금 실행</button>
+        </div>
+        <p id="stage-result" class="report-text"></p>
       </section>
 
       <section class="panel" data-role="admin">

@@ -312,7 +312,52 @@ function renderNegotiations(negs) {
     el.innerHTML = '<div class="empty">협상 기록이 없습니다</div>';
     return;
   }
-  el.innerHTML = negs.map((n) => `
+  // 유예 계열은 청구서별 "대화 스레드"로 — 다회 왕복이 말풍선으로 보인다.
+  const DEFER = new Set(["deferral", "counter_response", "counter_settle"]);
+  const threads = new Map();
+  const others = [];
+  for (const n of negs) {
+    if (DEFER.has(n.type) && n.invoice_id) {
+      if (!threads.has(n.invoice_id)) threads.set(n.invoice_id, []);
+      threads.get(n.invoice_id).push(n);
+    } else others.push(n);
+  }
+  const bubble = (side, title, body, tone) => `
+    <div class="msg ${side}">
+      <span class="who3">${side === "store" ? "지점" : "본사"}</span>
+      <div class="bubble ${tone}"><b>${esc(title)}</b>${body ? `<span>${esc(body)}</span>` : ""}</div>
+    </div>`;
+  const threadHtml = [...threads.entries()].map(([inv, rows]) => {
+    rows.sort((a, b) => (a.updated_at ?? "").localeCompare(b.updated_at ?? ""));
+    const msgs = [];
+    for (const n of rows) {
+      if (n.type === "deferral") {
+        msgs.push(bubble("store", n.proposal ?? "납부 유예 요청", "", "ask"));
+        const [title, tone] =
+          n.decision === "accept" ? ["유예 수락 — 예약 전환", "good"]
+          : n.decision === "counter" ? ["분할 역제안 — 지점 응답 대기", "warn"]
+          : ["유예 거절", "risk"];
+        msgs.push(bubble("hq", title, n.reasoning ?? "", tone));
+      } else if (n.type === "counter_response") {
+        const [title, tone] =
+          n.decision === "accept" ? ["역제안 수락", "good"]
+          : n.decision === "counter"
+            ? [`수정안 — 지금 ${fmt(n.terms?.first_usdc ?? 0)} USDC 선납`, "warn"]
+          : ["결렬 — 분할도 감당 불가", "risk"];
+        msgs.push(bubble("store", title, n.reasoning ?? "", tone));
+      } else {
+        const [title, tone] =
+          n.decision === "accept" ? ["수정안 수용 — 분할 청구서 집행", "good"]
+          : ["수정안 거절 — 사람 결정으로", "risk"];
+        msgs.push(bubble("hq", title, n.reasoning ?? "", tone));
+      }
+    }
+    return `<div class="thread">
+      <div class="thread-head">${esc(inv)} · A2A 협상 (message/send ${rows.length + 1}통)</div>
+      ${msgs.join("")}
+    </div>`;
+  }).join("");
+  const otherHtml = others.map((n) => `
     <div class="row">
       <span class="kind">${KIND_LABEL[n.type] ?? esc(n.type)}</span>
       <div class="body">
@@ -321,6 +366,32 @@ function renderNegotiations(negs) {
       </div>
       <span class="verdict ${esc(n.decision)}">${VERDICT_LABEL[n.decision] ?? esc(n.decision)}</span>
     </div>`).join("");
+  el.innerHTML = threadHtml + otherHtml;
+}
+
+function renderDataStore(ov) {
+  const el = $("datastore");
+  if (!el) return;
+  const rev = ov.hqRevenue ?? {};
+  const ds = ov.dataStore ?? {};
+  const sales = ds.recentSales ?? [];
+  el.innerHTML = `
+    <div class="ds-stats">
+      <div><b>${fmt(rev.data_sales_usdc ?? 0)}</b><span>데이터 매출 · ${rev.data_sales_count ?? 0}건</span></div>
+      <div><b>${fmt(rev.royalty_usdc ?? 0)}</b><span>로열티 수익 · ${rev.royalty_count ?? 0}건</span></div>
+      <div><b>${fmt(ds.priceUsdc ?? 0)}</b><span>지수 1건 가격 (USDC)</span></div>
+    </div>
+    <div class="ds-note">상품 2종 — <b>체결가 지수</b>·<b>수요 지수</b>. 온체인 정산이 확인된 체결만
+      비식별 집계하며, 에이전트도 같은 상점에서 판단 재료를 사 간다 (자급 순환).</div>
+    ${sales.length ? sales.map((o) => `
+      <div class="row">
+        <span class="kind">판매</span>
+        <div class="body">
+          <div class="head">${esc(o.product)} · ${esc(o.sku)} · ${fmt(o.price_usdc)} USDC</div>
+          <div class="why">주문 ${esc(o.id)}${o.tx_sig ? ` · <a class="txlink" href="${explorerUrl(o.tx_sig, currentNetwork)}" target="_blank" rel="noopener">${short(o.tx_sig, 8, 6)}</a>` : ""}</div>
+        </div>
+        <span class="verdict accept">이행</span>
+      </div>`).join("") : '<div class="empty">아직 판매 기록이 없습니다</div>'}`;
 }
 
 function renderTrades(trades) {
@@ -447,7 +518,7 @@ function eventRow(evt, isNew) {
   const amt = p.amount ?? p.amount_usdc ?? p.price_usdc;
   if (amt != null) meta += ` · ${fmt(amt)} USDC`;
   if (p.new_amount != null) meta += ` → ${fmt(p.new_amount)} USDC`;
-  if (p.price_usd != null) meta += ` · ${p.symbol ?? p.sku} ${p.price_usd} USD`;
+  if (p.price_usd != null) meta += ` · ${p.symbol ?? p.sku} ${p.price_usd} ${p.source === "solply-index" ? "USDC" : "USD"}`;
   if (p.receipt_ref) meta += ` · 영수증 ${short(p.receipt_ref, 8, 6)}`;
   if (evt.action === "delivery.verified") meta += p.match ? " · 일치" : ` · 불일치 ${p.discrepancies?.length ?? 0}건`;
   if (p.sku && p.qty != null) meta += ` · ${esc(p.sku)} ${p.qty > 0 ? "+" : ""}${p.qty}`;
@@ -457,6 +528,7 @@ function eventRow(evt, isNew) {
     <span class="what">
       <span class="who">${esc(evt.actor.replace("-agent", ""))}</span><span class="act ${toneOf(evt)}">${esc(label)}</span>
       ${meta ? `<span class="meta">${esc(meta)}</span>` : ""}
+      ${p.tx || p.explorer ? `<a class="txlink" target="_blank" rel="noopener" href="${p.explorer ?? explorerUrl(p.tx, currentNetwork)}">체인↗</a>` : ""}
     </span>
   </li>`;
 }
@@ -468,8 +540,34 @@ function renderWallets(wallets) {
          <div class="line"><span class="who2">${esc(w.wallet)}</span><span class="usdc">${fmt(w.usdc)} <small>USDC</small></span></div>
          <div class="line"><span class="addr">${short(w.address, 10, 6)}</span><span class="sol">${Number(w.sol).toFixed(3)} SOL</span></div>
          ${w.pending_settlement_usdc > 0 ? `<div class="line"><span class="addr">카드정산 대기</span><span class="sol">+${fmt(w.pending_settlement_usdc)} USDC</span></div>` : ""}
+         ${w.wallet !== "hq" ? `<div class="line"><span class="addr">⚡ Gasless</span><span class="sol">수수료 본사 대납</span></div>` : ""}
        </div>`).join("");
 }
+
+// ── 무대 트리거 — 발표 중 "지금 실시간으로" ─────────────────────────
+async function stageCall(btn, url, runningText) {
+  const out = $("stage-result");
+  btn.disabled = true;
+  const original = btn.textContent;
+  btn.textContent = runningText;
+  try {
+    const res = await fetch(url, { method: "POST" });
+    const body = await res.json().catch(() => ({}));
+    out.textContent = res.ok
+      ? `완료 — ${body.invoice_id ? `${body.invoice_id} → ${body.outcome}` : "틱 한 바퀴 실행됨"}. 협상 기록·실행 로그를 보세요.`
+      : `안 됨 — ${body.detail ?? res.status}`;
+  } catch (err) {
+    out.textContent = `오류 — ${err}`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+    refresh();
+  }
+}
+$("stage-negotiate")?.addEventListener("click", (e) =>
+  stageCall(e.target, "/api/demo/negotiate", "협상 재생 중… (라운드가 실제로 돕니다)"));
+$("stage-tick")?.addEventListener("click", (e) =>
+  stageCall(e.target, "/api/ticks/run", "틱 실행 중…"));
 
 // ── 리포트 · 어시스턴트 ───────────────────────────────────────────
 const reportBtn = $("report-btn");
@@ -608,7 +706,10 @@ function renderSysInfo(ov, health) {
     ["협상", `${ov.totals.negotiations}건`],
     ["사람 개입", `${ov.totals.humanActions}회`],
   ];
-  el.innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("");
+  const cardLink = (id) =>
+    `<a href="/a2a/${id}/.well-known/agent-card.json" target="_blank" rel="noopener">${id}</a>`;
+  el.innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")
+    + `<dt>A2A 명함</dt><dd class="cards">${["hq", "store-a", "store-b", "store-c"].map(cardLink).join(" · ")}</dd>`;
 }
 
 
@@ -693,6 +794,7 @@ async function refresh() {
     renderInventory(stockRows, stockMoves);
     renderNegotiations(view.negotiations);
     renderTrades(view.trades);
+    renderDataStore(ov);
     // 날짜로 자르지 않은 목록을 쓴다 — 어제 멈춘 결제가 오늘 사라지면 안 된다
     const openList = view.openInvoices ?? ov.openInvoices ?? view.invoices;
     renderSchedules(openList);

@@ -20,7 +20,7 @@ import random
 
 from app.a2a import client as a2a
 from app.agents import runner, utils
-from app.core import fixtures, kst
+from app.core import fixtures, kst, stats
 from app.core import policy as policy_mod
 from app.core import status as status_mod
 from app.db import store as db
@@ -203,6 +203,7 @@ def settle_cards() -> list[dict]:
             {"store_id": store_id, "amount_usdc": net, "gross_usdc": gross,
              "royalty_usdc": royalty, "tx": result["signature"]},
         )
+        stats.add("royalty", royalty)
         paid.append({"store_id": store_id, "amount_usdc": net, "royalty_usdc": royalty})
     return paid
 
