@@ -50,7 +50,9 @@ CREATE INDEX IF NOT EXISTS events_ts_idx ON events (ts DESC);
 
 
 class PostgresStore:
-    def __init__(self, dsn: str, *, min_size: int = 1, max_size: int = 8) -> None:
+    def __init__(self, dsn: str, *, min_size: int = 1, max_size: int = 4) -> None:
+        # db-f1-micro의 연결 상한은 25 — 인스턴스×풀이 이를 넘으면 새 리비전이
+        # 시작조차 못 한다 (8/12 배포 실패 실측). 풀은 작게, 나머지는 줄을 선다.
         # check: 대여 직전에 연결을 확인한다 — DB를 재시작하면 풀이 죽은 커넥션을 들고 있고,
         # 그러면 AdminShutdown이 뜨면서 서비스가 재시작 없이는 복구되지 않는다.
         self.pool = ConnectionPool(
