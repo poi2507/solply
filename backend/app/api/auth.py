@@ -101,6 +101,14 @@ def register_verify(body: CredentialBody) -> dict:
     return {"ok": True}
 
 
+@router.delete("/{role}")
+def reset(role: str) -> dict:
+    """역할의 패스키 초기화 — 리허설에서 기기를 바꾸거나 테스트 흔적을 지울 때."""
+    store.put("passkeys", role, {"credentials": [], "challenge": None})
+    store.log_event("human", "auth.passkey_reset", {"role": role})
+    return {"ok": True}
+
+
 @router.post("/login/options")
 def login_options(body: RoleBody) -> dict:
     doc = _doc(body.role)
