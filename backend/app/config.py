@@ -25,6 +25,11 @@ SOLPLY_API_URL = os.getenv("SOLPLY_API_URL", "http://localhost:8080")
 # ── A2A (에이전트 간 표준 왕복) ──
 # 경량판: 두 에이전트가 같은 배포에 살아 자기 자신을 HTTP로 부른다.
 # 완전판 승격은 이 URL 교체가 전부다 — 메시지 규약·번역기·클라이언트는 그대로.
+# 패스키(WebAuthn)의 도메인 신원 — 자물쇠(공개키)가 이 도메인에 묶인다
+from urllib.parse import urlparse as _urlparse
+
+PASSKEY_RP_ID = os.getenv("PASSKEY_RP_ID", _urlparse(SOLPLY_API_URL).hostname or "localhost")
+
 A2A_HQ_URL = os.getenv("A2A_HQ_URL", SOLPLY_API_URL)
 A2A_STORE_URL = os.getenv("A2A_STORE_URL", SOLPLY_API_URL)
 

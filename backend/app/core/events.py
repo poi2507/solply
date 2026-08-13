@@ -11,6 +11,8 @@
 """
 
 ACTION_LABELS: dict[str, str] = {
+    "auth.passkey_registered": "패스키 등록",
+    "auth.passkey_login": "패스키 본인확인",
     "p2p.escrow_deposited": "에스크로 예치",
     "p2p.released": "에스크로 지급",
     "p2p.refunded": "에스크로 환불",

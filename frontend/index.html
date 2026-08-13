@@ -22,6 +22,15 @@
     <h2>어느 입장으로 접속하시겠습니까</h2>
     <p class="gate-help">역할에 따라 보이는 정보와 결정 권한이 다릅니다.</p>
     <div class="gate-list" id="gate-list"></div>
+    <div class="gate-auth" id="gate-auth" hidden>
+      <p id="ga-msg"><b id="ga-role"></b> — 이 역할에는 아직 패스키가 없습니다.</p>
+      <div class="ga-actions">
+        <button class="btn" id="ga-register">패스키 등록하고 입장</button>
+        <button class="linkish" id="ga-skip">건너뛰기 (데모 모드)</button>
+      </div>
+      <p class="gate-help" style="margin:8px 0 0">등록하면 다음부터 지문·Face ID 한 번으로 들어옵니다.
+        지갑 열쇠는 본사가 안전하게 보관합니다 — 점주는 아무것도 외울 필요가 없습니다.</p>
+    </div>
     <p class="gate-help" style="margin:16px 0 0">
       운영자가 아니라면 — <a href="/shop" style="color:var(--accent); font-weight:650">손님으로 구매해보기 →</a>
       <span style="color:var(--ink-3)">여러분의 구매가 에이전트 조달을 일으킵니다.</span>

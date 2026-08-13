@@ -19,6 +19,7 @@ from app.a2a import server as a2a_server
 from app.api import (
     approvals,
     assistant,
+    auth,
     dashboard,
     data_products,
     demo,
@@ -54,6 +55,7 @@ app.include_router(dashboard.router)
 app.include_router(policy.router)
 app.include_router(schedules.router)
 app.include_router(shop.router)
+app.include_router(auth.router)
 app.include_router(ticks.router)
 app.include_router(x402.router)
 

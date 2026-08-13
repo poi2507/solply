@@ -1170,11 +1170,96 @@ async function renderGate() {
       <span class="gate-desc">${esc(c.desc)}</span>
     </button>`).join("");
   $("gate-list").querySelectorAll(".gate-btn").forEach((btn) =>
-    btn.addEventListener("click", () => {
-      role.set(btn.dataset.id);
-      start();
-    }),
+    btn.addEventListener("click", () => passkeyEnter(btn.dataset.id)),
   );
+}
+
+// ── 패스키 본인확인 — 문이지 벽이 아니다: 실패·미지원이면 언제든 데모 모드로 ──
+const b64u = {
+  enc: (buf) => btoa(String.fromCharCode(...new Uint8Array(buf)))
+    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""),
+  dec: (s) => Uint8Array.from(
+    atob(s.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - (s.length % 4)) % 4)),
+    (ch) => ch.charCodeAt(0),
+  ),
+};
+
+function credentialJSON(cred) {
+  const r = cred.response;
+  const out = {
+    id: cred.id, rawId: b64u.enc(cred.rawId), type: cred.type,
+    clientExtensionResults: cred.getClientExtensionResults(),
+    authenticatorAttachment: cred.authenticatorAttachment ?? null,
+    response: { clientDataJSON: b64u.enc(r.clientDataJSON) },
+  };
+  if (r.attestationObject) {
+    out.response.attestationObject = b64u.enc(r.attestationObject);
+    if (r.getTransports) out.response.transports = r.getTransports();
+  }
+  if (r.authenticatorData) {
+    out.response.authenticatorData = b64u.enc(r.authenticatorData);
+    out.response.signature = b64u.enc(r.signature);
+    out.response.userHandle = r.userHandle ? b64u.enc(r.userHandle) : null;
+  }
+  return out;
+}
+
+async function postJSON(url, body) {
+  const res = await fetch(url, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.detail ?? `HTTP ${res.status}`);
+  return data;
+}
+
+function gateAuthPanel(id, message) {
+  const panel = $("gate-auth");
+  if (!panel) return;
+  panel.hidden = false;
+  $("ga-role").textContent = ROLE_TITLE(id);
+  if (message) $("ga-msg").innerHTML = `<b>${esc(ROLE_TITLE(id))}</b> — ${esc(message)}`;
+  $("ga-register").onclick = () => passkeyRegister(id);
+  $("ga-skip").onclick = () => enterAs(id);
+}
+
+const ROLE_TITLE = (id) => role.ROLES?.[id]?.label ?? id;
+
+function enterAs(id) {
+  role.set(id);
+  $("gate-auth")?.setAttribute("hidden", "");
+  start();
+}
+
+async function passkeyEnter(id) {
+  if (!window.PublicKeyCredential) return enterAs(id);  // 미지원 브라우저 — 막지 않는다
+  try {
+    const res = await postJSON("/api/auth/passkey/login/options", { role: id });
+    if (!res.registered) return gateAuthPanel(id, "이 역할에는 아직 패스키가 없습니다.");
+    const options = res.options;
+    options.challenge = b64u.dec(options.challenge);
+    options.allowCredentials = (options.allowCredentials ?? []).map((c) => ({ ...c, id: b64u.dec(c.id) }));
+    const cred = await navigator.credentials.get({ publicKey: options });
+    await postJSON("/api/auth/passkey/login/verify", { role: id, credential: credentialJSON(cred) });
+    enterAs(id);
+  } catch (err) {
+    gateAuthPanel(id, `본인확인이 완료되지 않았습니다 (${err.message ?? err}). 다시 등록하거나 데모 모드로 입장하세요.`);
+  }
+}
+
+async function passkeyRegister(id) {
+  try {
+    const options = await postJSON("/api/auth/passkey/register/options", { role: id });
+    options.challenge = b64u.dec(options.challenge);
+    options.user.id = b64u.dec(options.user.id);
+    options.excludeCredentials = (options.excludeCredentials ?? []).map((c) => ({ ...c, id: b64u.dec(c.id) }));
+    const cred = await navigator.credentials.create({ publicKey: options });
+    await postJSON("/api/auth/passkey/register/verify", { role: id, credential: credentialJSON(cred) });
+    enterAs(id);
+  } catch (err) {
+    gateAuthPanel(id, `등록이 완료되지 않았습니다 (${err.message ?? err}). 데모 모드로 입장할 수 있습니다.`);
+  }
 }
 
 let streaming = false;

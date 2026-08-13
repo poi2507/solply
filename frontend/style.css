@@ -667,3 +667,11 @@ td .empty, td.empty { text-align: center; }
 .metric .value, .ledger td.r, .wallet .usdc, .ds-stats b, .row .head b {
   font-variant-numeric: tabular-nums;
 }
+
+/* 게이트 패스키 안내 */
+.gate-auth {
+  margin-top: 16px; padding: 14px 16px;
+  background: var(--raise); border: 1px solid var(--line); border-radius: 12px;
+}
+.gate-auth p { margin: 0 0 10px; font-size: 13px; color: var(--ink-2); }
+.gate-auth .ga-actions { display: flex; gap: 10px; align-items: center; }
