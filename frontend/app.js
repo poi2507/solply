@@ -1224,7 +1224,10 @@ function gateAuthPanel(id, message) {
   $("ga-skip").onclick = () => enterAs(id);
 }
 
-const ROLE_TITLE = (id) => role.ROLES?.[id]?.label ?? id;
+const ROLE_TITLE = (id) =>
+  role.ROLES?.[id]?.label
+  ?? document.querySelector(`.gate-btn[data-id="${id}"] .gate-name`)?.textContent
+  ?? id;
 
 function enterAs(id) {
   role.set(id);
