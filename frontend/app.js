@@ -489,12 +489,15 @@ function storeFlowSvg(ov) {
     <text x="480" y="172" text-anchor="middle" class="fl-name">${esc(mine.name ?? me.id)}</text>
     <text x="480" y="193" text-anchor="middle" class="fl-cap">${esc(me.id)} — 내 지점</text>
     <text x="480" y="222" text-anchor="middle" class="fl-cap">신용점수 ${mine.creditScore ?? "—"}</text>
-    ${flowEdge(240, 160, 388, 160, bc)}
-    ${flowPill(314, 148, bc, `카드정산 ${fmt(back)}`)}
-    ${flowEdge(390, 187, 242, 187, qc)}
-    ${flowPill(316, 187, qc, `시세 구입 ${fmt(quotes)}`)}
-    ${flowEdge(390, 214, 242, 214, sc)}
-    ${flowPill(316, 230, sc, `물대 ${fmt(sell)}`)}
+    ${flowEdge(240, 165, 388, 165, bc)}
+    ${flowPill(314, 152, bc, `카드정산 ${fmt(back)}`)}
+    ${flowEdge(390, 210, 242, 210, sc)}
+    ${flowPill(316, 224, sc, `물대 ${fmt(sell)}`)}
+    <rect x="390" y="16" width="180" height="64" rx="12" class="fl-box"/>
+    <text x="480" y="42" text-anchor="middle" class="fl-name">데이터 상점</text>
+    <text x="480" y="63" text-anchor="middle" class="fl-cap">pay.sh 카탈로그 등록</text>
+    ${flowEdge(480, 128, 480, 82, qc)}
+    ${flowPill(480, 105, qc, `시세 구입 ${fmt(quotes)}`)}
     ${nbox}
     <text x="24" y="308" class="fl-cap">청록 점선은 이웃 지점과의 P2P 직거래 — 초록 유입 · 파랑 유출 (내 지갑 기준)</text>
     <text x="876" y="308" text-anchor="end" class="fl-cap">모든 흐름은 ${esc(ov.network ?? "devnet")} 온체인 USDC 이체</text>
