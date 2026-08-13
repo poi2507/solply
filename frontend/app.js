@@ -497,7 +497,7 @@ function storeFlowSvg(ov) {
     <text x="480" y="42" text-anchor="middle" class="fl-name">데이터 상점</text>
     <text x="480" y="63" text-anchor="middle" class="fl-cap">시세·수요 지수 — x402 구매</text>
     ${flowEdge(480, 128, 480, 82, qc)}
-    ${flowPill(546, 105, qc, `시세 구입 ${fmt(quotes)}`)}
+    ${flowPill(412, 105, qc, `시세 구입 ${fmt(quotes)}`)}
     ${nbox}
     <text x="24" y="308" class="fl-cap">청록 점선은 이웃 지점과의 P2P 직거래 — 초록 유입 · 파랑 유출 (내 지갑 기준)</text>
     <text x="876" y="308" text-anchor="end" class="fl-cap">모든 흐름은 ${esc(ov.network ?? "devnet")} 온체인 USDC 이체</text>
