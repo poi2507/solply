@@ -7,6 +7,7 @@
   - 발신 클라이언트가 네트워크 왕복 그대로 동작한다 (ASGI 직결로 검증)
 """
 
+import pytest
 import asyncio
 
 import httpx
@@ -91,6 +92,25 @@ def test_client_send_round_trips(monkeypatch):
 
     assert final["outcome"] == "noop", "없는 거래 → load_context가 noop으로 끝낸다"
     assert "직거래 건을 찾을 수 없습니다" in " ".join(final.get("messages", []))
+
+
+def test_client_discovers_card_before_sending(monkeypatch):
+    """동적 디스커버리 — 명함에 없는 스킬은 클라이언트가 보내지도 않는다."""
+    import asyncio
+
+    import httpx
+
+    from app.a2a import client as a2a_client
+    from app.main import app
+
+    monkeypatch.setattr(a2a_client, "_TRANSPORT", httpx.ASGITransport(app=app))
+    a2a_client._CARD_CACHE.clear()
+
+    with pytest.raises(RuntimeError, match="명함에 없는 스킬"):
+        asyncio.run(a2a_client.send("store-a", "wallet.drain"))
+
+    skills = asyncio.run(a2a_client.discover_skills("store-a"))
+    assert "p2p.respond" in skills and "store-a" in a2a_client._CARD_CACHE, "명함은 프로세스당 1회 캐시"
 
 
 def test_reply_keys_carry_negotiation_fields():

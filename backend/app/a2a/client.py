@@ -26,8 +26,31 @@ def _base(agent_id: str) -> str:
     return config.A2A_HQ_URL if agent_id == "hq" else config.A2A_STORE_URL
 
 
+# 동적 디스커버리 — 보내기 전에 상대 명함을 읽고 스킬이 있는지 확인한다.
+# 명함이 장식이 아니라 실제 계약이 되는 지점: 완전판에서 상대가 다른 회사여도
+# 같은 명함으로 능력을 확인하고 나서야 메시지를 보낸다. 프로세스당 1회 캐시.
+_CARD_CACHE: dict[str, set[str]] = {}
+
+
+async def discover_skills(agent_id: str) -> set[str]:
+    """상대 명함(.well-known/agent-card.json)에서 스킬 목록을 읽는다."""
+    if agent_id in _CARD_CACHE:
+        return _CARD_CACHE[agent_id]
+    async with httpx.AsyncClient(transport=_TRANSPORT, timeout=30) as client:
+        resp = await client.get(f"{_base(agent_id)}/a2a/{agent_id}/.well-known/agent-card.json")
+    resp.raise_for_status()
+    skills = {s["id"] for s in resp.json().get("skills", [])}
+    _CARD_CACHE[agent_id] = skills
+    return skills
+
+
 async def send(agent_id: str, intent: str, **kwargs: Any) -> dict:
-    """message/send 한 통을 보내고 상대 그래프의 최종 상태(공개분)를 돌려받는다."""
+    """message/send 한 통 — 상대 명함에서 스킬을 확인한 뒤에만 보낸다."""
+    skills = await discover_skills(agent_id)
+    if intent not in skills:
+        raise RuntimeError(
+            f"명함에 없는 스킬이라 보내지 않음: {agent_id} ← {intent} (명함 스킬 {len(skills)}개)"
+        )
     request = {
         "jsonrpc": "2.0",
         "id": f"a2a-{uuid4().hex[:12]}",
