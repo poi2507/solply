@@ -495,7 +495,7 @@ function storeFlowSvg(ov) {
     ${flowPill(316, 224, sc, `물대 ${fmt(sell)}`)}
     <rect x="390" y="16" width="180" height="64" rx="12" class="fl-box"/>
     <text x="480" y="42" text-anchor="middle" class="fl-name">데이터 상점</text>
-    <text x="480" y="63" text-anchor="middle" class="fl-cap">pay.sh 카탈로그 등록</text>
+    <text x="480" y="63" text-anchor="middle" class="fl-cap">시세·수요 지수 — x402 구매</text>
     ${flowEdge(480, 128, 480, 82, qc)}
     ${flowPill(480, 105, qc, `시세 구입 ${fmt(quotes)}`)}
     ${nbox}
