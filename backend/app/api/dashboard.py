@@ -211,13 +211,14 @@ def events(limit: int = 100, day: str | None = None) -> dict:
 @router.get("/wallets")
 def wallets() -> dict:
     out = []
-    for name in config.WALLETS:
+    for name in (*config.WALLETS, *config.SYSTEM_WALLETS):
         try:
             bal = payments.balance(name)
         except Exception as exc:  # noqa: BLE001 — 결제 서비스가 꺼져도 대시보드는 살아있게
             out.append({"wallet": name, "error": str(exc)})
             continue
-        if name != "hq":
+        bal["kind"] = "system" if name in config.SYSTEM_WALLETS else "franchise"
+        if name in config.WALLETS and name != "hq":
             # 본사가 아직 지급하지 못한 카드 매출 — 지점 입장의 "받을 돈".
             # 이게 안 보이면 잔액 편중을 화면만으로 진단할 수 없다.
             till = store.get("till", name) or {}

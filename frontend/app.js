@@ -726,6 +726,12 @@ function eventRow(evt, isNew) {
   </li>`;
 }
 
+const SYSTEM_WALLET_NOTE = {
+  guest: "손님 지갑 — /shop 구매 유입",
+  trader: "데이터 거래처 — 지수 구매",
+  escrow: "직거래 에스크로 — 예치 중 금액",
+};
+
 function renderWallets(wallets) {
   $("wallets").innerHTML = wallets.map((w) => w.error
     ? `<div class="wallet"><div class="line"><span class="who2">${esc(w.wallet)}</span></div><div class="err">결제 서비스 연결 안 됨</div></div>`
@@ -733,7 +739,8 @@ function renderWallets(wallets) {
          <div class="line"><span class="who2">${esc(w.wallet)}</span><span class="usdc">${fmt(w.usdc)} <small>USDC</small></span></div>
          <div class="line"><span class="addr">${short(w.address, 10, 6)}</span><span class="sol">${Number(w.sol).toFixed(3)} SOL</span></div>
          ${w.pending_settlement_usdc > 0 ? `<div class="line"><span class="addr">카드정산 대기</span><span class="sol">+${fmt(w.pending_settlement_usdc)} USDC</span></div>` : ""}
-         ${w.wallet !== "hq" ? `<div class="line"><span class="addr">⚡ Gasless</span><span class="sol">수수료 본사 대납</span></div>` : ""}
+         ${w.kind === "system" ? `<div class="line"><span class="addr">${SYSTEM_WALLET_NOTE[w.wallet] ?? ""}</span><span class="sol">${w.sol === 0 ? "SOL 0 · Gasless" : ""}</span></div>`
+           : w.wallet !== "hq" ? `<div class="line"><span class="addr">⚡ Gasless</span><span class="sol">수수료 본사 대납</span></div>` : ""}
        </div>`).join("");
 }
 

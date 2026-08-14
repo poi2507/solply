@@ -72,4 +72,7 @@ DATABASE_URL = os.getenv(
     "DATABASE_URL", f"postgresql://{os.getenv('USER', 'postgres')}@localhost:5432/solply"
 )
 
+# 프랜차이즈 풀(본사·지점)과 그 밖의 지갑 — 화면은 둘을 나눠 보여준다.
+# 외부 지갑이 안 보이면 "외부 자금 유입"과 "에스크로 잔액 = 예치 중 대금"을 화면으로 증명할 수 없다.
 WALLETS = ("hq", "store-a", "store-b", "store-c")
+SYSTEM_WALLETS = ("guest", "trader", "escrow")
