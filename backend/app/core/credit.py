@@ -26,8 +26,11 @@ ON_TIME_POINTS = 2
 # 연체 = "납부 방법이 정해지지 않은 채" 이 시간을 넘긴 청구서.
 # 예약(scheduled)은 납부일을 합의한 건이라 세지 않는다.
 LATE_AFTER_HOURS = 48
+# 사람 승인 대기(pending_approval)는 **지점의 연체가 아니다** — 심사가 늦어진 것이지
+# 지점이 버틴 게 아니다. 이걸 연체로 세면 되먹임이 생긴다: 유예 거절 → 승인 큐 적체
+# → 신용 하락 → 더 거절 (8/15 store-b 실측: 신용 73으로 유예 기준 85 미달, 큐 16건).
 UNPLANNED: tuple[str, ...] = (
-    InvoiceStatus.ISSUED, InvoiceStatus.DISPUTED, InvoiceStatus.PENDING_APPROVAL,
+    InvoiceStatus.ISSUED, InvoiceStatus.DISPUTED,
 )
 
 # 정시납 가산의 상한. 누적으로만 쌓으면 몇백 건 뒤엔 원점수가 1400을 넘어

@@ -546,3 +546,25 @@ def test_pending_approvals_survive_the_day_view():
     view = TestClient(app).get("/api/overview?day=2020-01-01").json()
     assert "INV-OLD-PA" not in {i["id"] for i in view["invoices"]}, "그 날 목록엔 없어야 한다"
     assert "INV-OLD-PA" in {i["id"] for i in view["openInvoices"]}, "승인 패널 목록엔 있어야 한다"
+
+
+def test_pending_approval_is_not_a_late_payment():
+    """사람 승인 대기는 지점의 연체가 아니다 — 이걸 세면 신용 하락 되먹임이 생긴다.
+
+    8/15 실측: store-b가 유예 거절 → 승인 큐 적체 → 신용 73 → 다시 거절로 굳었다.
+    """
+    from datetime import UTC, datetime, timedelta
+
+    from app.core import credit
+    from app.core import status as status_mod
+    from app.db import store as db
+
+    assert status_mod.InvoiceStatus.PENDING_APPROVAL not in credit.UNPLANNED
+
+    old_ts = (datetime.now(UTC) - timedelta(hours=credit.LATE_AFTER_HOURS + 5)).isoformat()
+    db.put("invoices", "INV-CREDIT-PENDING", {
+        "id": "INV-CREDIT-PENDING", "store_id": "store-c", "items": [], "amount_usdc": 5.0,
+        "status": status_mod.InvoiceStatus.PENDING_APPROVAL, "tx_sig": None, "updated_at": old_ts,
+    })
+    before = credit.evaluate("store-c")["live_late"]
+    assert before == credit.evaluate("store-c")["live_late"], "승인 대기 건은 연체 수에 들어가지 않는다"
