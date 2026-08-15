@@ -154,7 +154,7 @@ PERSONA_PRESETS = [
 
 def _validate(policy: StorePolicy | HQPolicy) -> None:
     if isinstance(policy, StorePolicy) and len(policy.persona) > MAX_PERSONA_CHARS:
-        raise ValueError(f"지점 사정은 {MAX_PERSONA_CHARS}자 이내로 적어 주세요")
+        raise ValueError(f"협상 전략은 {MAX_PERSONA_CHARS}자 이내로 적어 주세요")
     if isinstance(policy, StorePolicy):
         if policy.auto_pay_limit_usdc <= 0:
             raise ValueError("자동결제 상한은 0보다 커야 합니다")
@@ -189,8 +189,8 @@ def describe(owner_id: str) -> list[dict[str, Any]]:
             ("safety_stock_multiplier", "안전재고 배수", "지점 간 직거래로 팔 때 남겨둘 재고 배수", "배", 0, 5),
         ]
         text_spec += [
-            ("persona", "우리 지점 사정",
-             ("에이전트가 협상·조달에서 참고합니다. 성향을 고르거나 직접 고쳐 쓰세요 — "
+            ("persona", "협상 전략",
+             ("에이전트가 협상·조달에서 따르는 전략입니다. 성향을 고르거나 직접 고쳐 쓰세요 — "
               "같은 조건에도 다르게 판단합니다. 한도는 위 숫자가 강제합니다.")),
         ]
     else:

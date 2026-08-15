@@ -15,7 +15,7 @@ router = APIRouter(prefix="/api/policy", tags=["policy"])
 
 
 class PolicyPatch(BaseModel):
-    # 사정(persona)은 글이라 문자열도 받는다 — 한도는 여전히 숫자만
+    # 협상 전략(persona)은 글이라 문자열도 받는다 — 한도는 여전히 숫자만
     values: dict[str, float | int | str]
 
 
