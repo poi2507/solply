@@ -11,7 +11,8 @@ ITEMS = [
     {"sku": "VEG-05", "name": "모둠 야채 5kg", "qty": 8, "unit_price_usdc": 1.25},
 ]
 
-STORE_VALUES = {"store_id": "store-a", "auto_pay_limit_usdc": "50", "min_reserve_usdc": "10"}
+STORE_VALUES = {"store_id": "store-a", "auto_pay_limit_usdc": "50", "min_reserve_usdc": "10",
+                "persona": "테스트 지점 사정"}
 HQ_VALUES = {"min_credit_score": 85, "defer_max_pct": "20", "installment_max": 2}
 
 
@@ -62,7 +63,8 @@ def test_composed_prompt_is_tagged():
 
 
 def test_store_prompt_injects_identity_and_limits():
-    text = prompts.system("store", store_id="store-c", auto_pay_limit_usdc="42", min_reserve_usdc="7")
+    text = prompts.system("store", store_id="store-c", auto_pay_limit_usdc="42",
+                          min_reserve_usdc="7", persona="테스트 지점 사정")
     assert "store-c" in text and "42 USDC" in text and "7 USDC" in text
 
 
@@ -135,3 +137,29 @@ def test_cashflow_routing(cashflow, expected, why):
     from app.agents.store import node
 
     assert node.route_after_cashflow({"cashflow": cashflow}) == expected, why
+
+
+def test_store_persona_is_injected_from_data_not_hardcoded():
+    """지점 사정은 md가 아니라 데이터에서 온다 — 지점마다 다른 프롬프트가 조립된다."""
+    from app.agents import prompts, utils
+    from app.core import policy as policy_mod
+
+    assert "persona" in prompts.placeholders("store", "role"), "role.md가 사정을 요구해야 한다"
+
+    built = {}
+    for sid in ("store-a", "store-b", "store-c"):
+        profile = utils.store_profile(sid)
+        assert profile and profile.get("persona"), f"{sid}에 사업 조건이 없다"
+        built[sid] = prompts.system("store", **policy_mod.get(sid).as_prompt_values())
+        assert profile["persona"] in built[sid]
+
+    assert len(set(built.values())) == 3, "지점마다 다른 시스템 프롬프트가 나와야 한다"
+
+
+def test_store_context_carries_persona_for_every_judgment():
+    """판단·요약이 쓰는 policy 값에 사정이 함께 실린다 (호출부마다 챙기지 않아도 되게)."""
+    from app.agents.store import node as store_node
+
+    ctx = store_node.load_context({"store_id": "store-c", "intent": "restock.check"})
+    assert ctx["policy"]["persona"]
+    assert ctx["policy"]["store_id"] == "store-c"

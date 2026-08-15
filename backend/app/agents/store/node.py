@@ -262,7 +262,7 @@ def find_supply(state: StoreState) -> dict:
             "본사_공급가_usdc": hq_terms.get("unit_price_usdc", 0),
             "구매한_시세": quote["summary"] if quote else "없음",
         },
-        policy_mod.get(state["store_id"]).as_prompt_values(),
+        state.get("policy", {}),
     )
     if verdict["decision"] != "p2p":
         return {
@@ -341,7 +341,7 @@ def respond_counter(state: StoreState) -> dict:
             "affordable_usdc": afford,
             "예상_입금": forecast or "미확인",
         },
-        policy_mod.get(state["store_id"]).as_prompt_values(),
+        state.get("policy", {}),
     )
     decision = verdict["decision"]
     resp_terms = {"first_usdc": afford} if decision == "counter" else {}

@@ -32,10 +32,16 @@ class StorePolicy:
     kind: str = "store"
 
     def as_prompt_values(self) -> dict[str, Any]:
+        # 사정(persona)은 정책이 아니라 지점 프로필이지만 프롬프트에는 함께 들어간다.
+        # 여기서 한 번에 실어야 호출부마다 빠뜨리지 않는다.
+        from app.core import fixtures
+
+        profile = fixtures.load()["stores"].get(self.owner_id, {})
         return {
             "store_id": self.owner_id,
             "auto_pay_limit_usdc": _num(self.auto_pay_limit_usdc),
             "min_reserve_usdc": _num(self.min_reserve_usdc),
+            "persona": profile.get("persona", "특별한 사정 없이 정책대로 판단한다."),
         }
 
 
