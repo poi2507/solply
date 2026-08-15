@@ -255,6 +255,39 @@ async def _p2p_handshake(trade: dict) -> str:
     return "payment_failed"
 
 
+async def settle_disputes() -> list[dict]:
+    """차감 제안이 심사를 못 받고 멈춘 청구서를 이어서 처리한다.
+
+    지점이 검수 불일치로 차감을 제안하면(disputed) 본사 심사가 따라와야 하는데,
+    틱에는 유예 협상 경로만 있어 차감은 데모 잡에서만 돌았다 — 라이브에서는
+    12일째 멈춘 건이 쌓였고 그동안 연체로 집계돼 신용을 깎았다 (8/15 store-b 실측).
+    """
+    handled = []
+    events = db.list_events()
+    for invoice in db.list_docs("invoices", status=status_mod.InvoiceStatus.DISPUTED):
+        proposal = next(
+            (e["payload"] for e in reversed(events)
+             if e["action"] == "proposal.adjustment"
+             and e["payload"].get("invoice_id") == invoice["id"]),
+            None,
+        )
+        if not proposal:
+            continue  # 제안 없이 disputed면 사람이 볼 일이다
+        try:
+            reviewed = await a2a.send("hq", "proposal.adjustment",
+                                      invoice_id=invoice["id"], payload=proposal)
+            outcome = reviewed.get("outcome")
+            if (db.get("invoices", invoice["id"]) or {})["status"] == status_mod.InvoiceStatus.ISSUED:
+                # 차감 수락 → 재발행분을 지점이 결제한다
+                paid = await a2a.send(invoice["store_id"], "invoice.pay_adjusted",
+                                      invoice_id=invoice["id"])
+                outcome = paid.get("outcome", outcome)
+            handled.append({"invoice_id": invoice["id"], "status": outcome})
+        except Exception as exc:  # noqa: BLE001 — 한 건의 실패가 나머지를 막지 않는다
+            handled.append({"invoice_id": invoice["id"], "error": str(exc)[:120]})
+    return handled
+
+
 async def settle_escrows() -> list[dict]:
     """예치된 채 남은 직거래를 종결한다 — 릴리스·환불 실패의 재시도 경로.
 
@@ -474,6 +507,7 @@ async def tick(rng: random.Random | None = None) -> dict:
         "sales": await _stage(lambda: run_sales(rng)),
         "card_settlements": await _stage(settle_cards),
         "escrow_settlements": await _stage(settle_escrows),
+        "dispute_reviews": await _stage(settle_disputes),
         "procurement": await _stage(run_procurement),
         "hq_restocked": await _stage(restock_hq),
         "scheduled_runs": await _stage(run_scheduled_payments),

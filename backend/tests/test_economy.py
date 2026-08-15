@@ -355,3 +355,58 @@ def test_split_rejects_refused_invoice():
     })
     result = hq_tools.split_invoice("INV-TEST-NOSPLIT", parts=2)
     assert result.get("error"), "refused는 분할 금지"
+
+
+def test_dispute_sweep_reviews_stalled_adjustments(monkeypatch):
+    """차감 제안이 심사 없이 멈추면 틱이 이어서 처리한다.
+
+    8/15 라이브: 검수 불일치 6건이 12일째 disputed로 남아 연체로 집계됐다 —
+    틱에 유예 경로만 있고 차감 경로가 없었다.
+    """
+    import asyncio
+
+    from app.agents import utils
+    from app.core import status as status_mod
+
+    db.put("invoices", "INV-DISPUTE-1", {
+        "id": "INV-DISPUTE-1", "store_id": "store-b", "items": [], "amount_usdc": 7.0,
+        "status": status_mod.InvoiceStatus.DISPUTED, "tx_sig": None,
+    })
+    utils.log("store-b-agent", "proposal.adjustment",
+              {"invoice_id": "INV-DISPUTE-1", "requested_usdc": 0.5})
+    calls = []
+
+    async def fake_send(agent_id, intent, **kwargs):
+        calls.append((agent_id, intent))
+        if intent == "proposal.adjustment":
+            db.update("invoices", "INV-DISPUTE-1",
+                      {"status": status_mod.InvoiceStatus.ISSUED, "amount_usdc": 6.5})
+            return {"outcome": "adjusted"}
+        return {"outcome": "paid"}
+    monkeypatch.setattr("app.core.economy.a2a.send", fake_send)
+
+    result = asyncio.run(economy.settle_disputes())
+
+    assert [c[1] for c in calls] == ["proposal.adjustment", "invoice.pay_adjusted"],         "심사 후 재발행분 결제까지 이어진다"
+    assert any(r["invoice_id"] == "INV-DISPUTE-1" and r["status"] == "paid" for r in result)
+
+
+def test_dispute_sweep_skips_invoices_without_proposal(monkeypatch):
+    """제안 없이 disputed면 건드리지 않는다 — 사람이 볼 일이다."""
+    import asyncio
+
+    from app.core import status as status_mod
+
+    db.put("invoices", "INV-DISPUTE-2", {
+        "id": "INV-DISPUTE-2", "store_id": "store-c", "items": [], "amount_usdc": 3.0,
+        "status": status_mod.InvoiceStatus.DISPUTED, "tx_sig": None,
+    })
+    called = []
+    async def fake_send(agent_id, intent, **kwargs):
+        called.append(kwargs.get("invoice_id"))
+        return {"outcome": "noop"}
+    monkeypatch.setattr("app.core.economy.a2a.send", fake_send)
+
+    asyncio.run(economy.settle_disputes())
+
+    assert "INV-DISPUTE-2" not in called
