@@ -49,6 +49,12 @@ def _invoke(agent: str, system_prompt: str, user_prompt: str, schema=None, attem
                 [("system", system_prompt), ("human", user_prompt)]
             )
             _last_call_at = time.monotonic()
+            if result is None and schema is not None:
+                # 구조화 출력이 비어서 오는 일이 있다(함수 호출이 안 만들어진 응답).
+                # 예외가 아니라 None으로 조용히 오므로 여기서 재시도 대상으로 취급한다
+                # — 8/15 운영: flash-lite가 supply_route에서 26회 연속 None.
+                print(f"[judge] 구조화 출력 없음({agent}) — 재시도 {attempt}/{attempts}")
+                continue
             return result
         except Exception as exc:
             _last_call_at = time.monotonic()
