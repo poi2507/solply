@@ -134,6 +134,23 @@ def save(owner_id: str, patch: dict[str, Any]) -> dict:
 
 MAX_PERSONA_CHARS = 400
 
+# 프리셋 — 점주가 긴 글 대신 성향을 고른다. 고른 뒤 자유롭게 고쳐 쓸 수 있고,
+# 저장되는 것은 어디까지나 최종 글이다 (프리셋은 입력 도우미일 뿐 별도 상태가 아니다).
+PERSONA_PRESETS = [
+    {"label": "적극 확장",
+     "text": ("매출이 안정적이라 현금 여유가 있다. 결품으로 손님을 놓치는 것을 가장 싫어해 "
+              "재고를 넉넉히 잡고 조달에 적극적이다. 감당 가능한 분할 조건이면 협상을 "
+              "길게 끌지 않고 받아들인다.")},
+    {"label": "균형",
+     "text": ("매출 편차가 있어 현금을 아껴 쓰고, 한 번에 큰 금액이 나가는 것을 피한다. "
+              "전액보다 일부 선납으로 쪼개는 조건을 선호하고, 이웃 직거래로 단가를 "
+              "낮출 기회를 먼저 살핀다.")},
+    {"label": "절약 보수",
+     "text": ("여유 자금이 얇아 지불 여력을 지키는 것이 최우선이다. 재고는 최소로 가져가고, "
+              "무리한 분할을 떠안기보다 유예를 먼저 요청한다. 감당할 수 없으면 결렬을 "
+              "감수하고 사람의 판단을 구한다.")},
+]
+
 
 def _validate(policy: StorePolicy | HQPolicy) -> None:
     if isinstance(policy, StorePolicy) and len(policy.persona) > MAX_PERSONA_CHARS:
@@ -173,7 +190,7 @@ def describe(owner_id: str) -> list[dict[str, Any]]:
         ]
         text_spec += [
             ("persona", "우리 지점 사정",
-             ("에이전트가 협상·조달에서 참고합니다. 매장 규모·회전율·현금 사정을 적으면 "
+             ("에이전트가 협상·조달에서 참고합니다. 성향을 고르거나 직접 고쳐 쓰세요 — "
               "같은 조건에도 다르게 판단합니다. 한도는 위 숫자가 강제합니다.")),
         ]
     else:
@@ -195,7 +212,7 @@ def describe(owner_id: str) -> list[dict[str, Any]]:
     fields += [
         {"key": k, "label": label, "help": help_, "type": "text",
          "value": current[k] or policy.as_prompt_values().get(k, ""),
-         "maxlength": MAX_PERSONA_CHARS}
+         "maxlength": MAX_PERSONA_CHARS, "presets": PERSONA_PRESETS}
         for k, label, help_ in text_spec
     ]
     return fields

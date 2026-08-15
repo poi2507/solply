@@ -24,6 +24,12 @@ async function renderForm(host, ownerId) {
             <span class="f-label">${f.label}</span>
             <span class="f-help">${f.help}</span>
             ${f.type === "text" ? `
+              ${(f.presets ?? []).length ? `
+              <span class="preset-row" data-for="${f.key}">
+                ${f.presets.map((pr) => `
+                  <button type="button" class="preset${pr.text === f.value ? " on" : ""}"
+                          data-key="${f.key}" data-text="${esc(pr.text)}">${esc(pr.label)}</button>`).join("")}
+              </span>` : ""}
               <textarea class="f-text" name="${f.key}" rows="4"
                         maxlength="${f.maxlength ?? 400}">${esc(f.value)}</textarea>`
             : `<span class="f-input">
@@ -38,6 +44,23 @@ async function renderForm(host, ownerId) {
         </div>
       </form>
     </div>`;
+
+  // 프리셋 클릭 → 글이 채워지고, 이후 자유 수정 가능 (저장 대상은 최종 글)
+  host.querySelectorAll(".preset").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const area = host.querySelector(`textarea[name="${btn.dataset.key}"]`);
+      area.value = btn.dataset.text;
+      host.querySelectorAll(`.preset[data-key="${btn.dataset.key}"]`).forEach((b) =>
+        b.classList.toggle("on", b === btn));
+      area.focus();
+    });
+  });
+  host.querySelector("#policy-form")?.addEventListener("input", (e) => {
+    if (e.target.matches(".f-text")) {
+      host.querySelectorAll(`.preset[data-key="${e.target.name}"]`).forEach((b) =>
+        b.classList.toggle("on", b.dataset.text === e.target.value));
+    }
+  });
 
   host.querySelector("#policy-form").addEventListener("submit", async (e) => {
     e.preventDefault();

@@ -361,9 +361,33 @@ function renderNegotiations(negs, invoices = []) {
         msgs.push(bubble("hq", title, n.reasoning ?? "", tone));
       }
     }
+    // 라운드 진행: 요청 → 심사 → 재응수 → 종결. 어디까지 왔는지 점으로 보인다.
+    const seen = new Set(rows.map((n) => n.type));
+    const lastDefer = [...rows].reverse().find((n) => n.type === "deferral");
+    const lastResp = [...rows].reverse().find((n) => n.type === "counter_response");
+    const settled = seen.has("counter_settle")
+      || (invDoc && ["scheduled", "split", "settled", "refused", "pending_approval"].includes(invDoc.status))
+      || lastDefer?.decision !== "counter";
+    const stages = [
+      ["요청", true],
+      ["심사", seen.has("deferral")],
+      ["재응수", seen.has("counter_response")],
+      ["종결", settled],
+    ];
+    const dots = stages.map(([label, on]) =>
+      `<span class="rd${on ? " on" : ""}">${label}</span>`).join("");
+    // 다음 차례가 남았으면 상대가 "입력 중"으로 보인다 — 협상이 살아있음을 표시
+    let typing = "";
+    if (!settled) {
+      const side = lastResp?.decision === "counter" || !seen.has("counter_response")
+        ? (seen.has("counter_response") ? "hq" : "store") : "hq";
+      typing = `<div class="msg ${side}"><span class="who3">${side === "store" ? "지점" : "본사"}</span>
+        <div class="bubble typing"><i></i><i></i><i></i></div></div>`;
+    }
     return `<div class="thread">
-      <div class="thread-head">${esc(inv)} · A2A 협상 (message/send ${rows.length + 1}통) ${chip}</div>
-      ${msgs.join("")}
+      <div class="thread-head">${esc(inv)} · A2A 협상 (message/send ${rows.length + 1}통) ${chip}
+        <span class="rounds">${dots}</span></div>
+      ${msgs.join("")}${typing}
     </div>`;
   };
   const rowHtml = (n) => `
@@ -1122,6 +1146,11 @@ function connect() {
     const evt = JSON.parse(e.data);
     // 과거 날짜를 보고 있으면 지금 일어나는 일을 그 날 로그에 끼워넣지 않는다
     if (viewDay) return;
+    // 협상이 움직이면 15초 폴링을 기다리지 않고 말풍선을 바로 붙인다
+    if (/negoti|proposal|p2p\.|invoice\./.test(evt.action)) {
+      clearTimeout(connect._negTimer);
+      connect._negTimer = setTimeout(refresh, 400);
+    }
     for (const id of ["feed", "feed-side"]) {
       const feed = $(id);
       if (!feed || feed.hidden) continue;
