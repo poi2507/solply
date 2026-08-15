@@ -319,9 +319,10 @@ def propose_trade(state: StoreState) -> dict:
 def respond_counter(state: StoreState) -> dict:
     """(협상 라운드 2) 본사의 분할 역제안에 잔액·예상 입금을 근거로 응답한다.
 
-    다양성은 난수가 아니라 입력에서 온다 — 같은 역제안이라도 지갑 사정에 따라
-    수락 / 선납 수정안 / 결렬로 갈린다. 지점 응답은 규칙 판단이다 — 심사 쪽
-    LLM 호출(본사 2회)만으로 협상 예산을 지키기 위해서다 (8/11 Vertex 429 실측).
+    다양성은 난수가 아니라 입력에서 온다 — 같은 역제안이라도 지갑 사정과
+    협상 전략(persona)에 따라 수락 / 선납 수정안 / 결렬로 갈린다.
+    선택은 LLM(judge.store_decide)이 하고 선납 금액은 코드가 계산한다 —
+    환각이 잔액을 넘는 약속을 해도 돈은 계산된 만큼만 나간다 (8/15 승격).
     """
     terms = state.get("payload", {}).get("terms", {})
     per = float(terms.get("per_usdc") or 0)
