@@ -249,16 +249,39 @@ def find_supply(state: StoreState) -> dict:
         }
 
     best = max(result["peers"], key=lambda p: p["surplus"])
+    # 잉여가 있다고 늘 직거래는 아니다 — 리드타임·최소 발주량·시세를 놓고 에이전트가 고른다
+    verdict = judge.store_decide(
+        "supply_route",
+        {
+            "품목": s.get("name", s["sku"]),
+            "need_qty": s["need"],
+            "peer_surplus_qty": best["surplus"],
+            "이웃_지점": best["name"],
+            "hq_min_order_qty": hq_terms.get("min_qty", 0),
+            "본사_리드타임": hq_terms.get("lead_time", "미확인"),
+            "본사_공급가_usdc": hq_terms.get("unit_price_usdc", 0),
+            "구매한_시세": quote["summary"] if quote else "없음",
+        },
+        policy_mod.get(state["store_id"]).as_prompt_values(),
+    )
+    if verdict["decision"] != "p2p":
+        return {
+            "outcome": "noop",
+            "messages": [
+                *quote_msgs,
+                (f"조달 비교 — {hq_line}. {best['name']} 잉여 {best['surplus']}개. "
+                 f"본사 발주로 진행합니다."),
+            ],
+            "reasoning": [*quote_reason, verdict["reasoning"]],
+            **({"market_quote": quote} if quote else {}),
+        }
     return {
         "supply": {**best, "unit_price_usdc": hq_terms.get("unit_price_usdc", 0)},
         "messages": [
             *quote_msgs,
             f"조달 비교 — {hq_line}. {best['name']}에 잉여 {best['surplus']}개, 오늘 인수 가능.",
         ],
-        "reasoning": [
-            *quote_reason,
-            f"필요 수량 {s['need']}개는 최소 발주량 미만이고 리드타임을 기다리면 결품 위험 — 지점 간 직거래가 유리",
-        ],
+        "reasoning": [*quote_reason, verdict["reasoning"]],
         **({"market_quote": quote} if quote else {}),
     }
 
@@ -305,20 +328,26 @@ def respond_counter(state: StoreState) -> dict:
     cash = tools.assess_cashflow(state["store_id"], state["invoice_id"])
     wallet = cash["wallet_usdc"]
     afford = round(max(0.0, wallet - cash.get("min_reserve_usdc", 0)), 2)
+    forecast = cash.get("pos_forecast", {}).get("note", "")
 
-    if per and afford >= per:
-        decision, resp_terms = "accept", {}
-        reason = f"잔액 {wallet} USDC — 회당 {per} USDC 분할을 감당할 수 있어 역제안을 수락합니다."
-    elif per and afford >= max(round(per * 0.3, 2), 0.1):
-        decision, resp_terms = "counter", {"first_usdc": afford}
-        forecast = cash.get("pos_forecast", {}).get("note", "")
-        reason = (
-            f"잔액 {wallet} USDC로는 회당 {per} USDC가 부담입니다 — 지금 가능한 {afford} USDC를 "
-            f"선납하고 잔여는 예정일에 내는 수정안을 제시합니다. {forecast}"
-        ).strip()
-    else:
-        decision, resp_terms = "reject", {}
-        reason = f"잔액 {wallet} USDC로는 선납 여력이 없습니다 — 분할로도 합의가 어렵습니다."
+    # 선택은 에이전트가, 금액은 코드가 — 환각이 잔액을 넘는 선납을 약속하면 그대로 돈이 나간다
+    verdict = judge.store_decide(
+        "counter_response",
+        {
+            "청구액_usdc": cash.get("invoice_amount_usdc"),
+            "per_usdc": per,
+            "분할_회차": terms.get("parts"),
+            "지갑_잔액_usdc": wallet,
+            "affordable_usdc": afford,
+            "예상_입금": forecast or "미확인",
+        },
+        policy_mod.get(state["store_id"]).as_prompt_values(),
+    )
+    decision = verdict["decision"]
+    resp_terms = {"first_usdc": afford} if decision == "counter" else {}
+    reason = verdict["reasoning"]
+    if decision == "counter":
+        reason = f"{reason} 지금 가능한 {afford} USDC를 선납하고 잔여는 예정일에 냅니다."
 
     tools.respond_counter_offer(state["store_id"], state["invoice_id"], decision, resp_terms, reason)
     return {

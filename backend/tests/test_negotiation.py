@@ -66,6 +66,8 @@ def test_propose_trade_price_reflects_quote():
 # ── 라운드 2 — 지점 재응수가 지갑 사정으로 갈린다 ─────────────────────
 
 def _with_wallet(monkeypatch, wallet: float, reserve: float = 2.0):
+    # 이 묶음은 판단의 **기준선(규칙)** 을 지킨다 — LLM 경로는 아래 폴백 테스트가 따로 본다
+    monkeypatch.setattr("app.llm.judge.factory.is_mock", lambda: True)
     monkeypatch.setattr(
         "app.agents.store.node.tools.assess_cashflow",
         lambda store_id, invoice_id: {
@@ -217,3 +219,68 @@ def test_negotiation_rejection_escalates_to_human(monkeypatch):
 
     assert outcome == "negotiation_failed"
     assert calls[1][1] == "proposal.settle" and calls[1][2]["payload"]["failed"] is True
+
+
+# ── 지점 에이전트의 판단 (LLM ↔ 규칙 폴백) ──────────────────────────
+
+def test_store_judgment_falls_back_to_rules_when_llm_breaks(monkeypatch):
+    """판단이 막혀도(429·형식 오류) 규칙으로 떨어져 협상이 멈추지 않는다."""
+    from app.llm import judge
+
+    monkeypatch.setattr("app.llm.judge.factory.is_mock", lambda: False)
+    def boom(*a, **k):
+        raise RuntimeError("429 RESOURCE_EXHAUSTED")
+    monkeypatch.setattr("app.llm.judge._invoke", boom)
+
+    verdict = judge.store_decide(
+        "counter_response", {"per_usdc": 4.0, "affordable_usdc": 5.0}, {}
+    )
+    assert verdict["decision"] == "accept", "규칙 폴백이 잔액으로 판단한다"
+
+    route = judge.store_decide(
+        "supply_route", {"need_qty": 4, "peer_surplus_qty": 6, "hq_min_order_qty": 10}, {}
+    )
+    assert route["decision"] == "p2p"
+
+
+def test_store_judgment_rejects_out_of_range_choice(monkeypatch):
+    """허용 밖 답(예: 'maybe')은 규칙으로 대체한다 — 그래프가 알 수 없는 값으로 갈리지 않게."""
+    from app.llm import judge
+
+    monkeypatch.setattr("app.llm.judge.factory.is_mock", lambda: False)
+    monkeypatch.setattr(
+        "app.llm.judge._invoke",
+        lambda *a, **k: type("V", (), {"decision": "maybe", "reasoning": "글쎄"})(),
+    )
+
+    verdict = judge.store_decide(
+        "counter_response", {"per_usdc": 4.0, "affordable_usdc": 0.0}, {}
+    )
+    assert verdict["decision"] == "reject"
+
+
+def test_counter_response_amount_comes_from_code_not_llm(monkeypatch):
+    """선택은 에이전트가, 금액은 코드가 — 잔액을 넘는 선납이 나오면 안 된다."""
+    from app.agents.store import node as store_node
+
+    monkeypatch.setattr(
+        "app.agents.store.tools.assess_cashflow",
+        lambda sid, iid: {"invoice_amount_usdc": 9.5, "wallet_usdc": 5.0,
+                          "min_reserve_usdc": 2.0, "pos_forecast": {"note": "매출 안정"}},
+    )
+    monkeypatch.setattr(
+        "app.llm.judge.store_decide",
+        lambda kind, facts, pol: {"decision": "counter", "reasoning": "선납으로 가겠습니다"},
+    )
+    recorded = {}
+    monkeypatch.setattr(
+        "app.agents.store.tools.respond_counter_offer",
+        lambda sid, iid, decision, terms, reason: recorded.update(terms=terms) or {},
+    )
+
+    out = store_node.respond_counter(
+        {"store_id": "store-b", "invoice_id": "INV-X", "payload": {"terms": {"per_usdc": 4.75}}}
+    )
+
+    assert out["proposal"]["terms"]["first_usdc"] == 3.0, "가용액(5.0−2.0)이 그대로 선납액"
+    assert recorded["terms"]["first_usdc"] == 3.0

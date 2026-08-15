@@ -112,6 +112,38 @@ def review_p2p(facts: dict[str, Any], policy: dict[str, Any]) -> dict[str, str]:
     }
 
 
+def respond_counter(facts: dict[str, Any], policy: dict[str, Any]) -> dict[str, str]:
+    """(지점) 본사 분할 역제안에 대한 응답 — 잔액이 결정한다.
+
+    LLM이 못 뜰 때의 폴백이자, LLM 판단의 기준선이기도 하다.
+    """
+    per = float(facts.get("per_usdc") or 0)
+    afford = float(facts.get("affordable_usdc") or 0)
+    if per and afford >= per:
+        return {"decision": "accept",
+                "reasoning": f"가용액 {afford} USDC로 회당 {per} USDC를 감당할 수 있습니다."}
+    if per and afford >= max(round(per * 0.3, 2), 0.1):
+        return {"decision": "counter",
+                "reasoning": f"회당 {per} USDC는 부담이지만 {afford} USDC 선납은 가능합니다."}
+    return {"decision": "reject",
+            "reasoning": f"가용액 {afford} USDC로는 선납 여력이 없습니다."}
+
+
+def choose_supply_route(facts: dict[str, Any], policy: dict[str, Any]) -> dict[str, str]:
+    """(지점) 조달 경로 — 이웃 잉여가 필요 수량을 덮으면 직거래."""
+    need = float(facts.get("need_qty") or 0)
+    surplus = float(facts.get("peer_surplus_qty") or 0)
+    min_qty = float(facts.get("hq_min_order_qty") or 0)
+    if surplus >= need and need < min_qty:
+        return {"decision": "p2p",
+                "reasoning": f"필요 {need:g}개는 최소 발주량 {min_qty:g}개 미만이고 이웃 잉여 {surplus:g}개로 덮입니다."}
+    if surplus >= need:
+        return {"decision": "p2p",
+                "reasoning": f"이웃 잉여 {surplus:g}개로 오늘 인수 가능 — 리드타임을 기다리지 않습니다."}
+    return {"decision": "hq",
+            "reasoning": f"이웃 잉여 {surplus:g}개로는 필요 {need:g}개를 채우지 못합니다."}
+
+
 def narrate(facts: list[str], reasoning: list[str]) -> str:
     """보고문 — mock에서는 침묵한다.
 

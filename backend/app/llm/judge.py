@@ -95,6 +95,55 @@ def review_proposal(kind: str, facts: dict, policy_values: dict) -> dict[str, st
     return {"decision": decision, "reasoning": verdict.reasoning.strip()}
 
 
+_STORE_RULES = {
+    "counter_response": (
+        "본사의 분할 역제안", "accept / counter / reject",
+        ("accept = 회당 분할액을 감당할 수 있다 · "
+         "counter = 회당은 부담이나 일부 선납은 가능하다 · "
+         "reject = 선납 여력조차 없다"),
+        lambda: rules.respond_counter,
+    ),
+    "supply_route": (
+        "재고 조달 경로", "p2p / hq",
+        ("p2p = 이웃 잉여로 오늘 채운다(리드타임·최소 발주량을 피한다) · "
+         "hq = 본사 발주가 낫다(수량이 부족하거나 단가·조건이 유리하다)"),
+        lambda: rules.choose_supply_route,
+    ),
+}
+
+
+def store_decide(kind: str, facts: dict, policy_values: dict) -> dict[str, str]:
+    """지점 에이전트의 판단 — 역제안 응답, 조달 경로.
+
+    **선택만 맡기고 금액·수량은 코드가 계산한다** — 환각이 잔액을 넘는 선납을
+    제안하면 그대로 돈이 나간다. 판단이 흔들려도(429·형식 오류) 규칙으로
+    떨어져 협상이 멈추지 않는다.
+    """
+    label, options, guide, rule = _STORE_RULES[kind]
+    fallback = rule()
+    if factory.is_mock():
+        return fallback(facts, policy_values)
+
+    allowed = {o.strip() for o in options.split("/")}
+    try:
+        system = prompts.system("store", **policy_values)
+        lines = "\n".join(f"- {k}: {v}" for k, v in facts.items())
+        user = (
+            f"아래 상황에서 {label}을 결정해라. {options} 중 하나를 고른다.\n"
+            f"{guide}\n\n"
+            f"{lines}\n\n"
+            "우리 지점의 지불 여력과 재고 사정을 기준으로 판단하고, 근거에 수치를 포함해라."
+        )
+        verdict: Verdict = _invoke("store", system, user, schema=Verdict)
+        decision = verdict.decision.strip().lower()
+        if decision not in allowed:
+            return fallback(facts, policy_values)
+        return {"decision": decision, "reasoning": verdict.reasoning.strip()}
+    except Exception as exc:  # noqa: BLE001 — 판단이 막혀도 규칙으로 계속 간다
+        print(f"[judge] 지점 판단 실패({kind}) — 규칙으로 진행: {str(exc)[:120]}")
+        return fallback(facts, policy_values)
+
+
 def weekly_report(stats: dict, prompt_values: dict) -> str:
     """정산 통계를 경영진 보고용 한 문단으로 쓴다 (대시보드·데모 마무리용)."""
     if factory.is_mock():
