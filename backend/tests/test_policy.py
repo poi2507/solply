@@ -88,6 +88,20 @@ def test_persona_is_editable_and_reaches_the_prompt():
     assert policy_mod.get("store-a").as_prompt_values()["persona"] == persona["value"]
 
 
+def test_numeric_fields_reject_strings():
+    """API가 글(persona)을 받게 되면서 숫자 필드에도 문자열이 들어올 수 있게 됐다.
+
+    defer_request_threshold_pct는 범위 검증이 없어 문자열이 그대로 저장되면
+    이후 산술에서 터진다 — 저장 전에 걸러야 한다.
+    """
+    with pytest.raises(ValueError, match="숫자여야"):
+        policy_mod.save("store-a", {"defer_request_threshold_pct": "abc"})
+    with pytest.raises(ValueError, match="숫자여야"):
+        policy_mod.save("store-a", {"auto_pay_limit_usdc": "5"})
+    with pytest.raises(ValueError, match="글로"):
+        policy_mod.save("store-a", {"persona": 123})
+
+
 def test_persona_length_is_bounded():
     """프롬프트에 통째로 들어가는 글이라 길이를 제한한다."""
     import pytest as _pytest

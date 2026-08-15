@@ -9,6 +9,9 @@ async function api(path, options) {
   return res.json();
 }
 
+// 사용자 자유 텍스트(지점 사정)는 innerHTML에 그대로 넣으면 안 된다 — shop.js와 같은 규칙
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
 async function renderForm(host, ownerId) {
   const { fields } = await api(`/api/policy/${ownerId}`);
 
@@ -22,7 +25,7 @@ async function renderForm(host, ownerId) {
             <span class="f-help">${f.help}</span>
             ${f.type === "text" ? `
               <textarea class="f-text" name="${f.key}" rows="4"
-                        maxlength="${f.maxlength ?? 400}">${f.value ?? ""}</textarea>`
+                        maxlength="${f.maxlength ?? 400}">${esc(f.value)}</textarea>`
             : `<span class="f-input">
               <input type="number" name="${f.key}" value="${f.value}"
                      min="${f.min}" max="${f.max}" step="${f.unit === "점" || f.unit === "회" ? 1 : 0.5}">

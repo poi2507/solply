@@ -277,7 +277,7 @@ async def settle_disputes() -> list[dict]:
             reviewed = await a2a.send("hq", "proposal.adjustment",
                                       invoice_id=invoice["id"], payload=proposal)
             outcome = reviewed.get("outcome")
-            if (db.get("invoices", invoice["id"]) or {})["status"] == status_mod.InvoiceStatus.ISSUED:
+            if (db.get("invoices", invoice["id"]) or {}).get("status") == status_mod.InvoiceStatus.ISSUED:
                 # 차감 수락 → 재발행분을 지점이 결제한다
                 paid = await a2a.send(invoice["store_id"], "invoice.pay_adjusted",
                                       invoice_id=invoice["id"])

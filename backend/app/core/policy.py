@@ -116,6 +116,16 @@ def save(owner_id: str, patch: dict[str, Any]) -> dict:
     if unknown:
         raise ValueError(f"알 수 없는 정책 항목: {', '.join(sorted(unknown))}")
 
+    # 글 필드는 persona뿐 — 숫자 필드에 문자열이 들어오면 저장 전에 거른다.
+    # (defer_request_threshold_pct처럼 범위 검증이 없는 필드는 문자열이 그대로
+    #  저장돼 이후 산술에서 터진다 — API가 str을 받게 되면서 생긴 구멍)
+    for key, value in patch.items():
+        if key == "persona":
+            if not isinstance(value, str):
+                raise ValueError("지점 사정은 글로 적어 주세요")
+        elif isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise ValueError(f"{key}은(는) 숫자여야 합니다")
+
     merged = {**asdict(current), **{k: patch[k] for k in patch}}
     updated = _coerce(merged)
     _validate(updated)
