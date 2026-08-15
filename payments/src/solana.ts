@@ -54,7 +54,25 @@ export function loadKeypair(name: WalletName): Keypair {
   return Keypair.fromSecretKey(Uint8Array.from(JSON.parse(raw)));
 }
 
+// 잔액 캐시 — 대시보드가 폴링할 때마다 지갑 7개 × (SOL + 토큰계좌)를 체인에 물으면
+// RPC 한도에 걸린다 (8/15: 공용·전용 RPC 모두 429). 짧게 캐시하고, **돈이 움직이면
+// 즉시 버린다** — 정산 판단이 낡은 잔액을 보면 본사 가용액을 넘겨 지급할 수 있다.
+const BALANCE_TTL_MS = 15_000;
+const balanceCache = new Map<string, { at: number; value: Awaited<ReturnType<typeof readBalances>> }>();
+
+export function invalidateBalances() {
+  balanceCache.clear();
+}
+
 export async function getBalances(name: WalletName) {
+  const hit = balanceCache.get(name);
+  if (hit && Date.now() - hit.at < BALANCE_TTL_MS) return hit.value;
+  const value = await readBalances(name);
+  balanceCache.set(name, { at: Date.now(), value });
+  return value;
+}
+
+async function readBalances(name: WalletName) {
   const wallet = loadKeypair(name);
   const sol = (await connection.getBalance(wallet.publicKey)) / 1e9;
   let usdc = 0;
@@ -117,6 +135,7 @@ export async function sendUsdc(
     gasless ? [feePayer, wallet] : [wallet],
   );
   await connection.confirmTransaction(signature, "confirmed");
+  invalidateBalances();  // 돈이 움직였다 — 다음 조회는 체인에서 다시 읽는다
   return {
     signature,
     from: wallet.publicKey.toBase58(),
