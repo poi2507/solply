@@ -71,7 +71,29 @@ def test_describe_gives_the_frontend_everything_it_needs():
     fields = policy_mod.describe("store-a")
     assert fields
     for field in fields:
-        assert {"key", "label", "help", "unit", "min", "max", "value"} <= set(field)
+        assert {"key", "label", "help", "value", "type"} <= set(field)
+        if field["type"] == "number":
+            assert {"unit", "min", "max"} <= set(field)
+
+
+def test_persona_is_editable_and_reaches_the_prompt():
+    """지점 사정은 화면에서 고친다 — 저장하면 그 글이 프롬프트로 들어간다."""
+    persona = next(f for f in policy_mod.describe("store-a") if f["key"] == "persona")
+    assert persona["type"] == "text" and persona["value"], "시드 사정이 기본값으로 보인다"
+
+    policy_mod.save("store-a", {"persona": "야간 배달 비중이 높아 새벽 재고가 급하다"})
+    assert "새벽 재고" in policy_mod.get("store-a").as_prompt_values()["persona"]
+
+    policy_mod.save("store-a", {"persona": ""})   # 비우면 시드값으로 되돌아간다
+    assert policy_mod.get("store-a").as_prompt_values()["persona"] == persona["value"]
+
+
+def test_persona_length_is_bounded():
+    """프롬프트에 통째로 들어가는 글이라 길이를 제한한다."""
+    import pytest as _pytest
+
+    with _pytest.raises(ValueError):
+        policy_mod.save("store-b", {"persona": "가" * (policy_mod.MAX_PERSONA_CHARS + 1)})
 
 
 # ── 정책이 판단을 바꾸는가 ────────────────────────────────────────────

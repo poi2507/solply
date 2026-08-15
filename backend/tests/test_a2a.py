@@ -7,10 +7,10 @@
   - 발신 클라이언트가 네트워크 왕복 그대로 동작한다 (ASGI 직결로 검증)
 """
 
-import pytest
 import asyncio
 
 import httpx
+import pytest
 from fastapi.testclient import TestClient
 
 from app.a2a import card

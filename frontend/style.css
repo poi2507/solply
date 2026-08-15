@@ -675,3 +675,12 @@ td .empty, td.empty { text-align: center; }
 }
 .gate-auth p { margin: 0 0 10px; font-size: 13px; color: var(--ink-2); }
 .gate-auth .ga-actions { display: flex; gap: 10px; align-items: center; }
+
+/* 정책 — 서술형 항목(지점 사정) */
+.field.wide { align-items: stretch; }
+.f-text {
+  width: 100%; margin-top: 6px; padding: 9px 11px; resize: vertical;
+  font: inherit; font-size: 12.5px; line-height: 1.6; color: var(--ink);
+  background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+}
+.f-text:focus { outline: none; border-color: var(--accent); }

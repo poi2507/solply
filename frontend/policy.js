@@ -17,14 +17,17 @@ async function renderForm(host, ownerId) {
       <p class="policy-note">에이전트는 이 범위 안에서만 스스로 판단합니다. 넘으면 사람에게 넘깁니다.</p>
       <form id="policy-form">
         ${fields.map((f) => `
-          <label class="field">
+          <label class="field${f.type === "text" ? " wide" : ""}">
             <span class="f-label">${f.label}</span>
             <span class="f-help">${f.help}</span>
-            <span class="f-input">
+            ${f.type === "text" ? `
+              <textarea class="f-text" name="${f.key}" rows="4"
+                        maxlength="${f.maxlength ?? 400}">${f.value ?? ""}</textarea>`
+            : `<span class="f-input">
               <input type="number" name="${f.key}" value="${f.value}"
                      min="${f.min}" max="${f.max}" step="${f.unit === "점" || f.unit === "회" ? 1 : 0.5}">
               <em>${f.unit}</em>
-            </span>
+            </span>`}
           </label>`).join("")}
         <div class="policy-actions">
           <button type="submit" class="save">저장</button>
@@ -37,7 +40,8 @@ async function renderForm(host, ownerId) {
     e.preventDefault();
     const note = host.querySelector("#saved-note");
     const values = {};
-    new FormData(e.target).forEach((v, k) => (values[k] = Number(v)));
+    const textKeys = new Set(fields.filter((f) => f.type === "text").map((f) => f.key));
+    new FormData(e.target).forEach((v, k) => (values[k] = textKeys.has(k) ? String(v) : Number(v)));
     try {
       await api(`/api/policy/${ownerId}`, {
         method: "PUT",

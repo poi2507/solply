@@ -28,6 +28,9 @@ class StorePolicy:
     defer_request_threshold_pct: float = 100.0
     # P2P: 판매 시 남겨둘 안전재고 배수 (1.0 = 안전재고 그대로)
     safety_stock_multiplier: float = 1.0
+    # 이 지점의 사정 — 협상·조달에서 에이전트가 참고하는 서술. 비우면 시드값을 쓴다.
+    # 한도는 위 숫자들이 강제하고, 이 글은 그 안에서의 재량에만 영향을 준다.
+    persona: str = ""
 
     kind: str = "store"
 
@@ -41,7 +44,9 @@ class StorePolicy:
             "store_id": self.owner_id,
             "auto_pay_limit_usdc": _num(self.auto_pay_limit_usdc),
             "min_reserve_usdc": _num(self.min_reserve_usdc),
-            "persona": profile.get("persona", "특별한 사정 없이 정책대로 판단한다."),
+            # 점주가 화면에서 고친 값이 있으면 그것을, 없으면 시드 프로필을 쓴다
+            "persona": (self.persona.strip()
+                        or profile.get("persona", "특별한 사정 없이 정책대로 판단한다.")),
         }
 
 
@@ -117,7 +122,12 @@ def save(owner_id: str, patch: dict[str, Any]) -> dict:
     return store.put(COLLECTION, owner_id, asdict(updated))
 
 
+MAX_PERSONA_CHARS = 400
+
+
 def _validate(policy: StorePolicy | HQPolicy) -> None:
+    if isinstance(policy, StorePolicy) and len(policy.persona) > MAX_PERSONA_CHARS:
+        raise ValueError(f"지점 사정은 {MAX_PERSONA_CHARS}자 이내로 적어 주세요")
     if isinstance(policy, StorePolicy):
         if policy.auto_pay_limit_usdc <= 0:
             raise ValueError("자동결제 상한은 0보다 커야 합니다")
@@ -143,12 +153,18 @@ def _validate(policy: StorePolicy | HQPolicy) -> None:
 def describe(owner_id: str) -> list[dict[str, Any]]:
     """프론트 설정 화면이 그대로 렌더할 수 있는 항목 정의."""
     policy = get(owner_id)
+    text_spec: list[tuple[str, str, str]] = []
     if isinstance(policy, StorePolicy):
         spec = [
             ("auto_pay_limit_usdc", "자동결제 상한", "이 금액까지는 사람 승인 없이 결제합니다", "USDC", 1, 1000),
             ("min_reserve_usdc", "최소 보유 잔액", "결제 후 이 아래로 내려가면 결제하지 않습니다", "USDC", 0, 1000),
             ("defer_request_threshold_pct", "유예 제안 기준", "잔액이 부족할 때 유예를 제안할 비율", "%", 0, 100),
             ("safety_stock_multiplier", "안전재고 배수", "지점 간 직거래로 팔 때 남겨둘 재고 배수", "배", 0, 5),
+        ]
+        text_spec += [
+            ("persona", "우리 지점 사정",
+             ("에이전트가 협상·조달에서 참고합니다. 매장 규모·회전율·현금 사정을 적으면 "
+              "같은 조건에도 다르게 판단합니다. 한도는 위 숫자가 강제합니다.")),
         ]
     else:
         spec = [
@@ -161,7 +177,15 @@ def describe(owner_id: str) -> list[dict[str, Any]]:
             ("data_price_usdc", "데이터 판매 단가", "체결가·수요 지수 1건 조회 가격 (x402)", "USDC", 0, 10),
         ]
     current = asdict(policy)
-    return [
-        {"key": k, "label": label, "help": help_, "unit": unit, "min": lo, "max": hi, "value": current[k]}
+    fields = [
+        {"key": k, "label": label, "help": help_, "unit": unit,
+         "min": lo, "max": hi, "value": current[k], "type": "number"}
         for k, label, help_, unit, lo, hi in spec
     ]
+    fields += [
+        {"key": k, "label": label, "help": help_, "type": "text",
+         "value": current[k] or policy.as_prompt_values().get(k, ""),
+         "maxlength": MAX_PERSONA_CHARS}
+        for k, label, help_ in text_spec
+    ]
+    return fields
