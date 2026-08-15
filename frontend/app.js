@@ -308,6 +308,8 @@ function toggle(id) {
 // ── 목록형 ────────────────────────────────────────────────────────
 function renderNegotiations(negs, invoices = []) {
   const el = $("negotiations");
+  el.classList.toggle("live", animateNegs);
+  animateNegs = false;
   const head = $("negotiations-count");
   if (!negs.length) {
     if (head) head.textContent = "에이전트가 제안하고 심사한 결과";
@@ -1040,6 +1042,8 @@ $("day-prev")?.addEventListener("click", () => goDay(shiftDay(viewDay ?? dayMeta
 $("day-next")?.addEventListener("click", () => goDay(shiftDay(viewDay ?? dayMeta.today, 1)));
 $("day-today")?.addEventListener("click", () => goDay(null));
 
+let animateNegs = false; // 협상 이벤트발(發) 갱신에서만 말풍선 등장 효과를 켠다
+
 async function refresh() {
   if (!me) return;
   try {
@@ -1149,7 +1153,7 @@ function connect() {
     // 협상이 움직이면 15초 폴링을 기다리지 않고 말풍선을 바로 붙인다
     if (/negoti|proposal|p2p\.|invoice\./.test(evt.action)) {
       clearTimeout(connect._negTimer);
-      connect._negTimer = setTimeout(refresh, 400);
+      connect._negTimer = setTimeout(() => { animateNegs = true; refresh(); }, 400);
     }
     for (const id of ["feed", "feed-side"]) {
       const feed = $(id);

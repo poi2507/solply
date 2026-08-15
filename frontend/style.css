@@ -694,9 +694,9 @@ td .empty, td.empty { text-align: center; }
 .preset:hover { border-color: var(--accent); color: var(--ink); }
 .preset.on { background: var(--accent); border-color: var(--accent); color: #fff; }
 
-/* 협상 라이브 — 말풍선 등장 */
-.msg { animation: msg-in .28s ease both; }
-@media (prefers-reduced-motion: reduce) { .msg { animation: none; } }
+/* 협상 라이브 — 말풍선 등장 (협상 이벤트로 갱신될 때만, 정기 폴링에선 조용히) */
+.live .msg { animation: msg-in .28s ease both; }
+@media (prefers-reduced-motion: reduce) { .live .msg { animation: none; } }
 @keyframes msg-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
 
 /* 상대 응답 대기 (입력 중) */
