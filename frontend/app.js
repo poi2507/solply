@@ -92,6 +92,7 @@ function explorerUrl(sig, network) {
 // 그려도 열어둔 패널이 닫히지 않고, 재조회는 사용자가 다시 열 때만 한다.
 const demandOpen = new Set();
 const demandCache = {};
+let demandAutoOpened = false;  // 점주 화면 자동 펼침은 입장 후 한 번만
 
 async function toggleDemand(owner) {
   const box = document.getElementById(`demand-${owner}`);
@@ -596,7 +597,7 @@ function storeFlowSvg(ov) {
     ${flowPill(316, 224, sc, `물대 ${fmt(sell)}`)}
     <rect x="390" y="16" width="180" height="64" rx="12" class="fl-box"/>
     <text x="480" y="42" text-anchor="middle" class="fl-name">데이터 상점</text>
-    <text x="480" y="63" text-anchor="middle" class="fl-cap">체결가 지수 구매 — 수요는 내 원장(무료)</text>
+    <text x="480" y="63" text-anchor="middle" class="fl-cap">체결가 지수 — x402 구매</text>
     ${flowEdge(480, 128, 480, 82, qc)}
     ${flowPill(412, 105, qc, `시세 구입 ${fmt(quotes)}`)}
     ${nbox}
@@ -1142,6 +1143,12 @@ async function refresh() {
 
     if (me.kind === "store") {
       renderStores(view.stores, "my-store");
+      // 지점의 소비 패턴은 지점 자신의 판단 재료다 — 점주 화면에선 처음부터 펼쳐 보인다.
+      // 자동 펼침은 입장 후 한 번만: 점주가 접으면 접힌 채로 둔다.
+      if (!demandAutoOpened) {
+        demandAutoOpened = true;
+        if (!demandOpen.has(me.id)) toggleDemand(me.id);
+      }
       $("invoices-title").textContent = "내 청구서";
       $("negotiations-title").textContent = "내 협상 기록";
       $("policy-title").textContent = "내 거래 정책";
