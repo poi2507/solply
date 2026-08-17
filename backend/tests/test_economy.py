@@ -452,3 +452,12 @@ def test_demand_scenario_boosts_sale_weights():
     assert economy.sale_weights(entry, 1.5) == (40, 32, 12), "성수기 — 더 잘 팔린다"
     assert economy.sale_weights(entry, 0.7) == (86, 32, 6), "비수기 — 덜 팔린다"
     assert economy.sale_weights(entry, 99) == economy.sale_weights(entry, 2.0), "밴드 상한"
+
+
+def test_scenario_boost_is_per_store():
+    """소비 각본은 지점마다 다르다 — 같은 품목이라도 지점에 따라 배수가 갈린다."""
+    scenario = {"_comment": "설명", "store-a": {"CHK-10": 1.6}, "store-b": {"CHK-10": 0.8}}
+    assert economy._scenario_boost(scenario, "store-a", "CHK-10") == 1.6
+    assert economy._scenario_boost(scenario, "store-b", "CHK-10") == 0.8
+    assert economy._scenario_boost(scenario, "store-c", "CHK-10") == 1.0, "각본 없는 지점은 평상시"
+    assert economy._scenario_boost(scenario, "store-a", "MU-03") == 1.0, "각본 없는 품목은 평상시"

@@ -138,18 +138,23 @@ async def scenario_c() -> None:
     # 자기 판매 원장의 소비 추세를 읽어 조달 경로와 발주량을 스스로 정한다.
     # 유예 협상이 나올지는 그날의 지갑 사정이 정한다 — 대본에 없다.
     from app.agents import utils as agent_utils
-    from app.core import economy
+    from app.core import economy, fixtures
 
+    # 파동은 지점마다 다른 품목을 때린다 — 각본(demand_scenario)의 주력 품목.
+    scenario = fixtures.load().get("demand_scenario", {})
     wave = []
-    for store_id in ("store-b", "store-c"):
-        entry = agent_utils.effective_inventory(store_id).get("CHK-10")
+    for store_id in ("store-a", "store-b", "store-c"):
+        boosts = scenario.get(store_id) if isinstance(scenario.get(store_id), dict) else {}
+        hot = max((s for s, v in boosts.items() if isinstance(v, (int, float)) and v > 1),
+                  key=lambda s: boosts[s], default="CHK-10")
+        entry = agent_utils.effective_inventory(store_id).get(hot)
         if not entry or entry["qty"] <= 0:
             continue
         take = min(entry["qty"], max(entry["qty"] - entry["safety"] + 1, 1))
-        result = economy.sell(store_id, "CHK-10", take, "수요 파동 (소비 시뮬)")
+        result = economy.sell(store_id, hot, take, "수요 파동 (소비 시뮬)")
         if not result.get("error"):
             wave.append(store_id)
-            print(f"  {C['dim']}🍗 {store_id} 냉장 닭 {take}개 판매 — 재고 원장 기록{C['0']}")
+            print(f"  {C['dim']}🛒 {store_id} {entry.get('name', hot)} {take}개 판매 — 재고 원장 기록{C['0']}")
     if not wave:
         return print(f"  {C['dim']}소진시킬 재고가 없습니다 — 이번 판은 건너뜁니다{C['0']}")
 

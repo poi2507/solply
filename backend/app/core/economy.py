@@ -141,6 +141,20 @@ def sell(store_id: str, sku: str, qty: int, note: str) -> dict:
             "remaining": result["remaining"], "revenue": revenue}
 
 
+def _scenario_boost(scenario: dict, store_id: str, sku: str) -> float:
+    """지점별 소비 각본에서 이 지점·품목의 수요 배수를 읽는다.
+
+    각본은 지점마다 다르다 — 강남은 치킨, 홍대는 튀김류, 부산은 소스가
+    잘 나가는 식. 그 소비 차이가 지점별 소비 추세(demand_trend)로 쌓여
+    지점마다 다른 발주(refill_x)로 이어진다.
+    """
+    entry = scenario.get(store_id)
+    if not isinstance(entry, dict):
+        return 1.0
+    val = entry.get(sku, 1.0)
+    return float(val) if isinstance(val, (int, float)) else 1.0
+
+
 def sale_weights(entry: dict, boost: float = 1.0) -> tuple[int, int, int]:
     """0·1·2개가 팔릴 가중치. 과잉 재고는 더 팔린다 (프로모션·밀어내기).
 
@@ -179,9 +193,7 @@ def run_sales(rng: random.Random) -> list[dict]:
         for sku, entry in utils.effective_inventory(store_id).items():
             if entry["qty"] <= 0:
                 continue
-            boost = scenario.get(sku, 1.0)
-            if not isinstance(boost, (int, float)):  # _comment 같은 설명 필드 무시
-                boost = 1.0
+            boost = _scenario_boost(scenario, store_id, sku)
             qty = min(entry["qty"], rng.choices((0, 1, 2), weights=sale_weights(entry, boost))[0])
             if qty <= 0:
                 continue
