@@ -66,6 +66,9 @@ PAYSH_ENABLED = os.getenv("PAYSH_ENABLED", "1").lower() not in ("0", "false")
 # 폐쇄 devnet 풀의 유동성 순환 장치다 (실서비스에선 소비자 돈이 외부에서 유입).
 GUEST_MIN_USDC = float(os.getenv("GUEST_MIN_USDC", "50"))
 GUEST_TOPUP_TARGET_USDC = float(os.getenv("GUEST_TOPUP_TARGET_USDC", "150"))
+# 환류는 본사 잔액이 이 하한 아래로 내려가지 않는 범위에서만 — 카드정산 재원 보호.
+# (카드정산 자체의 마지노선 5와 별개다: 5는 최후의 벽, 80은 운영 여유)
+GUEST_TOPUP_HQ_FLOOR_USDC = float(os.getenv("GUEST_TOPUP_HQ_FLOOR_USDC", "80"))
 PAYSH_BIN = os.getenv("PAYSH_BIN", "pay")
 PAYSH_QUOTE_URL = os.getenv("PAYSH_QUOTE_URL", "https://debugger.pay.sh/mpp/quote")
 PAYSH_QUOTE_TTL_S = int(os.getenv("PAYSH_QUOTE_TTL_S", "600"))

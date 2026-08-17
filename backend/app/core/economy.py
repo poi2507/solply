@@ -250,15 +250,16 @@ def refill_guest() -> dict:
 
     시뮬 소비 수납으로 guest→hq에 쌓인 돈의 환류다 — 폐쇄 devnet 풀에서
     손님 지갑이 마르면 시뮬 수납·실구매 시연이 같이 멈추기 때문에, 스케줄러
-    (10분 틱)가 자동으로 돌린다. 본사 운영 예비(5)는 지키고, memo가
-    GUEST-TOPUP으로 남아 환류가 장부에서 투명하게 보인다.
+    (10분 틱)가 자동으로 돌린다. 틱의 맨 마지막에 돈다 — 지점 정산·조달이
+    먼저고, 환류는 그러고 남는 돈으로만 한다. 본사 하한(기본 80)도 카드정산
+    마지노선(5)과 별개로 넉넉히 지킨다. memo GUEST-TOPUP으로 투명하게 남는다.
     """
     from app import config
 
     balance = payments.balance("guest")
     if balance["usdc"] >= config.GUEST_MIN_USDC:
         return {"refilled_usdc": 0.0, "guest_usdc": balance["usdc"]}
-    available = max(0.0, payments.balance("hq")["usdc"] - 5.0)
+    available = max(0.0, payments.balance("hq")["usdc"] - config.GUEST_TOPUP_HQ_FLOOR_USDC)
     amount = round(min(config.GUEST_TOPUP_TARGET_USDC - balance["usdc"], available), 2)
     if amount < 0.01:
         return {"refilled_usdc": 0.0, "guest_usdc": balance["usdc"], "hq_short": True}
@@ -610,13 +611,15 @@ async def tick(rng: random.Random | None = None) -> dict:
         # 시뮬 소비의 돈이 먼저 guest→본사로 들어와야, 다음 단계(카드정산)에서
         # 본사가 지점에 지급할 재원이 그 매출에서 나온다 — 현실의 순서 그대로.
         "guest_card": await _stage(charge_guest_card),
-        "guest_refill": await _stage(refill_guest),
         "card_settlements": await _stage(settle_cards),
         "escrow_settlements": await _stage(settle_escrows),
         "dispute_reviews": await _stage(settle_disputes),
         "procurement": await _stage(run_procurement),
         "hq_restocked": await _stage(restock_hq),
         "scheduled_runs": await _stage(run_scheduled_payments),
+        # 환류는 맨 끝 — 지점 카드정산·조달·예약 납부가 다 끝난 뒤 남는 돈으로만.
+        # 정산 앞에 두면 환류가 본사를 비워 같은 틱의 카드정산이 굶는다.
+        "guest_refill": await _stage(refill_guest),
     }
     utils.log(
         "system", "tick.completed",

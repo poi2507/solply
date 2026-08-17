@@ -509,6 +509,10 @@ def test_guest_refill_below_threshold(monkeypatch):
     balances["guest"] = 80.0                      # 문턱(50) 위 — 아무것도 안 한다
     assert economy.refill_guest()["refilled_usdc"] == 0.0 and not paid
 
-    balances["guest"], balances["hq"] = 10.0, 40.0  # hq 여유(40−5=35)까지만
+    balances["guest"], balances["hq"] = 10.0, 100.0  # hq 여유(100−80=20)까지만
     out = economy.refill_guest()
-    assert paid == [("hq", "guest-ADDR", 35.0, "GUEST-TOPUP")], "본사 예비 5는 지킨다"
+    assert paid == [("hq", "guest-ADDR", 20.0, "GUEST-TOPUP")], "본사 하한 80은 지킨다"
+
+    paid.clear()
+    balances["guest"], balances["hq"] = 10.0, 70.0   # 하한 아래 — 환류하지 않는다
+    assert economy.refill_guest()["refilled_usdc"] == 0.0 and not paid, "정산 재원이 먼저다"
