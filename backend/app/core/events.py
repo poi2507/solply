@@ -68,6 +68,7 @@ ACTION_LABELS: dict[str, str] = {
 
     "inventory.sold": "판매 (재고 차감)",
     "card.settled": "카드매출 정산 지급",
+    "card.charged": "손님 카드매출 수납 (시뮬)",
     "card.settle_failed": "카드정산 지급 실패 (재시도 예정)",
     "warehouse.restocked": "본사 창고 재입고",
     "market.quote_purchased": "시세 데이터 구매 (pay.sh)",

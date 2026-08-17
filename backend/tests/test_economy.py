@@ -461,3 +461,29 @@ def test_scenario_boost_is_per_store():
     assert economy._scenario_boost(scenario, "store-b", "CHK-10") == 0.8
     assert economy._scenario_boost(scenario, "store-c", "CHK-10") == 1.0, "각본 없는 지점은 평상시"
     assert economy._scenario_boost(scenario, "store-a", "MU-03") == 1.0, "각본 없는 품목은 평상시"
+
+
+def test_sim_sales_accrue_guest_tab_and_get_charged(monkeypatch):
+    """시뮬 손님의 소비는 외상 장부에 쌓이고, guest 잔액 안에서 온체인 수납된다."""
+    db.put(economy.TILL, economy.GUEST_TAB, {"accrued_usdc": 0.0})
+    utils.record_move("store-a", "CHK-10", "냉장 닭 10kg", 2, "restocked", "TEST-TAB-SEED")
+
+    sim = economy.sell("store-a", "CHK-10", 1, "영업 판매")           # 시뮬 → 장부 적립
+    assert db.get(economy.TILL, economy.GUEST_TAB)["accrued_usdc"] == pytest.approx(sim["revenue"])
+    economy.sell("store-a", "CHK-10", 1, "손님 구매 (라이브)")        # 실구매 → 그 자리 결제라 제외
+    assert db.get(economy.TILL, economy.GUEST_TAB)["accrued_usdc"] == pytest.approx(sim["revenue"])
+
+    # 수납 — 잔액(0.5)이 장부(0.68)보다 작으면 부분 수납하고 잔여를 남긴다
+    paid = []
+    monkeypatch.setattr("app.core.economy.payments.balance",
+                        lambda w: {"address": f"{w}-ADDR", "usdc": 0.5 if w == "guest" else 100.0, "sol": 0})
+    monkeypatch.setattr("app.core.economy.payments.pay",
+                        lambda s, t, a, m: paid.append((s, a, m)) or {"signature": "SIG"})
+    out = economy.charge_guest_card()
+    assert paid == [("guest", 0.5, "CARD-SALES")]
+    assert out["charged_usdc"] == pytest.approx(0.5)
+    assert out["pending_usdc"] == pytest.approx(round(sim["revenue"] - 0.5, 2)), "못 걷은 몫은 다음 틱 몫"
+
+    # 원복 — 판매로 움직인 재고·금고가 다른 테스트 전제를 흔들면 안 된다
+    db.put(economy.TILL, economy.GUEST_TAB, {"accrued_usdc": 0.0})
+    db.put(economy.TILL, "store-a", {"accrued_usdc": 0.0})

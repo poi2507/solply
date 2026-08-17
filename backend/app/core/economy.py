@@ -27,6 +27,7 @@ from app.db import store as db
 from app.solana import payments
 
 TILL = "till"  # 지점별 적립 매출 (카드 매출 — 다음 정산 때 지급)
+GUEST_TAB = "guest-tab"  # 시뮬 손님 소비의 미수납 총액 — 틱마다 guest 지갑에서 일괄 수납
 
 # 요리 마진 — 지점은 식자재(공급가)로 요리를 만들어 더 받고 판다.
 # 이게 1.0이면 지점의 장기 순현금흐름이 정확히 0이라, 타이밍 어긋남·데모 리셋 같은
@@ -137,6 +138,13 @@ def sell(store_id: str, sku: str, qty: int, note: str) -> dict:
     revenue = round(result["sold"] * _sku_price(sku) * RETAIL_MARGIN, 2)
     till = db.get(TILL, store_id) or {"accrued_usdc": 0.0}
     db.put(TILL, store_id, {"accrued_usdc": round(till["accrued_usdc"] + revenue, 2)})
+    if note != "손님 구매 (라이브)":
+        # 시뮬 손님(배경·수요 파동)의 소비도 돈이 나가야 한다 (8/18 팀장 지시 —
+        # 최대한 현실과 같게). /shop 실구매는 그 자리에서 직접 결제하므로 제외하고,
+        # 나머지는 외상 장부(guest-tab)에 적어 틱마다 guest 지갑에서 일괄 수납한다.
+        # 건별 온체인 이체는 틱당 수십 건이라 429를 다시 부른다 — 배치가 카드 현실이기도 하다.
+        tab = db.get(TILL, GUEST_TAB) or {"accrued_usdc": 0.0}
+        db.put(TILL, GUEST_TAB, {"accrued_usdc": round(tab["accrued_usdc"] + revenue, 2)})
     return {"store_id": store_id, "sku": sku, "qty": result["sold"],
             "remaining": result["remaining"], "revenue": revenue}
 
@@ -212,6 +220,29 @@ def run_sales(rng: random.Random) -> list[dict]:
     if offset_dirty:
         db.put("stats", offset_key, offsets)
     return sold
+
+
+def charge_guest_card() -> dict:
+    """시뮬 손님의 외상 장부(guest-tab)를 guest 지갑에서 온체인으로 수납한다.
+
+    guest 잔액 안에서만 걷는다 — 잔액이 마르면 못 걷은 몫이 장부에 남아
+    다음 틱이 재시도하고, 판매·소비 패턴은 계속 돈다 (결제 실패가 경제를
+    멈추면 안 된다는 계약 그대로). 잔액은 사람이 faucet으로 채운다.
+    """
+    tab = float((db.get(TILL, GUEST_TAB) or {}).get("accrued_usdc", 0.0))
+    if tab < 0.01:
+        return {"charged_usdc": 0.0, "pending_usdc": 0.0}
+    available = payments.balance("guest")["usdc"]
+    amount = round(min(tab, max(0.0, available)), 2)
+    if amount < 0.01:
+        return {"charged_usdc": 0.0, "pending_usdc": round(tab, 2)}
+    receipt = payments.pay("guest", payments.balance("hq")["address"], amount, "CARD-SALES")
+    db.put(TILL, GUEST_TAB, {"accrued_usdc": round(tab - amount, 2)})
+    utils.log("guest", "card.charged", {
+        "amount_usdc": amount, "pending_usdc": round(tab - amount, 2),
+        "tx": receipt.get("signature", ""),
+    })
+    return {"charged_usdc": amount, "pending_usdc": round(tab - amount, 2)}
 
 
 # ── 2. 카드정산 — 적립 매출이 온체인으로 지급된다 ─────────────────────
@@ -551,6 +582,9 @@ async def tick(rng: random.Random | None = None) -> dict:
 
     summary = {
         "sales": await _stage(lambda: run_sales(rng)),
+        # 시뮬 소비의 돈이 먼저 guest→본사로 들어와야, 다음 단계(카드정산)에서
+        # 본사가 지점에 지급할 재원이 그 매출에서 나온다 — 현실의 순서 그대로.
+        "guest_card": await _stage(charge_guest_card),
         "card_settlements": await _stage(settle_cards),
         "escrow_settlements": await _stage(settle_escrows),
         "dispute_reviews": await _stage(settle_disputes),
