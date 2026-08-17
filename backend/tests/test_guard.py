@@ -67,7 +67,7 @@ def test_purchase_rate_limit_slows_scripts(monkeypatch):
     """같은 IP의 연속 구매는 사람 손 속도로 감속된다 — 무거운 일 전에 끊는다."""
     guard._BUCKETS.clear()
     body = {"store_id": "store-x", "sku": "CHK-10", "qty": 1}
-    for _ in range(4):
+    for _ in range(15):
         assert client.post("/api/shop/purchase", json=body).status_code == 404
     res = client.post("/api/shop/purchase", json=body)
     assert res.status_code == 429

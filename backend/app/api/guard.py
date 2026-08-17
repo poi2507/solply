@@ -32,7 +32,10 @@ _BUCKETS: dict[str, deque] = defaultdict(deque)
 WINDOW_S = 60.0
 
 
-def rate_limit(request: Request, scope: str, per_ip: int = 4, total: int = 40) -> None:
+# per_ip 기본 15: 심사장 와이파이는 전원이 한 공인 IP를 쓴다 — 심사위원 여러 명이
+# 같은 분에 사도 막히지 않아야 한다 (8/17 실측: 같은 사무실 IP끼리 버킷을 공유해 조기 429).
+# 스크립트 남용은 여전히 분당 15로 감속되고, 전체 상한이 2차 방벽이다.
+def rate_limit(request: Request, scope: str, per_ip: int = 15, total: int = 60) -> None:
     now = time.monotonic()
     fwd = request.headers.get("x-forwarded-for", "")
     ip = (fwd.split(",")[0].strip() or (request.client.host if request.client else "?"))
