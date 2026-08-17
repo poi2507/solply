@@ -466,7 +466,10 @@ def test_scenario_boost_is_per_store():
 def test_sim_sales_accrue_guest_tab_and_get_charged(monkeypatch):
     """시뮬 손님의 소비는 외상 장부에 쌓이고, guest 잔액 안에서 온체인 수납된다."""
     db.put(economy.TILL, economy.GUEST_TAB, {"accrued_usdc": 0.0})
-    utils.record_move("store-a", "CHK-10", "냉장 닭 10kg", 2, "restocked", "TEST-TAB-SEED")
+    # 앞 테스트들이 재고를 음수까지 끌어내릴 수 있다 — 절대량으로 2개를 보장한다
+    cur = utils.effective_inventory("store-a").get("CHK-10", {}).get("qty", 0)
+    if cur < 2:
+        utils.record_move("store-a", "CHK-10", "냉장 닭 10kg", 2 - cur, "restocked", "TEST-TAB-SEED")
 
     sim = economy.sell("store-a", "CHK-10", 1, "영업 판매")           # 시뮬 → 장부 적립
     assert db.get(economy.TILL, economy.GUEST_TAB)["accrued_usdc"] == pytest.approx(sim["revenue"])
@@ -487,3 +490,25 @@ def test_sim_sales_accrue_guest_tab_and_get_charged(monkeypatch):
     # 원복 — 판매로 움직인 재고·금고가 다른 테스트 전제를 흔들면 안 된다
     db.put(economy.TILL, economy.GUEST_TAB, {"accrued_usdc": 0.0})
     db.put(economy.TILL, "store-a", {"accrued_usdc": 0.0})
+
+
+def test_guest_refill_below_threshold(monkeypatch):
+    """guest가 문턱 아래로 내려가면 본사가 목표선까지 환류한다 — hq 예비는 지킨다."""
+    paid = []
+    balances = {"guest": 30.0, "hq": 200.0}
+    monkeypatch.setattr("app.core.economy.payments.balance",
+                        lambda w: {"address": f"{w}-ADDR", "usdc": balances[w], "sol": 0})
+    monkeypatch.setattr("app.core.economy.payments.pay",
+                        lambda s, t, a, m: paid.append((s, t, a, m)) or {"signature": "SIG"})
+
+    out = economy.refill_guest()
+    assert paid == [("hq", "guest-ADDR", 120.0, "GUEST-TOPUP")], "30 → 목표 150까지 120 환류"
+    assert out["refilled_usdc"] == 120.0
+
+    paid.clear()
+    balances["guest"] = 80.0                      # 문턱(50) 위 — 아무것도 안 한다
+    assert economy.refill_guest()["refilled_usdc"] == 0.0 and not paid
+
+    balances["guest"], balances["hq"] = 10.0, 40.0  # hq 여유(40−5=35)까지만
+    out = economy.refill_guest()
+    assert paid == [("hq", "guest-ADDR", 35.0, "GUEST-TOPUP")], "본사 예비 5는 지킨다"

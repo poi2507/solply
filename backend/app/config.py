@@ -61,6 +61,11 @@ TICK_ENABLED = os.getenv("TICK_ENABLED", "1").lower() not in ("0", "false")
 # 조달 판단 전에 에이전트가 시세 데이터를 x402로 사서 쓴다. 샌드박스라 실자금은 없다.
 # CLI가 없거나 호출이 실패하면 조용히 건너뛴다 — 시세가 조달을 멈출 사유는 아니다.
 PAYSH_ENABLED = os.getenv("PAYSH_ENABLED", "1").lower() not in ("0", "false")
+
+# 손님 지갑 자동 보충 — 시뮬 소비 수납(guest→hq)으로 마르는 잔액을 본사가 환류.
+# 폐쇄 devnet 풀의 유동성 순환 장치다 (실서비스에선 소비자 돈이 외부에서 유입).
+GUEST_MIN_USDC = float(os.getenv("GUEST_MIN_USDC", "50"))
+GUEST_TOPUP_TARGET_USDC = float(os.getenv("GUEST_TOPUP_TARGET_USDC", "150"))
 PAYSH_BIN = os.getenv("PAYSH_BIN", "pay")
 PAYSH_QUOTE_URL = os.getenv("PAYSH_QUOTE_URL", "https://debugger.pay.sh/mpp/quote")
 PAYSH_QUOTE_TTL_S = int(os.getenv("PAYSH_QUOTE_TTL_S", "600"))

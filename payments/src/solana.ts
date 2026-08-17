@@ -100,7 +100,10 @@ export async function sendUsdc(
   const to = new PublicKey(recipient);
 
   // Gasless: 수수료·계좌 생성비는 대납 지갑이, 이체 서명은 보내는 지갑이.
-  const gasless = FEE_PAYER !== "" && FEE_PAYER !== fromName;
+  // 단 guest(손님)는 제외 — 소비자가 자기 SOL로 수수료를 내는 것이
+  // "결제가 소비자를 솔라나 생태계로 유입시킨다"는 지점이다 (8/18 팀장 결정).
+  // 에이전트·지점의 정산은 계속 대납한다 (지점은 지갑을 몰라도 된다).
+  const gasless = FEE_PAYER !== "" && FEE_PAYER !== fromName && fromName !== "guest";
   const feePayer = gasless ? loadKeypair(FEE_PAYER as WalletName) : wallet;
 
   const fromAta = await getOrCreateAssociatedTokenAccount(

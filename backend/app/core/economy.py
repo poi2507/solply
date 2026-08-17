@@ -245,6 +245,31 @@ def charge_guest_card() -> dict:
     return {"charged_usdc": amount, "pending_usdc": round(tab - amount, 2)}
 
 
+def refill_guest() -> dict:
+    """guest 잔액이 문턱 아래면 본사가 목표선까지 온체인으로 채운다.
+
+    시뮬 소비 수납으로 guest→hq에 쌓인 돈의 환류다 — 폐쇄 devnet 풀에서
+    손님 지갑이 마르면 시뮬 수납·실구매 시연이 같이 멈추기 때문에, 스케줄러
+    (10분 틱)가 자동으로 돌린다. 본사 운영 예비(5)는 지키고, memo가
+    GUEST-TOPUP으로 남아 환류가 장부에서 투명하게 보인다.
+    """
+    from app import config
+
+    balance = payments.balance("guest")
+    if balance["usdc"] >= config.GUEST_MIN_USDC:
+        return {"refilled_usdc": 0.0, "guest_usdc": balance["usdc"]}
+    available = max(0.0, payments.balance("hq")["usdc"] - 5.0)
+    amount = round(min(config.GUEST_TOPUP_TARGET_USDC - balance["usdc"], available), 2)
+    if amount < 0.01:
+        return {"refilled_usdc": 0.0, "guest_usdc": balance["usdc"], "hq_short": True}
+    receipt = payments.pay("hq", balance["address"], amount, "GUEST-TOPUP")
+    utils.log("hq-agent", "guest.refilled", {
+        "amount_usdc": amount, "guest_usdc": round(balance["usdc"] + amount, 2),
+        "tx": receipt.get("signature", ""),
+    })
+    return {"refilled_usdc": amount, "guest_usdc": round(balance["usdc"] + amount, 2)}
+
+
 # ── 2. 카드정산 — 적립 매출이 온체인으로 지급된다 ─────────────────────
 
 def settle_cards() -> list[dict]:
@@ -585,6 +610,7 @@ async def tick(rng: random.Random | None = None) -> dict:
         # 시뮬 소비의 돈이 먼저 guest→본사로 들어와야, 다음 단계(카드정산)에서
         # 본사가 지점에 지급할 재원이 그 매출에서 나온다 — 현실의 순서 그대로.
         "guest_card": await _stage(charge_guest_card),
+        "guest_refill": await _stage(refill_guest),
         "card_settlements": await _stage(settle_cards),
         "escrow_settlements": await _stage(settle_escrows),
         "dispute_reviews": await _stage(settle_disputes),
