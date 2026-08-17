@@ -21,13 +21,13 @@ def fetch_market_quote(store_id: str, sku: str) -> dict | None:
     return market.quote(sku, actor=utils.actor_name(store_id), buyer=store_id)
 
 
-def fetch_demand_signal(store_id: str, sku: str) -> dict | None:
-    """조달 판단에 쓸 수요 추세를 본사 데이터 상점에서(x402) 구매한다.
+def read_demand_trend(store_id: str, sku: str) -> dict:
+    """자기 판매 원장에서 소비 추세를 읽는다 — 자기 데이터라 무료다.
 
-    우리가 파는 수요 지수를 에이전트가 되사 쓴다 — 소비 패턴이 기록이 아니라
-    판단(조달 경로·발주량)을 바꾸는 지점이다.
+    파는 것과 쓰는 것을 가른다: 전 지점 합산 수요 지수는 데이터 상점의
+    외부 판매 상품이고, 내 발주 판단은 내 POS 기록으로 한다.
     """
-    return market.demand(sku, actor=utils.actor_name(store_id), buyer=store_id)
+    return utils.demand_trend(store_id, sku)
 
 
 def list_open_invoices(store_id: str) -> list[dict]:

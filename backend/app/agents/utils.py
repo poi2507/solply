@@ -130,6 +130,34 @@ def sellable_surplus(inventory: dict[str, dict], sku: str, safety_multiplier: fl
     return max(0, int(entry["qty"] - entry["safety"] * safety_multiplier))
 
 
+def demand_trend(store_id: str, sku: str, window_days: int = 7) -> dict:
+    """자기 판매 원장의 소비 추세 — 최근 창 vs 직전 창.
+
+    지점이 자기 POS 기록을 보는 것이라 무료다. 전 지점 합산(수요 지수)은
+    본사가 데이터 상점에서 외부에 파는 별개 상품이다 — 자기 장부는 사지 않는다.
+    """
+    from app.core import kst
+
+    days = [kst.shift(kst.today(), -i) for i in range(window_days * 2 - 1, -1, -1)]
+    counts = []
+    for d in days:
+        total = 0
+        for m in store.list_docs("inventory_moves", day=d, reason="sold", store_id=store_id):
+            if m.get("sku") == sku:
+                total += abs(int(m.get("qty", 0)))
+        counts.append(total)
+    prior, recent = sum(counts[:window_days]), sum(counts[window_days:])
+    trend = round((recent - prior) / prior * 100, 1) if prior else None
+    return {
+        "recent": recent, "prior": prior, "trend_pct": trend,
+        "summary": (
+            f"최근 {window_days}일 {recent}개 판매"
+            + (f", 직전 창 대비 {trend:+.1f}%" if trend is not None else ", 비교 기준 없음")
+            + " (자기 판매 원장)"
+        ),
+    }
+
+
 def hq_reorder_terms(sku: str) -> dict:
     """본사 발주 조건 — 직거래와 비교할 기준."""
     return fixtures.load().get("hq_reorder", {}).get(sku, {})

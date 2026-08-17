@@ -231,10 +231,10 @@ def find_supply(state: StoreState) -> dict:
     """
     s = state["shortage"]
     quote = tools.fetch_market_quote(state["store_id"], s["sku"])
-    demand = tools.fetch_demand_signal(state["store_id"], s["sku"])
+    demand = tools.read_demand_trend(state["store_id"], s["sku"])
     quote_msgs = [f"외부 시세를 x402로 구매했습니다 — {quote['summary']}."] if quote else []
-    if demand and demand.get("summary"):
-        quote_msgs.append(f"수요 지수를 x402로 구매했습니다 — {demand['summary']}.")
+    if demand.get("prior") or demand.get("recent"):
+        quote_msgs.append(f"자기 판매 원장 확인 — {demand['summary']}.")
     quote_reason = (
         ["시세는 무료 크롤링이 아니라 pay.sh 유료 API에서 구매한 판단 재료 — 결제 영수증이 증빙으로 남는다"]
         if quote else []
@@ -267,7 +267,7 @@ def find_supply(state: StoreState) -> dict:
             "본사_리드타임": hq_terms.get("lead_time", "미확인"),
             "본사_공급가_usdc": hq_terms.get("unit_price_usdc", 0),
             "구매한_시세": quote["summary"] if quote else "없음",
-            "구매한_수요_추세": (demand or {}).get("summary") or "없음",
+            "자기_소비_추세": demand.get("summary") or "판매 기록 없음",
         },
         state.get("policy", {}),
     )

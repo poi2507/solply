@@ -412,21 +412,34 @@ def test_dispute_sweep_skips_invoices_without_proposal(monkeypatch):
     assert "INV-DISPUTE-2" not in called
 
 
-# ── 수요 추세 → 발주량 (8/17: 소비 패턴이 판단 재료가 된다) ──────────
+# ── 소비 추세 → 발주량 (8/17: 자기 판매 원장이 판단 재료가 된다) ──────
 
-def test_refill_x_follows_purchased_demand_signal():
-    """구매한 수요 지수의 추세가 보충 배수를 밴드 안에서만 움직인다."""
-    from app.db import store as db
+def test_refill_x_follows_own_consumption_trend(monkeypatch):
+    """자기 원장의 소비 추세가 보충 배수를 밴드 안에서만 움직인다."""
+    trend = {}
+    monkeypatch.setattr("app.core.economy.utils.demand_trend",
+                        lambda store_id, sku, window_days=7: {"trend_pct": trend.get("v")})
 
-    db.put("demand_signals", "TEST-SKU", {"sku": "TEST-SKU", "trend_pct": 40.0})
-    assert economy._refill_x("TEST-SKU") == 2.8, "추세 +40% → 배수 2.8"
+    trend["v"] = 40.0
+    assert economy._refill_x("store-b", "CHK-10") == 2.8, "추세 +40% → 배수 2.8"
+    trend["v"] = 300.0
+    assert economy._refill_x("store-b", "CHK-10") == 3.0, "폭등해도 밴드 상한(×3)"
+    trend["v"] = -90.0
+    assert economy._refill_x("store-b", "CHK-10") == 1.5, "폭락해도 밴드 하한(×1.5)"
+    trend["v"] = None
+    assert economy._refill_x("store-b", "CHK-10") == 2, "판매 기록이 없으면 기본 배수"
 
-    db.put("demand_signals", "TEST-SKU", {"sku": "TEST-SKU", "trend_pct": 300.0})
-    assert economy._refill_x("TEST-SKU") == 3.0, "폭등해도 밴드 상한(×3)에서 멈춘다"
 
-    db.put("demand_signals", "TEST-SKU", {"sku": "TEST-SKU", "trend_pct": -90.0})
-    assert economy._refill_x("TEST-SKU") == 1.5, "폭락해도 밴드 하한(×1.5)에서 멈춘다"
+def test_demand_trend_reads_own_ledger_only():
+    """소비 추세는 자기 지점 판매만 센다 — 남의 판매가 내 발주를 흔들면 안 된다."""
+    utils.record_move("store-b", "VEG-05", "모둠 야채 5kg", -4, "sold", "TEST-TREND-B")
+    utils.record_move("store-a", "VEG-05", "모둠 야채 5kg", -9, "sold", "TEST-TREND-A")
 
-    db.put("demand_signals", "TEST-SKU", {"sku": "TEST-SKU", "trend_pct": None})
-    assert economy._refill_x("TEST-SKU") == 2, "신호가 없으면 기본 배수"
-    assert economy._refill_x("SKU-NEVER-BOUGHT") == 2, "지수를 산 적 없으면 기본 배수"
+    mine = utils.demand_trend("store-b", "VEG-05")
+    assert mine["recent"] >= 4
+    others = utils.demand_trend("store-a", "VEG-05")
+    assert others["recent"] >= 9 and others["recent"] != mine["recent"]
+
+    # 재고 원복 — 다른 테스트의 잉여 전제 보존
+    utils.record_move("store-b", "VEG-05", "모둠 야채 5kg", 4, "restocked", "TEST-TREND-B-R")
+    utils.record_move("store-a", "VEG-05", "모둠 야채 5kg", 9, "restocked", "TEST-TREND-A-R")

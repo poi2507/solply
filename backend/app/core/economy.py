@@ -71,15 +71,14 @@ STARVING_RATIO = 0.6
 REORDER_TO_SAFETY_X = 2
 
 
-def _refill_x(sku: str) -> float:
+def _refill_x(store_id: str, sku: str) -> float:
     """소비 추세에 따른 보충 배수 — 잘 나가는 품목은 미리 더, 식은 품목은 덜.
 
-    추세는 에이전트가 x402로 산 수요 지수(market.DEMAND 캐시)에서 온다 —
-    구매한 데이터가 기록이 아니라 발주량을 바꾼다. fair_price와 같은 원칙으로
-    신호는 밴드 안에서만 수량을 움직인다 (배수 1.5 ~ 3.0).
+    추세는 그 지점 자신의 판매 원장에서 온다(자기 데이터라 무료 — 파는 수요
+    지수와 다르다). fair_price와 같은 원칙으로 신호는 밴드 안에서만 수량을
+    움직인다 (배수 1.5 ~ 3.0).
     """
-    signal = db.get("demand_signals", sku) or {}
-    trend = signal.get("trend_pct")
+    trend = utils.demand_trend(store_id, sku).get("trend_pct")
     if trend is None:
         return REORDER_TO_SAFETY_X
     capped = max(-0.25, min(0.5, float(trend) / 100))
@@ -424,7 +423,7 @@ async def run_procurement() -> list[dict]:
             # 잉여 지점이 없으면 본사 발주 — 납품·청구 생성 후 기존 x402 정산 플로우
             shortage = shortages[0]
             # 굶어서 우회한 발주는 안전재고까지만 — 빚을 더 키우지 않는다
-            refill = 1 if (gated and starving) else _refill_x(shortage["sku"])
+            refill = 1 if (gated and starving) else _refill_x(store_id, shortage["sku"])
             need = round(shortage["need"] + shortage["safety"] * (refill - 1))
             invoice_id = _fulfill_order(store_id, shortage["sku"], max(1, need))
             if not invoice_id:
