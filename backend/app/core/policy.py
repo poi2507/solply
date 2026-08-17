@@ -63,8 +63,9 @@ class HQPolicy:
     # 외상 한도의 몇 %까지 유예 잔액을 허용하는가
     # (주의: 청구액 기준이 아니다 — 엔진은 credit_limit_usdc에 대한 비율로 본다)
     defer_max_pct: float = 20.0
-    # 분할 최대 회차
-    installment_max: int = 2
+    # 분할 최대 회차 — 회차 선택은 LLM이 신용 이력을 보고 하고, 이 값은 그 상한이다.
+    # 2면 선택지가 없으니(2회뿐) 상한을 3으로 둬야 역제안이 상대에 따라 달라진다.
+    installment_max: int = 3
     # 이 금액을 넘는 차감 요청은 사람이 본다
     auto_adjust_limit_usdc: float = 4.0
     # 카드매출 정산 때 본사가 공제하는 로열티 비율.

@@ -1,7 +1,8 @@
 """본사 그래프의 노드.
 
 가맹점 그래프와 대칭이다. 가맹점이 "내가 낼까 말까"를 판단한다면,
-본사는 "받아줄까 말까"를 판단한다. 심사 노드들(review_* · settle)이 LLM을 부른다.
+본사는 "받아줄까 말까"를 판단한다. 심사 노드들(review_*)이 LLM을 부르고,
+종결(settle)은 코드가 판정한다 — 돈이 움직이는 마지막 관문은 결정론으로.
 """
 
 from app.agents import utils
@@ -122,6 +123,11 @@ def review_deferral(state: HQState) -> dict:
             ),
             "pay_when": proposal.get("pay_when", "미지정"),
             "reason": proposal.get("reason", ""),
+            # 지점이 주장한 값 — 장부로 검증되지 않으니 근거지 사실이 아니다. 라벨로 못 박는다.
+            "claimed_inflow": (
+                f"{proposal['expected_inflow_usdc']} USDC 입금 예정 (지점 주장, 미검증)"
+                if proposal.get("expected_inflow_usdc") else "제공 안 됨"
+            ),
         },
         policy_values=pol.as_prompt_values(),
     )
@@ -134,14 +140,17 @@ def review_deferral(state: HQState) -> dict:
     if verdict["decision"] == "counter":
         # 역제안은 즉시 집행하지 않는다 — 조건을 되돌려 지점의 재응수를 받는다.
         # 집행(분할 발행)은 라운드 3의 settle_negotiation 몫이다 (협상 다회 왕복).
-        per = round(invoice["amount_usdc"] / pol.installment_max, 2)
-        counter_terms = {"kind": "installment", "parts": pol.installment_max, "per_usdc": per}
+        # 회차는 LLM이 상대의 이력을 보고 고르고, 범위 밖이면 정책 한도로 되돌린다.
+        suggested = int(verdict.get("parts") or 0)
+        parts = suggested if 2 <= suggested <= pol.installment_max else pol.installment_max
+        per = round(invoice["amount_usdc"] / parts, 2)
+        counter_terms = {"kind": "installment", "parts": parts, "per_usdc": per}
         return {
             "decision": {**verdict, "kind": "deferral", "counter_terms": counter_terms},
             "outcome": "negotiating",
             "messages": [
                 (
-                    f"전액 유예 대신 {pol.installment_max}회 분할(회당 {per} USDC)을 "
+                    f"전액 유예 대신 {parts}회 분할(회당 {per} USDC)을 "
                     f"역제안했습니다 — 지점의 응답을 기다립니다. "
                 )
                 + verdict["reasoning"]

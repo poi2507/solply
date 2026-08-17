@@ -171,8 +171,15 @@ def propose_adjustment(store_id: str, invoice_id: str, deduction_usdc: float, re
     return proposal
 
 
-def propose_deferral(store_id: str, invoice_id: str, pay_when: str, reason: str) -> dict:
-    """잔액 부족 시 납부 유예를 본사에 제안한다."""
+def propose_deferral(
+    store_id: str, invoice_id: str, pay_when: str, reason: str,
+    expected_inflow_usdc: float | None = None,
+) -> dict:
+    """잔액 부족 시 납부 유예를 본사에 제안한다.
+
+    expected_inflow_usdc는 지점이 주장하는 입금 예정액이다 — 본사는 검증 없이
+    심사 재료로만 쓴다 (여신 심사의 사유서에 해당).
+    """
     proposal = {
         "invoice_id": invoice_id,
         "type": "deferral",
@@ -180,6 +187,8 @@ def propose_deferral(store_id: str, invoice_id: str, pay_when: str, reason: str)
         "reason": reason,
         "proposed_by": utils.actor_name(store_id),
     }
+    if expected_inflow_usdc is not None:
+        proposal["expected_inflow_usdc"] = expected_inflow_usdc
     utils.log(utils.actor_name(store_id), "proposal.deferral", proposal)
     return proposal
 

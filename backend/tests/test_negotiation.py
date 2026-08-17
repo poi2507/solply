@@ -17,7 +17,9 @@ from app.agents.hq import node as hq_node
 from app.agents.hq import tools as hq_tools
 from app.agents.store import node as store_node
 from app.core import economy
+from app.core import policy as policy_mod
 from app.db import store as db
+from app.llm import rules
 
 
 def make_invoice(invoice_id: str, amount: float, store_id: str = "store-b", status: str = "issued") -> dict:
@@ -108,6 +110,60 @@ def test_counter_rejected_when_wallet_is_empty(monkeypatch):
     )
     assert out["proposal"]["decision"] == "reject"
     assert out["outcome"] == "refused"
+
+
+# ── 라운드 1 — 역제안 회차: 선택은 LLM, 범위는 코드 ───────────────────
+
+def _deferral_state(invoice_id: str, amount: float, payload: dict | None = None) -> dict:
+    invoice = make_invoice(invoice_id, amount)
+    return {"invoice": invoice,
+            "payload": payload or {"pay_when": "금요일", "reason": "매출 부진"}}
+
+
+def test_counter_uses_llm_chosen_parts(monkeypatch):
+    monkeypatch.setattr(hq_node.judge, "review_proposal",
+                        lambda kind, facts, policy_values:
+                        {"decision": "counter", "reasoning": "근거", "parts": 2})
+    out = hq_node.review_deferral(_deferral_state("INV-NEG-20", 9.0))
+    terms = out["decision"]["counter_terms"]
+    assert terms["parts"] == 2, "범위 안의 LLM 제안은 그대로 쓴다"
+    assert terms["per_usdc"] == pytest.approx(4.5), "회당 금액은 코드가 나눈다"
+
+
+def test_counter_clamps_out_of_range_parts(monkeypatch):
+    monkeypatch.setattr(hq_node.judge, "review_proposal",
+                        lambda kind, facts, policy_values:
+                        {"decision": "counter", "reasoning": "근거", "parts": 7})
+    out = hq_node.review_deferral(_deferral_state("INV-NEG-21", 9.0))
+    limit = policy_mod.get("hq").installment_max
+    assert out["decision"]["counter_terms"]["parts"] == limit, \
+        "환각이 7회를 불러도 정책 상한으로 되돌린다"
+
+
+def test_rules_counter_parts_follow_credit():
+    """폴백 기준선 — 이력이 넉넉히 좋으면 최소 회차, 아니면 상한까지 잘게."""
+    policy = {"min_credit_score": 85, "defer_max_pct": 20, "installment_max": 3}
+    facts = {"credit_score": 97, "credit_limit_usdc": 30, "amount_usdc": 9.0}
+    assert rules.review_deferral(facts, policy)["parts"] == 2
+    assert rules.review_deferral({**facts, "credit_score": 86}, policy)["parts"] == 3
+
+
+def test_review_deferral_passes_claimed_inflow(monkeypatch):
+    """지점이 주장한 입금 예정액이 심사 재료에 실리고, 미검증 딱지가 붙는다."""
+    captured = {}
+
+    def fake(kind, facts, policy_values):
+        captured.update(facts)
+        return {"decision": "accept", "reasoning": "근거", "parts": 0}
+
+    monkeypatch.setattr(hq_node.judge, "review_proposal", fake)
+    hq_node.review_deferral(_deferral_state(
+        "INV-NEG-22", 3.0,
+        {"pay_when": "금요일", "reason": "매출 부진", "expected_inflow_usdc": 12},
+    ))
+    assert "12" in captured["claimed_inflow"] and "미검증" in captured["claimed_inflow"]
+    hq_node.review_deferral(_deferral_state("INV-NEG-23", 3.0))
+    assert captured["claimed_inflow"] == "제공 안 됨"
 
 
 # ── 라운드 3 — 종결: 집행은 문서, 결렬은 사람 ─────────────────────────

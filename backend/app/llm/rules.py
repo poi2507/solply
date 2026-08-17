@@ -54,11 +54,14 @@ def review_deferral(facts: dict[str, Any], policy: dict[str, Any]) -> dict[str, 
             "reasoning": f"신용점수 {score}점으로 기준({min_score}점)에 미달해 유예를 수락할 수 없습니다.",
         }
     if credit_limit and exposure > limit_pct:
+        # LLM 판단의 기준선: 이력이 넉넉히 좋으면 최소 회차, 아니면 상한까지 잘게.
+        parts = 2 if score >= min_score + 10 else int(policy.get("installment_max", 2))
         return {
             "decision": "counter",
+            "parts": parts,
             "reasoning": (
                 f"유예액 {amount} USDC가 외상 한도 {credit_limit:g} USDC의 {exposure:.0f}%로 "
-                f"허용치 {limit_pct:.0f}%를 넘어 분할을 제안합니다."
+                f"허용치 {limit_pct:.0f}%를 넘어 {parts}회 분할을 제안합니다."
             ),
         }
     return {

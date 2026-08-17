@@ -23,6 +23,8 @@ class Verdict(BaseModel):
 
     decision: str = Field(description="accept | reject | counter 중 하나")
     reasoning: str = Field(description="판단 근거를 한국어 한두 문장으로. 수치를 포함할 것")
+    # 회차 선택은 LLM, 회당 금액과 허용 범위는 코드 — 범위 밖 값은 호출부가 한도로 되돌린다.
+    parts: int = Field(0, description="decision이 counter일 때 제안하는 분할 회차. 해당 없으면 0")
 
 
 def _retry_delay(message: str, attempt: int) -> float:
@@ -88,17 +90,26 @@ def review_proposal(kind: str, facts: dict, policy_values: dict) -> dict[str, st
 
     system = prompts.system("hq", **policy_values)
     lines = "\n".join(f"- {k}: {v}" for k, v in facts.items())
+    extra = ""
+    if kind == "deferral":
+        # 회차는 상대를 보고 고르는 값이다 — 이력이 좋으면 크게 나눌 이유가 없다.
+        extra = (
+            f"\n\ncounter라면 분할 회차(parts)를 2~{policy_values.get('installment_max', 2)} 사이에서 "
+            "골라라 — 납부 이력이 좋을수록 적은 회차, 위험할수록 잘게. counter가 아니면 parts는 0."
+        )
     user = (
         f"아래 {label} 제안을 심사하고 "
         "accept / reject / counter 중 하나로 결정해라.\n\n"
         f"{lines}\n\n"
         "정책 기준에 비추어 판단하고, 근거에 수치를 반드시 포함해라."
+        f"{extra}"
     )
     verdict: Verdict = _invoke("hq", system, user, schema=Verdict)
     decision = verdict.decision.strip().lower()
     if decision not in ("accept", "reject", "counter"):
         decision = "reject"
-    return {"decision": decision, "reasoning": verdict.reasoning.strip()}
+    return {"decision": decision, "reasoning": verdict.reasoning.strip(),
+            "parts": max(0, int(verdict.parts or 0))}
 
 
 _STORE_RULES = {

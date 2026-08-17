@@ -2,6 +2,7 @@
 .git/
 .dev-logs/
 docs/
+docs-internal/
 backend/.venv/
 backend/.env
 backend/tests/

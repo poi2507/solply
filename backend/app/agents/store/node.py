@@ -170,7 +170,10 @@ def propose_deferral(state: StoreState) -> dict:
             f"최소 보유 기준 {cash.get('min_reserve_usdc', 0)} USDC 아래로 내려갑니다."
         )
     reason = f"{shortage} {forecast.get('note', '')}".strip()
-    proposal = tools.propose_deferral(state["store_id"], state["invoice_id"], when, reason)
+    proposal = tools.propose_deferral(
+        state["store_id"], state["invoice_id"], when, reason,
+        expected_inflow_usdc=forecast.get("expected_inflow_usdc"),
+    )
 
     deferred = utils.pick_term(state.get("x402_terms", []), "deferred")
     picked = "402 조건 중 '납부 유예(본사 심사 필요)'를 선택했습니다. " if deferred else ""
