@@ -71,6 +71,21 @@ STARVING_RATIO = 0.6
 REORDER_TO_SAFETY_X = 2
 
 
+def _refill_x(sku: str) -> float:
+    """소비 추세에 따른 보충 배수 — 잘 나가는 품목은 미리 더, 식은 품목은 덜.
+
+    추세는 에이전트가 x402로 산 수요 지수(market.DEMAND 캐시)에서 온다 —
+    구매한 데이터가 기록이 아니라 발주량을 바꾼다. fair_price와 같은 원칙으로
+    신호는 밴드 안에서만 수량을 움직인다 (배수 1.5 ~ 3.0).
+    """
+    signal = db.get("demand_signals", sku) or {}
+    trend = signal.get("trend_pct")
+    if trend is None:
+        return REORDER_TO_SAFETY_X
+    capped = max(-0.25, min(0.5, float(trend) / 100))
+    return round(REORDER_TO_SAFETY_X * (1 + capped), 2)
+
+
 # ── 공용 헬퍼 ─────────────────────────────────────────────────────────
 
 def ensure_funds(store_id: str, invoice_amount: float) -> float:
@@ -409,8 +424,8 @@ async def run_procurement() -> list[dict]:
             # 잉여 지점이 없으면 본사 발주 — 납품·청구 생성 후 기존 x402 정산 플로우
             shortage = shortages[0]
             # 굶어서 우회한 발주는 안전재고까지만 — 빚을 더 키우지 않는다
-            refill = 1 if (gated and starving) else REORDER_TO_SAFETY_X
-            need = shortage["need"] + shortage["safety"] * (refill - 1)
+            refill = 1 if (gated and starving) else _refill_x(shortage["sku"])
+            need = round(shortage["need"] + shortage["safety"] * (refill - 1))
             invoice_id = _fulfill_order(store_id, shortage["sku"], max(1, need))
             if not invoice_id:
                 actions.append({"store_id": store_id, "route": "hq_order", "status": "hq_out_of_stock"})
@@ -420,7 +435,8 @@ async def run_procurement() -> list[dict]:
             if outcome == "negotiating":  # 잔액 부족 → 유예 제안 → 다회 왕복 협상
                 outcome = await _negotiate_deferral(store_id, invoice_id)
             actions.append({"store_id": store_id, "route": "hq_order",
-                            "invoice_id": invoice_id, "status": outcome})
+                            "invoice_id": invoice_id, "status": outcome,
+                            "refill_x": refill})
         except Exception as exc:  # noqa: BLE001 — 한 지점의 실패가 다른 지점을 막지 않는다
             actions.append({"store_id": store_id, "route": "error", "status": str(exc)[:160]})
     return actions
@@ -434,17 +450,26 @@ def restock_hq() -> list[dict]:
     외부 공급사는 체인 밖 존재라 온체인 이체는 없다 — 이체하면 생태계 총량이
     깨진다. 매입 지출은 이벤트로 남겨 리포트가 집계한다.
     """
+    from app.core import data_products
+
     restocked = []
     for sku, entry in utils.effective_inventory("hq").items():
         if entry["qty"] >= entry["safety"]:
             continue
-        batch = max(entry["safety"] * 2 - entry["qty"], 1)
+        # 전 지점 소비 추세로 목표선을 조절한다 — 본사는 수요 지수의 판매자라
+        # 자기 데이터를 무료로 본다 (지점은 같은 지수를 x402로 산다).
+        # 창고는 하방을 좁게 잡는다: 수요가 식어도 기본선은 지킨다 (배수 1.8~3.0).
+        trend = data_products.demand_index(sku).get("trend_pct")
+        capped = max(-0.1, min(0.5, float(trend) / 100)) if trend is not None else 0.0
+        target_x = round(2 * (1 + capped), 2)
+        batch = max(round(entry["safety"] * target_x) - entry["qty"], 1)
         utils.record_move("hq", sku, entry.get("name", sku), batch, "restocked", "SUPPLIER")
         utils.log(
             "hq-agent", "warehouse.restocked",
-            {"sku": sku, "qty": batch, "cost_usdc": round(batch * _sku_price(sku), 2)},
+            {"sku": sku, "qty": batch, "cost_usdc": round(batch * _sku_price(sku), 2),
+             "demand_trend_pct": trend, "target_x": target_x},
         )
-        restocked.append({"sku": sku, "qty": batch})
+        restocked.append({"sku": sku, "qty": batch, "target_x": target_x})
     return restocked
 
 

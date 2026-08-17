@@ -208,6 +208,47 @@ def events(limit: int = 100, day: str | None = None) -> dict:
     }
 
 
+@router.get("/demand/{owner}")
+def demand_pattern(owner: str) -> dict:
+    """소비 패턴 — 최근 7일 SKU별 일별 판매와 직전 7일 대비 추세.
+
+    지점은 자기 판매만, hq는 전 지점 합산이다. 에이전트가 발주량을 정할 때
+    쓰는 것과 같은 원장(inventory_moves·sold)에서 계산한다 — 화면의 숫자와
+    판단의 숫자가 다른 곳에서 오면 안 된다.
+    """
+    if owner != "hq" and owner not in fixtures.load()["stores"]:
+        raise HTTPException(404, f"없는 지점: {owner}")
+    days = [kst.shift(kst.today(), -i) for i in range(13, -1, -1)]  # 14일 (앞 7일은 추세 기준)
+    names = {}
+    for sid, profile in fixtures.load()["stores"].items():
+        for sku, e in (fixtures.load().get("inventory", {}).get(sid) or {}).items():
+            names.setdefault(sku, e.get("name", sku))
+
+    per_day: dict[str, dict[str, int]] = {d: {} for d in days}
+    for d in days:
+        for m in store.list_docs("inventory_moves", day=d, reason="sold"):
+            if m.get("store_id") == "hq":
+                continue
+            if owner != "hq" and m.get("store_id") != owner:
+                continue
+            sku = m.get("sku")
+            names.setdefault(sku, m.get("name", sku))
+            per_day[d][sku] = per_day[d].get(sku, 0) + abs(int(m.get("qty", 0)))
+
+    recent, prior = days[7:], days[:7]
+    skus = sorted({s for d in days for s in per_day[d]})
+    rows = []
+    for sku in skus:
+        daily = [per_day[d].get(sku, 0) for d in recent]
+        total = sum(daily)
+        base = sum(per_day[d].get(sku, 0) for d in prior)
+        trend = round((total - base) / base * 100, 1) if base else None
+        rows.append({"sku": sku, "name": names.get(sku, sku), "daily": daily,
+                     "total": total, "trendPct": trend})
+    rows.sort(key=lambda r: -r["total"])
+    return {"owner": owner, "days": [d[5:] for d in recent], "skus": rows}
+
+
 @router.get("/wallets")
 def wallets() -> dict:
     out = []

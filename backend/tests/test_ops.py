@@ -3,6 +3,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
+from app.agents import utils
 from app.agents.hq import tools as hq_tools
 from app.agents.store import tools as store_tools
 from app.db import store as db
@@ -568,3 +569,20 @@ def test_pending_approval_is_not_a_late_payment():
     })
     before = credit.evaluate("store-c")["live_late"]
     assert before == credit.evaluate("store-c")["live_late"], "승인 대기 건은 연체 수에 들어가지 않는다"
+
+
+def test_demand_pattern_endpoint_counts_sold_moves():
+    """소비 패턴 API — 판매 원장을 지점별로 세고, hq는 합산하며, 없는 지점은 404."""
+    from app.core import kst
+
+    utils.record_move("store-b", "CHK-10", "냉장 닭 10kg", -3, "sold", "TEST-DEMAND")
+    r = client.get("/api/demand/store-b").json()
+    assert r["days"][-1] == kst.today()[5:], "마지막 칸이 오늘"
+    row = next(s for s in r["skus"] if s["sku"] == "CHK-10")
+    assert row["daily"][-1] >= 3 and row["total"] >= 3
+
+    hq_row = next(s for s in client.get("/api/demand/hq").json()["skus"] if s["sku"] == "CHK-10")
+    assert hq_row["total"] >= row["total"], "hq는 전 지점 합산이라 지점 이상이어야 한다"
+    assert client.get("/api/demand/store-x").status_code == 404
+    # 재고 원복 — 판매 이동이 다른 테스트의 잉여 전제를 깎으면 안 된다
+    utils.record_move("store-b", "CHK-10", "냉장 닭 10kg", 3, "restocked", "TEST-DEMAND-RESTORE")

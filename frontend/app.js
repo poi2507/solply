@@ -87,6 +87,57 @@ function explorerUrl(sig, network) {
 }
 
 // ── 가맹점 ────────────────────────────────────────────────────────
+
+// 소비 패턴 — 열림 상태와 마지막 응답을 기억한다. 15초 폴링이 카드를 다시
+// 그려도 열어둔 패널이 닫히지 않고, 재조회는 사용자가 다시 열 때만 한다.
+const demandOpen = new Set();
+const demandCache = {};
+
+async function toggleDemand(owner) {
+  const box = document.getElementById(`demand-${owner}`);
+  if (!box) return;
+  if (demandOpen.has(owner)) { demandOpen.delete(owner); box.hidden = true; return; }
+  demandOpen.add(owner);
+  box.hidden = false;
+  box.innerHTML = demandCache[owner] || '<div class="empty">불러오는 중…</div>';
+  try {
+    demandCache[owner] = demandHtml(await getJSON(`/api/demand/${owner}`));
+  } catch {
+    demandCache[owner] = '<div class="empty">소비 패턴을 불러오지 못했습니다</div>';
+  }
+  if (demandOpen.has(owner)) box.innerHTML = demandCache[owner];
+}
+
+function demandHtml(d) {
+  if (!d.skus.length) return '<div class="empty">최근 7일 판매 기록이 없습니다</div>';
+  const rows = d.skus.map((r) => {
+    const max = Math.max(...r.daily, 1);
+    const bars = r.daily.map((v, i) =>
+      `<i title="${d.days[i]} · ${v}개" class="${v ? "" : "zero"}" style="height:${Math.max(10, v / max * 100)}%"></i>`).join("");
+    const t = r.trendPct;
+    const badge = t == null ? '<span class="trend flat">첫 창</span>'
+      : t >= 15 ? `<span class="trend up">▲ ${t}%</span>`
+      : t <= -15 ? `<span class="trend down">▼ ${Math.abs(t)}%</span>`
+      : `<span class="trend flat">${t >= 0 ? "+" : ""}${t}%</span>`;
+    return `<div class="demand-row">
+      <span class="demand-name">${esc(r.name)}</span>
+      <span class="spark" role="img" aria-label="${esc(r.name)} 최근 7일 판매 ${r.total}개">${bars}</span>
+      <b class="demand-total">${r.total}<i>개/7일</i></b>${badge}</div>`;
+  }).join("");
+  return `<div class="demand-head">최근 7일 소비 (${d.days[0]}~${d.days[6]}) <i>추세는 직전 7일 대비 — 에이전트의 발주량 근거와 같은 원장</i></div>${rows}`;
+}
+
+function bindDemand(scope) {
+  scope.querySelectorAll("button[data-demand]").forEach((btn) => {
+    btn.addEventListener("click", (e) => { e.stopPropagation(); toggleDemand(btn.dataset.demand); });
+  });
+  // 다시 그려진 카드에 열림 상태 복원 (캐시 렌더 — 재조회 없음)
+  demandOpen.forEach((owner) => {
+    const box = scope.querySelector(`#demand-${CSS.escape(owner)}`);
+    if (box) { box.hidden = false; box.innerHTML = demandCache[owner] || ""; }
+  });
+}
+
 function renderStores(stores, targetId = "stores") {
   const el = $(targetId);
   if (!el) return;
@@ -103,7 +154,10 @@ function renderStores(stores, targetId = "stores") {
         <dt>정산 완료</dt><dd>${fmt(s.settledUsdc)}</dd>
         <dt>자동결제 한도</dt><dd>${fmt(s.autoPayLimit)}</dd>
       </dl>
+      <button class="daybtn demand-btn" data-demand="${esc(s.id)}" aria-expanded="${demandOpen.has(s.id)}">소비 패턴</button>
+      <div class="demand" id="demand-${esc(s.id)}" hidden></div>
     </article>`).join("");
+  bindDemand(el);
 }
 
 // ── 쪽 넘기기 ─────────────────────────────────────────────────────
@@ -1362,6 +1416,10 @@ $("switch-role")?.addEventListener("click", () => {
   role.clear();
   start();
 });
+
+// 본사 합산 소비 패턴 — 패널 헤드의 버튼은 카드 재렌더 밖이라 한 번만 묶는다
+document.querySelector('#p-stores button[data-demand="hq"]')
+  ?.addEventListener("click", () => toggleDemand("hq"));
 
 start();
 setInterval(refresh, 15000);

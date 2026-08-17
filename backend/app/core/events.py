@@ -71,6 +71,7 @@ ACTION_LABELS: dict[str, str] = {
     "card.settle_failed": "카드정산 지급 실패 (재시도 예정)",
     "warehouse.restocked": "본사 창고 재입고",
     "market.quote_purchased": "시세 데이터 구매 (pay.sh)",
+    "market.demand_purchased": "수요 지수 구매 (x402)",
     "tick.completed": "경제 루프 한 바퀴",
 }
 

@@ -6,7 +6,7 @@
   B지점 — 검수 불일치 → 차감 협상 → 조정 결제
   E(B⇄A) — 재고 소진 → 지점 간 직거래 협상 → 본사 승인 → B→A 온체인 결제
   D(A지점) — 발주 없는 품목 청구 → 결제 거부 → 사람 에스컬레이션
-  C지점 — 잔액 부족 → 유예 협상 → 예약 → 예약일 도래 시 실제 실행
+  C — 수요 파동 → 에이전트가 수요 지수를 사서(x402) 스스로 조달 (협상은 지갑 사정이 정한다)
 
 협상이 그래프 안의 루프가 아니라 **에이전트 사이의 왕복**인 이유: 실제 서비스에서
 두 에이전트는 다른 프로세스(나중엔 다른 회사)에 있다. 여기서는 오케스트레이터가
@@ -131,58 +131,38 @@ def simulate_card_settlement(store_id: str, invoice_amount: float) -> None:
         print(f"  {C['dim']}💳 카드정산금 {needed} USDC 입금 확인 (지점 지갑){C['0']}")
 
 
-def align_balance(store_id: str, operating_need: float) -> None:
-    """시나리오 전제가 되는 잔액으로 맞춘다 — 부족하면 채우고, 넘치면 덜어낸다.
-
-    채우기만 해서는 데모를 이어 돌릴 때 '잔액 부족' 전제가 깨진다. 앞 시나리오에서
-    남은 돈이 그대로 남아 전액을 내버리기 때문이다. 넘치는 분은 본사로 보내
-    '다른 운영비 지출'로 처리한다 — 실제 온체인 이동이라 장부도 어긋나지 않는다.
-    """
-    balance = payments.balance(store_id)
-    target = round(operating_need + policy_mod.get(store_id).min_reserve_usdc, 2)
-    diff = round(target - balance["usdc"], 2)
-    if abs(diff) < 0.01:
-        return
-    if diff > 0:
-        payments.pay("hq", balance["address"], diff, "CARD-SETTLEMENT")
-        print(f"  {C['dim']}💳 카드정산금 {diff} USDC 입금 확인 (지점 지갑){C['0']}")
-    else:
-        payments.pay(store_id, payments.balance("hq")["address"], -diff, "OPEX")
-        print(f"  {C['dim']}🧾 운영비 {-diff} USDC 지출 반영 (잔액 {target} USDC){C['0']}")
-
-
 async def scenario_c() -> None:
-    banner("C지점 (부산) — 잔액 부족, 유예 협상 → 예약 실행", "c")
-    # 운영자금 4.0 + 하한 = 어떤 정책값에서도 청구액 7.0을 못 내는 잔액.
-    # 지갑 잔액·정책이 어떻게 남아 있든(새 DB 포함) '잔액 부족' 전제를 성립시킨다.
-    align_balance("store-c", 4.0)
-    issued = await act("hq", "invoice.issue", "본사", "hq", delivery_id="DEL-003")
-    invoice_id = issued.get("invoice_id")
-    if not invoice_id:
-        return print("  청구서 발행 실패")
-
-    await act("store", "invoice.handle", "C지점", "c", store_id="store-c", invoice_id=invoice_id)
-    proposal = latest_event(db.list_events(), "proposal.deferral")
-    if not proposal:
-        return print(f"  {C['dim']}유예 제안이 나오지 않았습니다{C['0']}")
-
-    # 다회 왕복 협상 — 운영과 같은 경로(A2A message/send → 심사·재응수·종결)를 탄다
+    banner("수요 파동 — 소비가 늘면 에이전트가 미리 채운다", "c")
+    # 각본은 소비까지만 움직인다 (8/17 원칙) — 잔액·납품·협상은 조작하지 않는다.
+    # 손님이 몰린 것과 같은 원장 경로(sell)로 재고를 소진시키면, 에이전트가
+    # 수요 지수를 x402로 사서 조달 경로와 발주량을 스스로 정한다.
+    # 유예 협상이 나올지는 그날의 지갑 사정이 정한다 — 대본에 없다.
+    from app.agents import utils as agent_utils
     from app.core import economy
-    outcome = await economy._negotiate_deferral("store-c", invoice_id)
-    print(f"  {C['dim']}협상 결과: {outcome}{C['0']}")
 
-    # ── 예약일 도래 — 시간을 당겨 합의된 예약 납부를 실제로 실행한다 ──
-    invoice = db.get("invoices", invoice_id)
-    if invoice["status"] != "scheduled":
-        return
-    print(f"\n  {C['dim']}⏩ 금요일로 시간을 당깁니다 — 예약 실행 (운영에선 Cloud Scheduler → POST /api/schedules/{{id}}/run){C['0']}")
-    simulate_card_settlement("store-c", invoice["amount_usdc"])
-    paid = await act(
-        "store", "invoice.pay_scheduled", "C지점", "c",
-        store_id="store-c", invoice_id=invoice_id,
-    )
-    if paid.get("outcome") == "paid":
-        confirm_settlement(invoice_id)
+    wave = []
+    for store_id in ("store-b", "store-c"):
+        entry = agent_utils.effective_inventory(store_id).get("CHK-10")
+        if not entry or entry["qty"] <= 0:
+            continue
+        take = min(entry["qty"], max(entry["qty"] - entry["safety"] + 1, 1))
+        result = economy.sell(store_id, "CHK-10", take, "수요 파동 (소비 시뮬)")
+        if not result.get("error"):
+            wave.append(store_id)
+            print(f"  {C['dim']}🍗 {store_id} 냉장 닭 {take}개 판매 — 재고 원장 기록{C['0']}")
+    if not wave:
+        return print(f"  {C['dim']}소진시킬 재고가 없습니다 — 이번 판은 건너뜁니다{C['0']}")
+
+    # 진짜 틱 한 바퀴 — 운영과 완전히 같은 경로로 에이전트가 반응한다
+    before = len(db.list_docs("negotiations"))
+    result = await economy.tick()
+    for action in result.get("procurement") or []:
+        line = f"{action.get('store_id')} → {action.get('route')} · {action.get('status')}"
+        if action.get("refill_x") and action["refill_x"] != 2:
+            line += f" · 보충 배수 {action['refill_x']} (수요 추세 반영)"
+        print(f"  {C['dim']}📦 {line}{C['0']}")
+    for neg in db.list_docs("negotiations")[before:]:
+        print(f"  {C['dim']}🤝 [{neg['type']}] {neg['decision']} — {neg['reasoning'][:64]}{C['0']}")
 
 
 async def scenario_d() -> None:
@@ -193,39 +173,6 @@ async def scenario_d() -> None:
         return print("  청구서 발행 실패")
 
     await act("store", "invoice.handle", "A지점", "a", store_id="store-a", invoice_id=invoice_id)
-
-
-async def scenario_f() -> None:
-    banner("B지점 (홍대) — 전액 유예 불가 → 분할 역제안 → 합의 (멀티턴 협상)", "b")
-    align_balance("store-b", 5.0)  # 전액(8.5)은 부족, 1회차(4.25)는 가능한 구간으로
-    issued = await act("hq", "invoice.issue", "본사", "hq", delivery_id="DEL-005")
-    invoice_id = issued.get("invoice_id")
-    if not invoice_id:
-        return print("  청구서 발행 실패")
-
-    await act("store", "invoice.handle", "B지점", "b", store_id="store-b", invoice_id=invoice_id)
-    proposal = latest_event(db.list_events(), "proposal.deferral")
-    if not proposal or proposal.get("invoice_id") != invoice_id:
-        return print(f"  {C['dim']}유예 제안이 나오지 않았습니다{C['0']}")
-
-    # 다회 왕복 협상 — 심사(역제안) → 지점 재응수 → 종결까지 A2A로 오간다
-    from app.core import economy
-    outcome = await economy._negotiate_deferral("store-b", invoice_id)
-    print(f"  {C['dim']}협상 결과: {outcome}{C['0']}")
-    if outcome not in ("installments_agreed", "deferred"):
-        return print(f"  {C['dim']}합의 불발 — 사람 승인 큐에서 이어진다{C['0']}")
-    if db.get("invoices", invoice_id)["status"] != "split":
-        return  # 전액 유예 합의 — 분할 회차가 없다
-
-    # 합의 집행분 재확인 — 1회차는 지금, 2회차는 예약 (자식 ID는 -P{n}로 결정적)
-    part1, part2 = f"{invoice_id}-P1", f"{invoice_id}-P2"
-    paid = await act(
-        "store", "invoice.pay_installment", "B지점", "b",
-        store_id="store-b", invoice_id=part1,
-    )
-    if paid.get("outcome") == "paid":
-        confirm_settlement(part1)
-        print(f"  {C['dim']}🕐 2회차 {part2}는 예약 상태 — 예약 실행기(Cloud Scheduler 자리)가 처리한다{C['0']}")
 
 
 async def scenario_e() -> None:
@@ -304,7 +251,7 @@ def summary() -> None:
 
 async def main() -> None:
     parser = argparse.ArgumentParser(description="Solply 데모")
-    parser.add_argument("--only", choices=["a", "b", "c", "d", "e", "f"], help="한 시나리오만 실행")
+    parser.add_argument("--only", choices=["a", "b", "c", "d", "e"], help="한 시나리오만 실행")
     parser.add_argument("--keep", action="store_true", help="기존 상태를 유지")
     args = parser.parse_args()
 
@@ -331,9 +278,9 @@ async def main() -> None:
 
     scenarios = {
         "a": scenario_a, "b": scenario_b, "c": scenario_c,
-        "d": scenario_d, "e": scenario_e, "f": scenario_f,
+        "d": scenario_d, "e": scenario_e,
     }
-    for key in [args.only] if args.only else ["a", "b", "e", "d", "c", "f"]:
+    for key in [args.only] if args.only else ["a", "b", "e", "d", "c"]:
         try:
             await scenarios[key]()
         except Exception as exc:  # noqa: BLE001 — 하나가 죽어도 나머지는 계속

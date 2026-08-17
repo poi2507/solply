@@ -202,3 +202,72 @@ def _self_quote(sku: str, actor: str, buyer: str) -> dict | None:
         "order_id": order_id,
     })
     return doc
+
+
+# ── 수요 지수 — 팔기만 하던 상품을 에이전트가 되사 쓴다 ─────────────
+
+DEMAND = "demand_signals"
+
+
+def demand(sku: str, actor: str, buyer: str) -> dict | None:
+    """자기 수요 지수를 데이터 상점에서 산다 — 402 견적 → devnet 지불 → 인도.
+
+    체결가 지수(_self_quote)와 같은 계약이다: TTL 내 재사용, 어떤 실패도
+    조달을 멈추지 않는다. 다른 점은 내용물 — 가격이 아니라 소비 추세다.
+    이 문서는 발주량 배수(economy._refill_x)와 본사 창고 보충의 근거가 된다.
+    """
+    if not config.PAYSH_ENABLED:
+        return None
+    now = datetime.now(UTC)
+    cached = db.get(DEMAND, sku)
+    # 불완전한 문서(다른 경로가 만든 신호 캐시)는 만료로 취급하고 다시 산다
+    if cached and cached.get("fetched_at") and cached.get("summary"):
+        age = (now - datetime.fromisoformat(cached["fetched_at"])).total_seconds()
+        if age < config.PAYSH_QUOTE_TTL_S:
+            return cached
+
+    try:
+        base = config.SOLPLY_API_URL
+        challenge = httpx.get(f"{base}/x402/data/demand/{sku}", timeout=15)
+        if challenge.status_code != 402:
+            return cached
+        req = challenge.json()
+        accept = req["accepts"][0]
+        paid = payments.pay(buyer, accept["payTo"],
+                            protocol.from_atomic(accept["amount"]), accept["extra"]["memo"])
+        header = protocol.encode_header(
+            {"x402Version": protocol.X402_VERSION, "payload": {"signature": paid["signature"]}}
+        )
+        settled = httpx.post(f"{base}{req['resource']['url']}",
+                             headers={"PAYMENT-SIGNATURE": header}, timeout=30)
+        body = settled.json()
+        index = body.get("data") or {}
+        if settled.status_code != 200 or index.get("units_sold") is None:
+            print(f"[market] 수요 지수 구매 실패({settled.status_code}) — 직전 신호로 진행")
+            return cached
+        from app.core import stats
+        stats.add_quote_flow(buyer, protocol.from_atomic(accept["amount"]))
+    except Exception as exc:  # noqa: BLE001 — 수요 신호가 조달을 멈출 사유는 아니다
+        print(f"[market] 수요 지수 구매 불가 — 신호 없이 진행: {exc}")
+        return cached
+
+    trend = index.get("trend_pct")
+    doc = db.put(DEMAND, sku, {
+        "sku": sku,
+        "trend_pct": trend,
+        "daily_avg": index.get("daily_avg"),
+        "units_sold": index.get("units_sold"),
+        "summary": (
+            f"{sku} 최근 {index.get('window_days')}일 {index.get('units_sold')}개 판매"
+            + (f", 직전 창 대비 {trend:+.1f}%" if trend is not None else ", 첫 창 — 기준으로 기록")
+            + " (제공 Solply 수요 지수)"
+        ),
+        "receipt": {"reference": (body.get("receipt") or {}).get("transaction", ""),
+                    "explorer": (body.get("receipt") or {}).get("explorer", "")},
+        "fetched_at": now.isoformat(),
+    })
+    utils.log(actor, "market.demand_purchased", {
+        "sku": sku, "trend_pct": trend, "daily_avg": index.get("daily_avg"),
+        "paid_via": "x402 (수요 지수 · devnet)",
+    })
+    return doc

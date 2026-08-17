@@ -410,3 +410,23 @@ def test_dispute_sweep_skips_invoices_without_proposal(monkeypatch):
     asyncio.run(economy.settle_disputes())
 
     assert "INV-DISPUTE-2" not in called
+
+
+# ── 수요 추세 → 발주량 (8/17: 소비 패턴이 판단 재료가 된다) ──────────
+
+def test_refill_x_follows_purchased_demand_signal():
+    """구매한 수요 지수의 추세가 보충 배수를 밴드 안에서만 움직인다."""
+    from app.db import store as db
+
+    db.put("demand_signals", "TEST-SKU", {"sku": "TEST-SKU", "trend_pct": 40.0})
+    assert economy._refill_x("TEST-SKU") == 2.8, "추세 +40% → 배수 2.8"
+
+    db.put("demand_signals", "TEST-SKU", {"sku": "TEST-SKU", "trend_pct": 300.0})
+    assert economy._refill_x("TEST-SKU") == 3.0, "폭등해도 밴드 상한(×3)에서 멈춘다"
+
+    db.put("demand_signals", "TEST-SKU", {"sku": "TEST-SKU", "trend_pct": -90.0})
+    assert economy._refill_x("TEST-SKU") == 1.5, "폭락해도 밴드 하한(×1.5)에서 멈춘다"
+
+    db.put("demand_signals", "TEST-SKU", {"sku": "TEST-SKU", "trend_pct": None})
+    assert economy._refill_x("TEST-SKU") == 2, "신호가 없으면 기본 배수"
+    assert economy._refill_x("SKU-NEVER-BOUGHT") == 2, "지수를 산 적 없으면 기본 배수"
