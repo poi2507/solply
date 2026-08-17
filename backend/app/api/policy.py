@@ -4,9 +4,10 @@
 개발자가 아니라 점주·정산담당자가 정한다. 저장된 값은 프롬프트의 POLICY 섹션으로 주입된다.
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from app.api import guard
 from app.core import fixtures
 from app.core import policy as policy_mod
 from app.db import store
@@ -42,7 +43,7 @@ def get_policy(owner_id: str) -> dict:
     return {"ownerId": owner_id, "fields": policy_mod.describe(owner_id)}
 
 
-@router.put("/{owner_id}")
+@router.put("/{owner_id}", dependencies=[Depends(guard.require_admin)])
 def update_policy(owner_id: str, patch: PolicyPatch) -> dict:
     """설정 저장. 다음 에이전트 실행부터 즉시 적용된다.
 

@@ -63,8 +63,11 @@ async def send(agent_id: str, intent: str, **kwargs: Any) -> dict:
             }
         },
     }
+    # 같은 조직의 자기 호출이라 운영 토큰을 함께 싣는다 — 완전판(별도 회사)에서는
+    # 이 자리가 상호 IAM(ID 토큰) 인증으로 바뀐다.
+    headers = {"X-Admin-Token": config.ADMIN_TOKEN} if config.ADMIN_TOKEN else {}
     async with httpx.AsyncClient(transport=_TRANSPORT, timeout=_TIMEOUT_S) as client:
-        resp = await client.post(f"{_base(agent_id)}/a2a/{agent_id}", json=request)
+        resp = await client.post(f"{_base(agent_id)}/a2a/{agent_id}", json=request, headers=headers)
     resp.raise_for_status()
     body = resp.json()
     if "error" in body:

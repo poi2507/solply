@@ -4,7 +4,17 @@
 // 주체 선택(로그인)은 role.js가 전역으로 관리한다. 여기서는 넘겨받은 owner의 폼만 그린다.
 
 async function api(path, options) {
-  const res = await fetch(path, options);
+  const token = localStorage.getItem("solply.adminToken");
+  if (options && token) options.headers = { ...(options.headers || {}), "X-Admin-Token": token };
+  let res = await fetch(path, options);
+  if (res.status === 401 && options) {
+    const entered = prompt("관리 토큰을 입력하세요 (운영자 전용)");
+    if (entered) {
+      localStorage.setItem("solply.adminToken", entered.trim());
+      options.headers = { ...(options.headers || {}), "X-Admin-Token": entered.trim() };
+      res = await fetch(path, options);
+    }
+  }
   if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail ?? res.statusText);
   return res.json();
 }

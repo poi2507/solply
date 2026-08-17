@@ -6,11 +6,12 @@
 방문자는 구경꾼이 아니라 이 경제의 수요가 된다.
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from app import config
 from app.agents import utils
+from app.api import guard
 from app.core import economy, fixtures, stats
 from app.solana import payments
 
@@ -54,7 +55,9 @@ class Purchase(BaseModel):
 
 
 @router.post("/purchase")
-def purchase(body: Purchase) -> dict:
+def purchase(body: Purchase, request: Request) -> dict:
+    # 남용 감속이 맨 앞이다 — 무거운 일(온체인 결제) 전에 끊어야 의미가 있다
+    guard.rate_limit(request, "shop")
     if body.store_id not in fixtures.load()["stores"]:
         raise HTTPException(404, f"없는 지점: {body.store_id}")
 

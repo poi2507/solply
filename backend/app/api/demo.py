@@ -5,10 +5,11 @@
 리허설과 데모데이에서 3시간 스케줄을 기다리지 않기 위한 장치다.
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from app.a2a import client as a2a
 from app.agents.hq import tools as hq_tools
+from app.api import guard
 from app.core import economy, fixtures
 from app.core import policy as policy_mod
 from app.db import store as db
@@ -17,7 +18,7 @@ from app.solana import payments
 router = APIRouter(prefix="/api/demo", tags=["demo"])
 
 
-@router.post("/negotiate")
+@router.post("/negotiate", dependencies=[Depends(guard.require_admin)])
 async def replay_negotiation(store_id: str | None = None) -> dict:
     """협상 한 판을 그 자리에서 발화시킨다.
 

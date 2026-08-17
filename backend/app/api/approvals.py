@@ -8,10 +8,11 @@
 사람의 개입은 전부 실행 증빙(actor=human)으로 남는다.
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.a2a import client as a2a
+from app.api import guard
 from app.db import store
 
 router = APIRouter(prefix="/api/approvals", tags=["approvals"])
@@ -31,7 +32,7 @@ def list_pending() -> dict:
     return {"pending": sorted(docs, key=lambda d: d.get("updated_at", ""))}
 
 
-@router.post("/{invoice_id}/decide")
+@router.post("/{invoice_id}/decide", dependencies=[Depends(guard.require_admin)])
 async def decide(invoice_id: str, body: Decision) -> dict:
     invoice = store.get("invoices", invoice_id)
     if not invoice:

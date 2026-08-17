@@ -11,9 +11,10 @@
 import asyncio
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from app import config
+from app.api import guard
 from app.core import economy
 from app.db import store
 
@@ -22,7 +23,7 @@ router = APIRouter(prefix="/api/ticks", tags=["ticks"])
 LOCK_TTL_S = 540  # 스케줄러 attempt deadline과 동일 — 이보다 오래 걸린 틱은 죽은 것
 
 
-@router.post("/run")
+@router.post("/run", dependencies=[Depends(guard.require_admin)])
 async def run_tick() -> dict:
     if not config.TICK_ENABLED:
         raise HTTPException(409, "경제 루프가 꺼져 있습니다 (TICK_ENABLED=0)")

@@ -30,6 +30,9 @@ from urllib.parse import urlparse as _urlparse
 
 PASSKEY_RP_ID = os.getenv("PASSKEY_RP_ID", _urlparse(SOLPLY_API_URL).hostname or "localhost")
 
+# 쓰기 보호 — 상태를 바꾸는 API의 관리 토큰. 비어 있으면(로컬·테스트) 잠그지 않는다.
+ADMIN_TOKEN = os.getenv("SOLPLY_ADMIN_TOKEN", "")
+
 A2A_HQ_URL = os.getenv("A2A_HQ_URL", SOLPLY_API_URL)
 A2A_STORE_URL = os.getenv("A2A_STORE_URL", SOLPLY_API_URL)
 

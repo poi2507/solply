@@ -11,7 +11,7 @@ FIDO 검증 서버 구축)은 비용·진입장벽이 크다. 패스키는 스�
 
 import base64
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from webauthn import (
     generate_authentication_options,
@@ -23,6 +23,7 @@ from webauthn import (
 from webauthn.helpers.structs import PublicKeyCredentialDescriptor
 
 from app import config
+from app.api import guard
 from app.db import store
 
 router = APIRouter(prefix="/api/auth/passkey", tags=["auth"])
@@ -56,7 +57,7 @@ def _doc(role: str) -> dict:
     return store.get("passkeys", role) or {"credentials": [], "challenge": None}
 
 
-@router.post("/register/options")
+@router.post("/register/options", dependencies=[Depends(guard.require_admin)])
 def register_options(body: RoleBody) -> dict:
     options = generate_registration_options(
         rp_id=config.PASSKEY_RP_ID,
@@ -73,7 +74,7 @@ def register_options(body: RoleBody) -> dict:
     return json.loads(options_to_json(options))
 
 
-@router.post("/register/verify")
+@router.post("/register/verify", dependencies=[Depends(guard.require_admin)])
 def register_verify(body: CredentialBody) -> dict:
     doc = _doc(body.role)
     if not doc.get("challenge"):
@@ -101,7 +102,7 @@ def register_verify(body: CredentialBody) -> dict:
     return {"ok": True}
 
 
-@router.delete("/{role}")
+@router.delete("/{role}", dependencies=[Depends(guard.require_admin)])
 def reset(role: str) -> dict:
     """역할의 패스키 초기화 — 리허설에서 기기를 바꾸거나 테스트 흔적을 지울 때."""
     store.put("passkeys", role, {"credentials": [], "challenge": None})

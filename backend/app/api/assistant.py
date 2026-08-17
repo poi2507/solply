@@ -1,9 +1,10 @@
 """정산 어시스턴트 API — 대시보드 채팅 패널의 백엔드."""
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app import config
+from app.api import guard
 from app.assistant import agent as assistant
 
 router = APIRouter(prefix="/api/assistant", tags=["assistant"])
@@ -14,7 +15,7 @@ class ChatIn(BaseModel):
     session_id: str = "dashboard"
 
 
-@router.post("/chat")
+@router.post("/chat", dependencies=[Depends(guard.require_admin)])
 async def chat(body: ChatIn) -> dict:
     """한 턴 대화. 어시스턴트는 LLM 그 자체라 mock 모드에서는 동작하지 않는다."""
     if config.LLM_PROVIDER == "mock":

@@ -13,3 +13,13 @@ import pytest
 @pytest.fixture(autouse=True)
 def _judgment_is_deterministic(monkeypatch):
     monkeypatch.setattr("app.llm.factory.is_mock", lambda: True)
+
+
+@pytest.fixture(autouse=True)
+def _fresh_rate_buckets():
+    """횟수 제한 버킷을 테스트마다 비운다 — 테스트끼리 창을 공유하면 순서에 따라 429가 샌다."""
+    from app.api import guard
+
+    guard._BUCKETS.clear()
+    yield
+    guard._BUCKETS.clear()

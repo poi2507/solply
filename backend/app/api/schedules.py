@@ -8,10 +8,11 @@
 직접 실행한다.
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.a2a import client as a2a
+from app.api import guard
 from app.core import policy as policy_mod
 from app.db import store
 from app.solana import payments
@@ -42,7 +43,7 @@ def list_scheduled() -> dict:
     return {"scheduled": sorted(docs, key=lambda d: d.get("updated_at", ""))}
 
 
-@router.post("/{invoice_id}/run")
+@router.post("/{invoice_id}/run", dependencies=[Depends(guard.require_admin)])
 async def run_scheduled(invoice_id: str, options: RunOptions | None = None) -> dict:
     """예약 납부를 지금 실행한다 (데모: 시간 당김 / 운영: Cloud Scheduler)."""
     invoice = store.get("invoices", invoice_id)

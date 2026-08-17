@@ -10,11 +10,12 @@
 import asyncio
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 
 from app.a2a import card
 from app.agents import runner, utils
+from app.api import guard
 
 router = APIRouter(prefix="/a2a", tags=["a2a"])
 
@@ -42,7 +43,7 @@ def agent_card(agent_id: str) -> dict:
     return card.build(agent_id)
 
 
-@router.post("/{agent_id}")
+@router.post("/{agent_id}", dependencies=[Depends(guard.require_admin)])
 async def message_send(agent_id: str, body: dict) -> JSONResponse:
     """JSON-RPC message/send 한 통 = 그래프 한 판."""
     agents = card.known_agents()

@@ -54,6 +54,27 @@ const clock = (iso) => {
 const hhmm = (iso) => clock(iso).slice(0, 5);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
+// 쓰기 보호 — 상태를 바꾸는 요청에 관리 토큰을 싣는다. 401이면 한 번 물어 저장.
+// 심사위원은 구경(읽기)과 /shop 구매만 하므로 이 토큰을 만날 일이 없다.
+function adminHeaders() {
+  const t = localStorage.getItem("solply.adminToken");
+  return t ? { "X-Admin-Token": t } : {};
+}
+
+async function writeFetch(url, options = {}) {
+  const opts = { ...options, headers: { ...(options.headers || {}), ...adminHeaders() } };
+  let res = await fetch(url, opts);
+  if (res.status === 401) {
+    const token = prompt("관리 토큰을 입력하세요 (운영자 전용)");
+    if (token) {
+      localStorage.setItem("solply.adminToken", token.trim());
+      opts.headers["X-Admin-Token"] = token.trim();
+      res = await fetch(url, opts);
+    }
+  }
+  return res;
+}
+
 async function getJSON(url) {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`${url} → ${res.status}`);
@@ -666,7 +687,7 @@ function renderSchedules(invoices) {
       btn.disabled = true;
       btn.textContent = "실행 중…";
       try {
-        await fetch(`/api/schedules/${btn.dataset.run}/run`, {
+        await writeFetch(`/api/schedules/${btn.dataset.run}/run`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ simulate_inflow: true }),  // 데모: 예약일의 입금까지 시간을 당긴다
@@ -713,7 +734,7 @@ function renderApprovals(invoices) {
     btn.addEventListener("click", async () => {
       btn.disabled = true;
       try {
-        await fetch(`/api/approvals/${btn.dataset.id}/decide`, {
+        await writeFetch(`/api/approvals/${btn.dataset.id}/decide`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ decision: btn.dataset.decision }),
@@ -777,7 +798,7 @@ async function stageCall(btn, url, runningText) {
   const original = btn.textContent;
   btn.textContent = runningText;
   try {
-    const res = await fetch(url, { method: "POST" });
+    const res = await writeFetch(url, { method: "POST" });
     const body = await res.json().catch(() => ({}));
     out.textContent = res.ok
       ? `완료 — ${body.invoice_id ? `${body.invoice_id} → ${body.outcome}` : "틱 실행됨"} (협상 기록에 표시)`
@@ -914,7 +935,7 @@ if (chatForm) {
     append(message, "user");
     const waiting = append("…", "bot");
     try {
-      const res = await fetch("/api/assistant/chat", {
+      const res = await writeFetch("/api/assistant/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message }),
@@ -1245,7 +1266,7 @@ function credentialJSON(cred) {
 }
 
 async function postJSON(url, body) {
-  const res = await fetch(url, {
+  const res = await writeFetch(url, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
