@@ -443,3 +443,12 @@ def test_demand_trend_reads_own_ledger_only():
     # 재고 원복 — 다른 테스트의 잉여 전제 보존
     utils.record_move("store-b", "VEG-05", "모둠 야채 5kg", 4, "restocked", "TEST-TREND-B-R")
     utils.record_move("store-a", "VEG-05", "모둠 야채 5kg", 9, "restocked", "TEST-TREND-A-R")
+
+
+def test_demand_scenario_boosts_sale_weights():
+    """소비 패턴 각본 — 배수가 판매 확률을 밴드 안에서만 움직인다."""
+    entry = {"qty": 3, "safety": 4}
+    assert economy.sale_weights(entry) == (60, 32, 8), "평상시"
+    assert economy.sale_weights(entry, 1.5) == (40, 32, 12), "성수기 — 더 잘 팔린다"
+    assert economy.sale_weights(entry, 0.7) == (86, 32, 6), "비수기 — 덜 팔린다"
+    assert economy.sale_weights(entry, 99) == economy.sale_weights(entry, 2.0), "밴드 상한"

@@ -141,11 +141,17 @@ def sell(store_id: str, sku: str, qty: int, note: str) -> dict:
             "remaining": result["remaining"], "revenue": revenue}
 
 
-def sale_weights(entry: dict) -> tuple[int, int, int]:
-    """0·1·2개가 팔릴 가중치. 과잉 재고는 더 팔린다 (프로모션·밀어내기)."""
+def sale_weights(entry: dict, boost: float = 1.0) -> tuple[int, int, int]:
+    """0·1·2개가 팔릴 가중치. 과잉 재고는 더 팔린다 (프로모션·밀어내기).
+
+    boost는 소비 패턴 각본(fixtures demand_scenario)의 품목별 수요 배수다 —
+    각본은 소비까지만 움직인다는 원칙(8/17)의 구현체. 1보다 크면 안 팔릴
+    확률이 줄고 2개 팔릴 확률이 늘어난다. 밴드 [0.5, 2.0]로 자른다.
+    """
+    b = max(0.5, min(2.0, float(boost)))
     if entry["qty"] >= max(1, entry["safety"]) * OVERSTOCK_X:
-        return (20, 40, 40)
-    return (60, 32, 8)
+        return (round(20 / b), 40, round(40 * b))
+    return (round(60 / b), 32, round(8 * b))
 
 
 def run_sales(rng: random.Random) -> list[dict]:
@@ -167,12 +173,16 @@ def run_sales(rng: random.Random) -> list[dict]:
     offsets = db.get("stats", offset_key) or {}
     offset_dirty = False
 
+    scenario = fixtures.load().get("demand_scenario", {})
     sold = []
     for store_id in fixtures.load()["stores"]:
         for sku, entry in utils.effective_inventory(store_id).items():
             if entry["qty"] <= 0:
                 continue
-            qty = min(entry["qty"], rng.choices((0, 1, 2), weights=sale_weights(entry))[0])
+            boost = scenario.get(sku, 1.0)
+            if not isinstance(boost, (int, float)):  # _comment 같은 설명 필드 무시
+                boost = 1.0
+            qty = min(entry["qty"], rng.choices((0, 1, 2), weights=sale_weights(entry, boost))[0])
             if qty <= 0:
                 continue
             key = f"{store_id}:{sku}"
