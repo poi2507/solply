@@ -752,3 +752,29 @@ td .empty, td.empty { text-align: center; }
 .policy { padding-bottom: 56px; }             /* 어시스턴트 플로팅 버튼이 입력을 가리지 않게 */
 .save.dirty { background: var(--warn-vivid); color: #201400; }
 @media (max-width: 720px) { #policy-form { grid-template-columns: 1fr; } }
+
+/* ── 문장 필드: 미리보기 카드 + 편집 모달 (8/18) ── */
+.p-badge { font-style: normal; font-size: 10.5px; font-weight: 700; color: var(--accent);
+  background: var(--accent-quiet); border-radius: 4px; padding: 1px 7px; margin-left: 7px;
+  vertical-align: 1px; }
+.p-preview { display: block; width: 100%; text-align: left; cursor: pointer; font: inherit;
+  margin-top: 8px; padding: 11px 13px; border: 1px solid var(--line); border-radius: 9px;
+  background: var(--raise); color: var(--ink-2); position: relative; }
+.p-preview:hover { border-color: var(--accent); }
+.p-preview:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.p-text { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+  overflow: hidden; font-size: 12.5px; line-height: 1.65; }
+.p-open { display: block; margin-top: 7px; font-size: 11.5px; font-weight: 700; color: var(--accent); }
+
+.modal.pm { max-width: 640px; }
+.pm-body { white-space: normal; display: flex; flex-direction: column; gap: 10px; }
+.pm-help { margin: 0; font-size: 12px; color: var(--ink-3); line-height: 1.6; }
+.pm-text { width: 100%; min-height: 220px; resize: vertical; font: inherit; font-size: 13.5px;
+  line-height: 1.75; padding: 12px 14px; border: 1px solid var(--line); border-radius: 9px;
+  background: #fff; color: var(--ink); }
+.pm-text:focus { outline: none; border-color: var(--accent); }
+.pm-foot { display: flex; align-items: center; gap: 12px; }
+.pm-count { font-family: var(--mono); font-size: 11px; color: var(--ink-3);
+  font-variant-numeric: tabular-nums; }
+.pm-note { flex: 1; }
+.pm-foot .save { margin-left: auto; }
