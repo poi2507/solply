@@ -741,3 +741,14 @@ td .empty, td.empty { text-align: center; }
 .trend.up { color: var(--warn); background: rgba(255, 176, 32, .12); }
 .trend.down { color: var(--ink-3); background: var(--line-soft); }
 .trend.flat { color: var(--ink-3); }
+
+/* ── 정책 폼 압축 (8/18: 페르소나 UI 불편 개선) ──
+   숫자 필드는 2열로 접어 폼 길이를 절반으로, 문장 필드(기조·전략)는 전폭 + 맨 위. */
+#policy-form { display: grid; grid-template-columns: 1fr 1fr; column-gap: 18px; }
+#policy-form .field.wide, #policy-form .policy-actions { grid-column: 1 / -1; }
+#policy-form .field { padding: 11px 0; }
+#policy-form .f-help { min-height: 2.9em; }  /* 도움말 줄수 차이로 입력 줄이 안 어긋나게 */
+.field.wide .f-text { min-height: 92px; }
+.policy { padding-bottom: 56px; }             /* 어시스턴트 플로팅 버튼이 입력을 가리지 않게 */
+.save.dirty { background: var(--warn-vivid); color: #201400; }
+@media (max-width: 720px) { #policy-form { grid-template-columns: 1fr; } }

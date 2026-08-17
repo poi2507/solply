@@ -23,7 +23,9 @@ async function api(path, options) {
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 async function renderForm(host, ownerId) {
-  const { fields } = await api(`/api/policy/${ownerId}`);
+  const { fields: raw } = await api(`/api/policy/${ownerId}`);
+  // 성격(문장)이 먼저, 경계(숫자)가 뒤 — 시연·일상 모두 자주 만지는 건 문장이다
+  const fields = [...raw.filter((f) => f.type === "text"), ...raw.filter((f) => f.type !== "text")];
 
   host.innerHTML = `
     <div class="policy">
@@ -62,10 +64,16 @@ async function renderForm(host, ownerId) {
       area.value = btn.dataset.text;
       host.querySelectorAll(`.preset[data-key="${btn.dataset.key}"]`).forEach((b) =>
         b.classList.toggle("on", b === btn));
+      host.querySelector(".save").classList.add("dirty");
+      host.querySelector(".save").textContent = "저장 (변경됨)";
       area.focus();
     });
   });
+  // 무엇이든 고치면 저장 버튼이 "저장 필요" 상태로 바뀐다 — 바꿔놓고 안 누르는 실수 방지
+  const saveBtn = host.querySelector(".save");
   host.querySelector("#policy-form")?.addEventListener("input", (e) => {
+    saveBtn.classList.add("dirty");
+    saveBtn.textContent = "저장 (변경됨)";
     if (e.target.matches(".f-text")) {
       host.querySelectorAll(`.preset[data-key="${e.target.name}"]`).forEach((b) =>
         b.classList.toggle("on", b.dataset.text === e.target.value));
@@ -86,6 +94,8 @@ async function renderForm(host, ownerId) {
       });
       note.textContent = "저장됐습니다. 다음 판단부터 적용됩니다.";
       note.className = "saved ok";
+      saveBtn.classList.remove("dirty");
+      saveBtn.textContent = "저장";
     } catch (err) {
       note.textContent = err.message;
       note.className = "saved err";
