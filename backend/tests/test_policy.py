@@ -142,3 +142,20 @@ def test_adjustment_accepted_when_evidence_matches():
     facts = {"deduction_usdc": 2.5, "verified_over_billed": 2.5, "detail": "닭 10→9"}
     verdict = rules.review_adjustment(facts, {"auto_adjust_limit_usdc": 20})
     assert verdict["decision"] == "accept" and "2.5" in verdict["reasoning"]
+
+
+def test_hq_persona_is_editable_and_reaches_the_prompt():
+    """본사 심사 기조 — 지점 persona의 본사판. 설정 화면에 보이고 프롬프트에 실린다."""
+    field = next(f for f in policy_mod.describe("hq") if f["key"] == "persona")
+    assert field["type"] == "text" and field["presets"], "프리셋과 함께 노출"
+    assert field["value"], "비어 있어도 기본 기조가 보인다"
+
+    policy_mod.save("hq", {"persona": "이번 분기는 현금 확보 우선 — 유예엔 보수적으로"})
+    assert "현금 확보" in policy_mod.get("hq").as_prompt_values()["persona"]
+
+    from app.agents import prompts
+    rendered = prompts.system("hq", **policy_mod.get("hq").as_prompt_values(),
+                              auto_adjust_limit_usdc=4.0)
+    assert "현금 확보" in rendered, "심사 시스템 프롬프트에 기조가 주입된다"
+
+    policy_mod.save("hq", {"persona": ""})  # 원복 — 다른 테스트의 전제 보존

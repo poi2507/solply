@@ -13,7 +13,8 @@ ITEMS = [
 
 STORE_VALUES = {"store_id": "store-a", "auto_pay_limit_usdc": "50", "min_reserve_usdc": "10",
                 "persona": "테스트 지점 사정"}
-HQ_VALUES = {"min_credit_score": 85, "defer_max_pct": "20", "installment_max": 2}
+HQ_VALUES = {"min_credit_score": 85, "defer_max_pct": "20", "installment_max": 2,
+             "persona": "특별한 기조 없이 정책 기준대로 심사한다."}
 
 
 # ── 순수 계산 ─────────────────────────────────────────────────────────

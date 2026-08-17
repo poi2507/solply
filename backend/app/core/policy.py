@@ -74,6 +74,10 @@ class HQPolicy:
     # (8/11 라이브: 총량 400 중 본사 5.0까지 고갈, 카드정산 정지). 25%를 원천징수하면
     # 본사 순유출이 매출의 1.25%로 줄고 지점은 소폭 흑자를 유지한다.
     royalty_pct: float = 25.0
+    # 심사 기조 — 정산 담당자가 문장으로 쓰는 경영 방침. 숫자 한도가 강제하는
+    # 경계 "안"의 재량을 이 문장이 조종한다 (지점 persona의 본사판, 8/18).
+    # 부등호로 표현할 수 없는 재료라 LLM 심사에만 실린다.
+    persona: str = ""
     # 데이터 상품(체결가 지수·수요 지수) 판매 단가 — 본사의 세 번째 매출원
     data_price_usdc: float = 0.1
 
@@ -84,6 +88,8 @@ class HQPolicy:
             "min_credit_score": self.min_credit_score,
             "defer_max_pct": _num(self.defer_max_pct),
             "installment_max": self.installment_max,
+            "persona": (self.persona.strip()
+                        or "특별한 기조 없이 정책 기준대로 심사한다."),
         }
 
 
@@ -153,9 +159,23 @@ PERSONA_PRESETS = [
 ]
 
 
+HQ_PERSONA_PRESETS = [
+    {"label": "원칙 준수",
+     "text": "특별한 기조 없이 정책 기준대로 심사한다. 근거가 수치로 제시된 제안만 받아들인다."},
+    {"label": "현금 확보 우선",
+     "text": ("이번 분기는 본사 현금 확보가 우선이다. 전액 유예보다 분할·선납을 유도하고, "
+              "회수 일정이 구체적이지 않은 유예 요청에는 보수적으로 판단한다. "
+              "직거래는 본사 매출을 대체하지 않는 소액 건 위주로 승인한다.")},
+    {"label": "가맹점 상생",
+     "text": ("지점의 현금 사정을 넉넉히 봐준다. 납부 의지와 회수 일정이 보이면 유예를 "
+              "너그럽게 수락하고, 신용 이력이 짧은 지점의 첫 연체는 관대하게 본다. "
+              "직거래는 지점 간 상생이므로 적극 승인한다.")},
+]
+
+
 def _validate(policy: StorePolicy | HQPolicy) -> None:
-    if isinstance(policy, StorePolicy) and len(policy.persona) > MAX_PERSONA_CHARS:
-        raise ValueError(f"협상 전략은 {MAX_PERSONA_CHARS}자 이내로 적어 주세요")
+    if len(policy.persona) > MAX_PERSONA_CHARS:
+        raise ValueError(f"협상 전략·심사 기조는 {MAX_PERSONA_CHARS}자 이내로 적어 주세요")
     if isinstance(policy, StorePolicy):
         if policy.auto_pay_limit_usdc <= 0:
             raise ValueError("자동결제 상한은 0보다 커야 합니다")
@@ -204,6 +224,11 @@ def describe(owner_id: str) -> list[dict[str, Any]]:
             ("royalty_pct", "카드정산 로열티", "카드매출 정산 때 공제하는 비율 — 마진으로 새는 본사 유동성을 환류시킵니다", "%", 0, 50),
             ("data_price_usdc", "데이터 판매 단가", "체결가·수요 지수 1건 조회 가격 (x402)", "USDC", 0, 10),
         ]
+        text_spec += [
+            ("persona", "심사 기조",
+             ("본사 에이전트가 심사(차감·유예·직거래)에서 따르는 경영 방침입니다. "
+              "숫자 한도는 위 항목이 강제하고, 이 문장은 한도 안의 재량을 조종합니다.")),
+        ]
     current = asdict(policy)
     fields = [
         {"key": k, "label": label, "help": help_, "unit": unit,
@@ -213,7 +238,8 @@ def describe(owner_id: str) -> list[dict[str, Any]]:
     fields += [
         {"key": k, "label": label, "help": help_, "type": "text",
          "value": current[k] or policy.as_prompt_values().get(k, ""),
-         "maxlength": MAX_PERSONA_CHARS, "presets": PERSONA_PRESETS}
+         "maxlength": MAX_PERSONA_CHARS,
+         "presets": PERSONA_PRESETS if isinstance(policy, StorePolicy) else HQ_PERSONA_PRESETS}
         for k, label, help_ in text_spec
     ]
     return fields
