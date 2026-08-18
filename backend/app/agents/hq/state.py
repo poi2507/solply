@@ -14,3 +14,5 @@ class HQState(BaseState, total=False):
     decision: dict[str, Any]        # 협상 심사 결과 {decision, reasoning, kind, …}
     trade_id: str                   # 심사·기록할 지점 간 직거래 건
     trade: dict[str, Any]
+    # 협상 기록 문서 — 스키마에 없는 키는 LangGraph가 버려 A2A 응답에서 사라진다
+    proposal: dict[str, Any]

@@ -15,6 +15,9 @@ class StoreState(BaseState, total=False):
     x402_terms: list[dict]          # 402 챌린지의 accepts[] — 본사가 제시한 결제 조건들
     cashflow: dict[str, Any]        # 지불 여력 {sufficient, keeps_reserve, within_auto_limit, …}
     proposal: dict[str, Any]        # 본사에 낸 협상 제안
+    # 지점의 판단 결과 {decision, reasoning, kind} — 스키마에 없는 키는 LangGraph가
+    # 조용히 버려서 A2A 응답에서 사라진다 (8/18 라이브: 중개 수락이 거절로 오판됨)
+    decision: dict[str, Any]
 
     # 지점 간 직거래 (P2P)
     trade_id: str

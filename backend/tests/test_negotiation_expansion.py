@@ -49,3 +49,20 @@ def test_buyer_price_fallback_rejects_above_hq():
     assert over["decision"] == "hq"
     ok = rules.decide_p2p_price({"counter_unit_usdc": 0.5, "hq_unit_price_usdc": 0.5}, {})
     assert ok["decision"] == "accept"
+
+
+# ── A2A 응답 계약 — 그래프 상태 스키마에 없는 키는 조용히 사라진다 ────
+
+def test_reply_keys_declared_in_state_schemas():
+    """REPLY_KEYS의 키가 상태 스키마에 없으면 LangGraph가 버려서 응답이 빈다.
+
+    8/18 라이브 실측: StoreState에 decision이 없어 중개 '수락'이 응답에서
+    사라졌고, 오케스트레이터가 거절로 오판해 거래가 proposed에 멈췄다.
+    """
+    from app.a2a.server import REPLY_KEYS
+    from app.agents.hq.state import HQState
+    from app.agents.store.state import StoreState
+
+    for schema in (HQState, StoreState):
+        missing = set(REPLY_KEYS) - set(schema.__annotations__)
+        assert not missing, f"{schema.__name__}에 없는 REPLY_KEYS: {missing}"
