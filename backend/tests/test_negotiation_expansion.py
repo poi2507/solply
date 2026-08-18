@@ -75,3 +75,20 @@ def test_order_adjust_needs_no_invoice():
 
     ctx = node.load_context({"store_id": "store-b", "intent": "order.adjust", "payload": {}})
     assert ctx.get("outcome") != "noop"
+
+
+# ── 성과 연동 로열티 — 판매가 지갑으로 이어지는 고리 (8/19) ──────────
+
+def test_royalty_reward_scales_with_sales_index():
+    assert utils.royalty_discount_pp(0.8, 10) == 0        # 평균 이하 — 보상 없음
+    assert utils.royalty_discount_pp(1.0, 10) == 0        # 정확히 평균 — 0
+    assert utils.royalty_discount_pp(1.5, 10) == 5.0      # 평균 +50% — 절반
+    assert utils.royalty_discount_pp(2.0, 10) == 10.0     # 평균 2배 — 상한
+    assert utils.royalty_discount_pp(9.9, 10) == 10.0     # 그 이상도 상한 고정
+    assert utils.royalty_discount_pp(2.0, 0) == 0         # 폭 0이면 꺼짐
+
+
+def test_royalty_reward_policy_bounds():
+    from app.core.policy import HQPolicy
+    assert 0 <= HQPolicy.royalty_reward_pct <= HQPolicy.royalty_pct, \
+        "보상 폭이 로열티를 넘으면 요율이 음수가 된다"

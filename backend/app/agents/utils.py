@@ -172,6 +172,28 @@ def price_counter_unit(unit: float, hq_unit: float, bump_pct: float = 10.0) -> f
     return ceiling if ceiling > unit + 1e-9 else None
 
 
+def weekly_sales_qty(store_id: str, days: int = 7) -> int:
+    """최근 N일 전 품목 판매 수량 합 — 성과 보상(로열티 인하)의 기준."""
+    from app.core import kst
+
+    total = 0
+    for i in range(days):
+        d = kst.shift(kst.today(), -i)
+        for m in store.list_docs("inventory_moves", day=d, reason="sold", store_id=store_id):
+            total += abs(int(m.get("qty", 0)))
+    return total
+
+
+def royalty_discount_pp(sales_index: float, cap_pp: float) -> float:
+    """성과 연동 로열티 인하 폭(%p) — 판매가 전 지점 평균을 넘는 비율에 비례.
+
+    평균(지수 1.0) 이하는 0, 평균의 2배(지수 2.0)에서 상한(cap_pp). 많이 파는
+    지점일수록 로열티를 덜 떼여 순마진이 커진다 — 성과와 지갑을 잇는 고리.
+    상한이 있어 본사 로열티 수입이 바닥나지 않는다 (폐쇄 풀 보호).
+    """
+    return round(min(cap_pp, max(0.0, (sales_index - 1.0) * cap_pp)), 2)
+
+
 def demand_trend(store_id: str, sku: str, window_days: int = 7) -> dict:
     """자기 판매 원장의 소비 추세 — 최근 창 vs 직전 창.
 

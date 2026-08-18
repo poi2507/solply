@@ -292,7 +292,13 @@ def settle_cards() -> list[dict]:
     """
     paid = []
     available = payments.balance("hq")["usdc"] - 5.0  # hq 운영 예비
-    royalty_pct = policy_mod.get("hq").royalty_pct
+    pol = policy_mod.get("hq")
+    royalty_pct = pol.royalty_pct
+    # 성과 연동 — 최근 7일 판매량이 전 지점 평균을 넘는 지점은 로열티를 덜 뗀다.
+    # 정률 로열티는 얼마를 팔든 순마진을 +1.25%로 고정시켜 성과와 지갑을 끊었다 (8/19 팀장).
+    # 인하 폭은 utils.royalty_discount_pp가 상한(royalty_reward_pct)으로 자른다.
+    weekly = {sid: utils.weekly_sales_qty(sid) for sid in fixtures.load()["stores"]}
+    avg_weekly = (sum(weekly.values()) / len(weekly)) if weekly else 0
     # 금고가 작은 지점부터 — 고정 순서로 돌면 가용액이 빠듯할 때 첫 지점(금고가 가장
     # 큰 a)이 매 틱 전액을 흡수해 나머지가 굶는다 (8/7 라이브: 카드정산 158.95가
     # 전부 a로만). 소액을 먼저 완납하면 모든 지점이 매 틱 환류를 받는다.
@@ -304,8 +310,12 @@ def settle_cards() -> list[dict]:
         gross = round(min(accrued, available), 2)
         if gross <= 0.01:
             continue
-        # 원천징수 — 금고(채권)는 gross만큼 정리되고, 실지급은 net뿐이다
-        net = round(gross * (1 - royalty_pct / 100), 2)
+        # 원천징수 — 금고(채권)는 gross만큼 정리되고, 실지급은 net뿐이다.
+        # 요율 = 기본 로열티 − 성과 인하(판매지수 비례, 상한은 정책값)
+        idx = (weekly.get(store_id, 0) / avg_weekly) if avg_weekly else 1.0
+        reward_pp = utils.royalty_discount_pp(idx, pol.royalty_reward_pct)
+        eff_pct = max(0.0, royalty_pct - reward_pp)
+        net = round(gross * (1 - eff_pct / 100), 2)
         royalty = round(gross - net, 2)
         if net <= 0.01:
             continue
@@ -321,7 +331,9 @@ def settle_cards() -> list[dict]:
         utils.log(
             "hq-agent", "card.settled",
             {"store_id": store_id, "amount_usdc": net, "gross_usdc": gross,
-             "royalty_usdc": royalty, "tx": result["signature"]},
+             "royalty_usdc": royalty, "royalty_pct": eff_pct,
+             "reward_pp": reward_pp, "sales_index": round(idx, 2),
+             "tx": result["signature"]},
         )
         stats.add("royalty", royalty)
         stats.add_card_flow(store_id, net, royalty)

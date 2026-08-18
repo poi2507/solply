@@ -39,7 +39,12 @@ def test_sales_move_ledger_and_accrue_till():
 
 
 def test_card_settlement_pays_accrued_and_resets(monkeypatch):
-    """금고 4.0 정리 = 실지급 3.0(로열티 25% 공제) + 채권 전액 소멸."""
+    """금고 4.0 정리 = 실지급 3.0(로열티 25% 공제) + 채권 전액 소멸.
+
+    성과 인하(판매 지수 연동)는 별도 테스트가 다룬다 — 여기서는 정률만 검증하도록
+    판매 이력을 비워 지수를 1.0(평균)으로 고정한다.
+    """
+    monkeypatch.setattr("app.agents.utils.weekly_sales_qty", lambda sid, days=7: 100)
     db.put(economy.TILL, "store-a", {"accrued_usdc": 4.0})
     db.put(economy.TILL, "store-b", {"accrued_usdc": 0.0})
     db.put(economy.TILL, "store-c", {"accrued_usdc": 0.0})  # 앞 테스트의 판매 적립 제거
