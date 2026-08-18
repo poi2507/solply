@@ -154,25 +154,25 @@ def review_order(facts: dict[str, Any], policy: dict[str, Any]) -> dict[str, str
     만들지 않는다 — LLM이 없으면 심사 없음이 기존 동작이고 가장 안전하다.
     """
     return {"decision": "accept",
-            "reasoning": "규칙 모드 — 발주 수량 심사 없이 그대로 이행합니다.", "choice": -1}
+            "reasoning": "발주 수량을 그대로 이행합니다.", "choice": -1}
 
 
 def review_brokerage(facts: dict[str, Any], policy: dict[str, Any]) -> dict[str, str]:
     """(본사) 재고 중개 — 규칙 모드는 중개하지 않는다 (기존 동작 보존)."""
     return {"decision": "reject",
-            "reasoning": "규칙 모드 — 지점 간 중개는 제안하지 않습니다.", "choice": -1}
+            "reasoning": "이번에는 지점 간 중개를 제안하지 않습니다.", "choice": -1}
 
 
 def respond_order_trim(facts: dict[str, Any], policy: dict[str, Any]) -> dict[str, str]:
     """(지점) 축소 제안 응답 — 규칙 모드는 원 수량을 고수한다 (기존 동작 보존)."""
     return {"decision": "insist",
-            "reasoning": "규칙 모드 — 자기 판매 원장 기준 원 수량을 유지합니다."}
+            "reasoning": "자기 판매 원장 기준으로 원 수량을 유지합니다."}
 
 
 def respond_p2p_price(facts: dict[str, Any], policy: dict[str, Any]) -> dict[str, str]:
     """(판매 지점) 직거래 가격 — 규칙 모드는 제안가에 수락한다 (기존 동작 보존)."""
     return {"decision": "accept",
-            "reasoning": "규칙 모드 — 제안가 그대로 수락합니다."}
+            "reasoning": "제안가 그대로 수락합니다."}
 
 
 def decide_p2p_price(facts: dict[str, Any], policy: dict[str, Any]) -> dict[str, str]:

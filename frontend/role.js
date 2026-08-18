@@ -54,11 +54,20 @@ export function scope(role, overview) {
 
   const mine = overview.invoices.filter((i) => i.store_id === role.id);
   const myIds = new Set(mine.map((i) => i.id));
+  // 직거래 협상(가격 흥정·본사 중개)은 invoice_id 자리에 거래 ID(P2P-…)가 들어온다 —
+  // 청구서 ID로만 거르면 지점 화면에서 자기 흥정이 안 보인다 (8/19 팀장 발견)
+  const myTrades = new Set(
+    (overview.trades ?? [])
+      .filter((t) => t.buyer_id === role.id || t.seller_id === role.id)
+      .map((t) => t.id),
+  );
   return {
     ...overview,
     invoices: mine,
     stores: overview.stores.filter((s) => s.id === role.id),
-    negotiations: overview.negotiations.filter((n) => myIds.has(n.invoice_id)),
+    negotiations: overview.negotiations.filter(
+      (n) => myIds.has(n.invoice_id) || myTrades.has(n.invoice_id),
+    ),
     trades: (overview.trades ?? []).filter(
       (t) => t.buyer_id === role.id || t.seller_id === role.id,
     ),
