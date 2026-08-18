@@ -145,6 +145,10 @@ def sell(store_id: str, sku: str, qty: int, note: str) -> dict:
         # 건별 온체인 이체는 틱당 수십 건이라 429를 다시 부른다 — 배치가 카드 현실이기도 하다.
         tab = db.get(TILL, GUEST_TAB) or {"accrued_usdc": 0.0}
         db.put(TILL, GUEST_TAB, {"accrued_usdc": round(tab["accrued_usdc"] + revenue, 2)})
+        # 흐름도의 "손님 매출"은 라이브(/shop)만 세고 있었다 — 시뮬 소비가 하루 ~60인데
+        # 화면엔 ~7만 보여 소비가 1/10로 왜곡된다 (8/18). 수납(CARD-SALES)이 아니라
+        # 소비 발생 시점에 지점별로 센다 — 수납은 잔액 사정으로 이월될 수 있어서.
+        stats.add_guest_flow(store_id, revenue)
     return {"store_id": store_id, "sku": sku, "qty": result["sold"],
             "remaining": result["remaining"], "revenue": revenue}
 
