@@ -66,3 +66,12 @@ def test_reply_keys_declared_in_state_schemas():
     for schema in (HQState, StoreState):
         missing = set(REPLY_KEYS) - set(schema.__annotations__)
         assert not missing, f"{schema.__name__}에 없는 REPLY_KEYS: {missing}"
+
+
+def test_order_adjust_needs_no_invoice():
+    """발주량 재판단(order.adjust)은 청구서가 생기기 전이다 — 문서 조회로 흘리면
+    noop으로 끝나 축소 제안이 전부 무응답이 된다 (8/18 라이브 실측)."""
+    from app.agents.store import node
+
+    ctx = node.load_context({"store_id": "store-b", "intent": "order.adjust", "payload": {}})
+    assert ctx.get("outcome") != "noop"

@@ -19,9 +19,11 @@ def load_context(state: StoreState) -> dict:
     store_id = state["store_id"]
     base = {"policy": policy_mod.get(store_id).as_prompt_values()}
 
-    if state.get("intent", "").startswith(("restock.", "p2p.")):
+    # order.adjust는 청구서가 생기기 *전*의 발주량 재판단이라 대상 문서가 없다 —
+    # 청구서 조회로 흘리면 noop으로 끝난다 (8/18 라이브: 축소 제안 8건 전부 무응답)
+    if state.get("intent", "").startswith(("restock.", "p2p.", "order.")):
         if not state.get("trade_id"):
-            return base  # 재고 점검(restock.check)은 대상 문서 없이 시작한다
+            return base  # 재고 점검·발주 재판단은 대상 문서 없이 시작한다
         trade = utils.get_trade(state["trade_id"])
         if not trade:
             return {**base, "outcome": "noop", "messages": [f"직거래 건을 찾을 수 없습니다: {state['trade_id']}"]}
