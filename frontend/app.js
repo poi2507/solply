@@ -40,8 +40,17 @@ let STATUS_LABEL = {
   pending_approval: "승인 대기", split: "분할됨",
 };
 
-const KIND_LABEL = { adjustment: "차감", deferral: "유예", installment: "분할" };
-const VERDICT_LABEL = { accept: "수락", reject: "거절", counter: "역제안" };
+const KIND_LABEL = {
+  adjustment: "차감", deferral: "유예", installment: "분할",
+  order_review: "발주량 심사", order_response: "발주량 응답 (지점)",
+  p2p_price: "직거래 흥정", brokerage: "본사 중개", brokerage_response: "중개 응답 (지점)",
+};
+const VERDICT_LABEL = {
+  accept: "수락", reject: "거절", counter: "역제안",
+  insist: "원수량 고수", decline: "거절", hq: "본사 발주로",
+};
+// 지점이 낸 협상 행 — 판단 주체 표기를 가른다
+const STORE_SIDE_KINDS = new Set(["order_response", "brokerage_response", "p2p_price"]);
 
 const fmt = (n) => Number(n ?? 0).toLocaleString("ko-KR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const short = (s, head = 6, tail = 4) => (!s ? "" : s.length <= head + tail + 1 ? s : `${s.slice(0, head)}…${s.slice(-tail)}`);
@@ -473,7 +482,7 @@ function renderNegotiations(negs, invoices = []) {
       <span class="kind">${KIND_LABEL[n.type] ?? esc(n.type)}</span>
       <div class="body">
         <div class="head">${esc(n.proposal ?? "")}</div>
-        <div class="why"><b>본사 판단:</b> ${esc(n.reasoning ?? "")}</div>
+        <div class="why"><b>${STORE_SIDE_KINDS.has(n.type) ? "지점 판단" : "본사 판단"}:</b> ${esc(n.reasoning ?? "")}</div>
       </div>
       <span class="verdict ${esc(n.decision)}">${VERDICT_LABEL[n.decision] ?? esc(n.decision)}</span>
     </div>`;

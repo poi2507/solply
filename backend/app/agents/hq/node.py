@@ -318,6 +318,89 @@ def record_p2p(state: HQState) -> dict:
     }
 
 
+def review_order(state: HQState) -> dict:
+    """발주 수량 심사 — 지점의 주문을 전국 시계열과 견줘 이행/축소를 가린다.
+
+    문턱값이 없다: 일별 판매 원자료(지점 vs 전국)를 LLM이 직접 읽고
+    "마지막 이틀만 튀는 파동인지, 며칠째 우상향인 추세인지"를 판단한다.
+    수량은 코드가 지킨다 — 축소해도 base_qty(안전재고 회복분) 밑으로는 못 내려간다.
+    """
+    p = state.get("payload", {})
+    store_id, sku = p["store_id"], p["sku"]
+    verdict = judge.review_proposal(
+        "order",
+        facts={
+            "store_id": store_id,
+            "품목": p.get("name", sku),
+            "order_qty": p["order_qty"],
+            "base_qty": f"{p['base_qty']} (안전재고 회복분 — 축소 제안의 바닥)",
+            "지점_일별판매_7일(과거→오늘)": utils.daily_sales(store_id, sku),
+            "전국_일별판매_7일(해당 지점 제외)": utils.network_daily_sales(sku, exclude_store=store_id),
+            "본사_창고_잔량": utils.effective_inventory("hq").get(sku, {}).get("qty", 0),
+        },
+        policy_values=policy_mod.get("hq").as_prompt_values(),
+    )
+    return {
+        "decision": {**verdict, "kind": "order"},
+        "reasoning": [verdict["reasoning"]],
+    }
+
+
+def broker_match(state: HQState) -> dict:
+    """지점 간 재고 중개 — 부분 잉여 짝을 코드가 추리고, 무엇을 이을지는 LLM이 고른다.
+
+    지점은 자기 부족분만 보고, 본사는 전 지점의 과부족을 본다 — 그 시야 차이가
+    이 노드의 존재 이유다. 성사 여부는 양쪽 지점이 각자 판단한다 (강제 배정이 아니다).
+    """
+    candidates = tools.broker_candidates()
+    if not candidates:
+        return {"outcome": "noop", "messages": []}
+
+    lines = "\n".join(
+        f"{i}) {c['seller_id']} → {c['buyer_id']}: {c['name']} {c['qty']}개 "
+        f"(부족 지점 재고 {c['buyer_qty']}/{c['buyer_safety']}, 필요 {c['need']}개 중 부분) "
+        f"단가 {c['unit_price_usdc']} USDC · 전국 일별 {utils.daily_sales(None, c['sku'])}"
+        for i, c in enumerate(candidates)
+    )
+    verdict = judge.review_proposal(
+        "brokerage",
+        facts={"후보 목록": "\n" + lines},
+        policy_values=policy_mod.get("hq").as_prompt_values(),
+    )
+    choice = int(verdict.get("choice", -1))
+    if verdict["decision"] != "accept" or not (0 <= choice < len(candidates)):
+        return {"outcome": "noop", "messages": [], "reasoning": [verdict["reasoning"]]}
+
+    c = candidates[choice]
+    from app.agents.store import tools as store_tools  # 제안 문서는 기존 P2P 경로 재사용
+
+    trade = store_tools.propose_p2p_trade(
+        c["buyer_id"], c["seller_id"], c["sku"], c["name"], c["qty"],
+        round(c["qty"] * c["unit_price_usdc"], 2),
+        basis=f"본사 중개(부분 잉여) — {verdict['reasoning']}",
+    )
+    tools.record_decision(
+        trade["id"], "brokerage",
+        f"{c['seller_id']} → {c['buyer_id']} {c['name']} {c['qty']}개 중개 제안",
+        "accept", verdict["reasoning"],
+    )
+    utils.log("hq-agent", "p2p.brokered", {
+        "trade_id": trade["id"], "buyer_id": c["buyer_id"], "seller_id": c["seller_id"],
+        "sku": c["sku"], "qty": c["qty"], "price_usdc": trade["price_usdc"],
+    })
+    return {
+        "trade": trade,
+        "trade_id": trade["id"],
+        "decision": {**verdict, "kind": "brokerage"},
+        "outcome": "negotiating",
+        "messages": [
+            (f"{c['seller_id']}의 부분 잉여 {c['qty']}개를 {c['buyer_id']}에 중개 제안했습니다 "
+             f"({c['name']}, {trade['price_usdc']} USDC). 양쪽 지점의 판단을 기다립니다.")
+        ],
+        "reasoning": [verdict["reasoning"]],
+    }
+
+
 def report(state: HQState) -> dict:
     if not state.get("messages") or state.get("outcome") == "noop":
         return {}  # noop 판엔 LLM 요약을 쓰지 않는다 — 협상 왕복의 호출 예산
@@ -340,6 +423,8 @@ _INTENT_ROUTE = {
     "payment.verify": "verify",
     "p2p.review": "review_p2p",
     "p2p.record": "record_p2p",
+    "order.review": "review_order",   # 발주 수량 심사 — 시계열 판단
+    "p2p.broker": "broker",           # 부분 잉여 직거래 중개
 }
 
 

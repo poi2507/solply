@@ -332,9 +332,14 @@ def settle_cards() -> list[dict]:
 # ── 3. 조달 — 재고 미달이 발주를 시작한다 (Agent-Initiated) ───────────
 
 async def _p2p_handshake(trade: dict) -> str:
-    """제안된 직거래의 나머지 왕복 — 판매측 응답 → 본사 심사 → 결제 → 장부."""
+    """제안된 직거래의 나머지 왕복 — 판매측 응답(흥정 포함) → 본사 심사 → 결제 → 장부."""
     trade_id = trade["id"]
     responded = await a2a.send(trade["seller_id"], "p2p.respond", trade_id=trade_id)
+    # 판매측이 값을 올려 되제안하면 구매측이 한 번 더 판단한다 — 흥정은 1왕복.
+    if (responded.get("decision") or {}).get("decision") == "counter":
+        responded = await a2a.send(trade["buyer_id"], "p2p.price", trade_id=trade_id)
+        if (responded.get("trade") or {}).get("status") != status_mod.TradeStatus.ACCEPTED:
+            return "price_declined"
     if (responded.get("trade") or {}).get("status") != status_mod.TradeStatus.ACCEPTED:
         return "rejected_by_seller"
     await a2a.send("hq", "p2p.review", trade_id=trade_id)
@@ -473,6 +478,30 @@ def _fulfill_order(store_id: str, sku: str, need: int) -> str | None:
     return None if invoice.get("error") else invoice["id"]
 
 
+async def broker_trades() -> list[dict]:
+    """본사 중개 — 지점 혼자서는 못 잇는 부분 잉여 짝을 본사가 주선한다.
+
+    후보 선별은 코드(hq_tools.broker_candidates), 무엇을 이을지는 본사 LLM,
+    성사 여부는 양쪽 지점의 LLM이 각자 판단한다 — 세 판단이 한 거래를 만든다.
+    틱당 최대 1건: 중개는 조달의 보조 통로지 대체가 아니다.
+    """
+    try:
+        brokered = await a2a.send("hq", "p2p.broker")
+    except Exception as exc:  # noqa: BLE001 — 중개 실패가 틱을 멈추지 않는다
+        return [{"route": "brokered", "status": f"error: {str(exc)[:120]}"}]
+    trade = brokered.get("trade")
+    if not trade:
+        return []
+    try:
+        consent = await a2a.send(trade["buyer_id"], "p2p.consider", trade_id=trade["id"])
+        if (consent.get("decision") or {}).get("decision") != "accept":
+            return [{"route": "brokered", "trade_id": trade["id"], "status": "declined_by_buyer"}]
+        status = await _p2p_handshake(trade)
+        return [{"route": "brokered", "trade_id": trade["id"], "status": status}]
+    except Exception as exc:  # noqa: BLE001
+        return [{"route": "brokered", "trade_id": trade["id"], "status": f"error: {str(exc)[:120]}"}]
+
+
 async def run_procurement() -> list[dict]:
     """지점마다 재고를 점검하고, 미달이면 조달 그래프(P2P vs 본사 발주)를 태운다."""
     actions = []
@@ -508,17 +537,66 @@ async def run_procurement() -> list[dict]:
             # 굶어서 우회한 발주는 안전재고까지만 — 빚을 더 키우지 않는다
             refill = 1 if (gated and starving) else _refill_x(store_id, shortage["sku"])
             need = round(shortage["need"] + shortage["safety"] * (refill - 1))
-            invoice_id = _fulfill_order(store_id, shortage["sku"], max(1, need))
+            order_qty = max(1, need)
+            base_qty = max(1, shortage["need"])  # 축소의 바닥 — 안전재고 회복분 (기아 방지)
+
+            # 발주량 협상 — 배수가 붙은 주문은 본사가 시계열로 심사한다 (8/18 팀장 지시:
+            # 지점은 자기 정보만 보니 수요에 과민할 수 있고, 전국 추이는 본사만 본다).
+            # 어떤 실패도 발주를 멈추지 않는다 — 심사가 죽으면 원 수량 그대로 이행.
+            order_review, order_response = None, None
+            if order_qty > base_qty:
+                try:
+                    reviewed = await a2a.send(
+                        "hq", "order.review", payload={
+                            "store_id": store_id, "sku": shortage["sku"],
+                            "name": shortage.get("name", shortage["sku"]),
+                            "order_qty": order_qty, "base_qty": base_qty,
+                        })
+                    order_review = reviewed.get("decision") or {}
+                    if order_review.get("decision") == "counter":
+                        adjusted = await a2a.send(
+                            store_id, "order.adjust", payload={
+                                "sku": shortage["sku"],
+                                "name": shortage.get("name", shortage["sku"]),
+                                "order_qty": order_qty, "trim_qty": base_qty,
+                                "hq_reasoning": order_review.get("reasoning", ""),
+                            })
+                        order_response = adjusted.get("decision") or {}
+                        if order_response.get("decision") == "accept":
+                            order_qty = base_qty  # 수량은 코드가 확정 — 바닥 밑으로 못 내려간다
+                except Exception as exc:  # noqa: BLE001 — 심사가 발주를 멈출 사유는 아니다
+                    print(f"[economy] 발주량 심사 불가({store_id}) — 원 수량 이행: {str(exc)[:120]}")
+
+            invoice_id = _fulfill_order(store_id, shortage["sku"], order_qty)
             if not invoice_id:
                 actions.append({"store_id": store_id, "route": "hq_order", "status": "hq_out_of_stock"})
                 continue
+
+            # 발주량 협상의 왕복을 청구서의 협상 스레드로 남긴다 — 청구서가 생긴 뒤에
+            # 기록해야 대시보드 타임라인이 이 대화를 그 청구서 밑에 묶어 보여준다.
+            if order_review:
+                from app.agents.hq import tools as hq_tools
+                from app.agents.store import tools as store_tools
+                hq_tools.record_decision(
+                    invoice_id, "order_review",
+                    f"발주 {shortage.get('name', shortage['sku'])} {max(1, need)}개 (기본 {base_qty}개) 심사",
+                    order_review.get("decision", "accept"), order_review.get("reasoning", ""),
+                )
+                if order_response:
+                    store_tools.record_order_response(
+                        store_id, invoice_id,
+                        order_response.get("decision", "insist"), order_response.get("reasoning", ""),
+                    )
             handled = await a2a.send(store_id, "invoice.handle", invoice_id=invoice_id)
             outcome = handled.get("outcome")
             if outcome == "negotiating":  # 잔액 부족 → 유예 제안 → 다회 왕복 협상
                 outcome = await _negotiate_deferral(store_id, invoice_id)
-            actions.append({"store_id": store_id, "route": "hq_order",
-                            "invoice_id": invoice_id, "status": outcome,
-                            "refill_x": refill})
+            actions.append({
+                "store_id": store_id, "route": "hq_order",
+                "invoice_id": invoice_id, "status": outcome, "refill_x": refill,
+                **({"order_review": order_review.get("decision"),
+                    "final_qty": order_qty} if order_review else {}),
+            })
         except Exception as exc:  # noqa: BLE001 — 한 지점의 실패가 다른 지점을 막지 않는다
             actions.append({"store_id": store_id, "route": "error", "status": str(exc)[:160]})
     return actions
@@ -618,6 +696,8 @@ async def tick(rng: random.Random | None = None) -> dict:
         "card_settlements": await _stage(settle_cards),
         "escrow_settlements": await _stage(settle_escrows),
         "dispute_reviews": await _stage(settle_disputes),
+        # 조달보다 먼저 — 중개로 옮긴 재고는 조달 단계가 다시 세지 않는다
+        "brokered_trades": await _stage(broker_trades),
         "procurement": await _stage(run_procurement),
         "hq_restocked": await _stage(restock_hq),
         "scheduled_runs": await _stage(run_scheduled_payments),

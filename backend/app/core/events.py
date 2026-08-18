@@ -31,6 +31,12 @@ ACTION_LABELS: dict[str, str] = {
     "proposal.reviewed": "본사 심사",
     "proposal.counter_response": "역제안 응답 (지점)",
     "negotiation.failed": "협상 결렬 (사람에게)",
+    "order.response": "발주량 응답 (지점)",
+    "p2p.price_countered": "직거래 가격 역제안",
+    "p2p.price_agreed": "직거래 가격 합의",
+    "p2p.price_declined": "직거래 가격 결렬",
+    "p2p.brokered": "본사 직거래 중개",
+    "p2p.broker_response": "중개 응답 (지점)",
     # 결제
     "payment.executed": "결제 실행",
     "payment.verified": "수금 검증",

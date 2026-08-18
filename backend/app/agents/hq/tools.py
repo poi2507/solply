@@ -292,3 +292,46 @@ def store_credit(store_id: str) -> dict:
         "settled_count": len(settled),
         "settled_usdc": round(sum(i["amount_usdc"] for i in settled), 2),
     }
+
+
+def broker_candidates(limit: int = 3) -> list[dict]:
+    """지점 간 재고 중개 후보 — **부분 잉여**만 짝짓는다.
+
+    어느 지점의 잉여가 부족 지점의 필요량을 통째로 덮으면(전량 잉여) 그 지점이
+    스스로 직거래를 찾는다 — 본사가 끼어들 이유가 없다. 본사의 값어치는 지점
+    혼자서는 못 잇는 짝이다: 잉여가 필요량에 못 미쳐 판매측이 거절하게 되는
+    경우, 부족분의 일부라도 오늘 옮기고 잔여는 발주로 채우게 주선한다.
+    후보 선별은 코드(사실), 그중 무엇을 중개할지는 LLM(판단)이 정한다.
+    """
+    from app.core import fixtures
+    from app.core import policy as policy_mod
+
+    stores = list(fixtures.load()["stores"])
+    inventories = {sid: utils.effective_inventory(sid) for sid in stores}
+    candidates: list[dict] = []
+    for buyer in stores:
+        for short in utils.stock_shortages(inventories[buyer]):
+            best_seller, best_surplus, full_cover = None, 0, False
+            for seller in stores:
+                if seller == buyer:
+                    continue
+                mult = policy_mod.get(seller).safety_stock_multiplier
+                surplus = utils.sellable_surplus(inventories[seller], short["sku"], mult)
+                if surplus >= short["need"]:
+                    full_cover = True  # 전량 잉여 존재 — 지점 스스로의 몫
+                    break
+                if surplus > best_surplus:
+                    best_seller, best_surplus = seller, surplus
+            if full_cover or not best_seller:
+                continue
+            unit = float(utils.hq_reorder_terms(short["sku"]).get("unit_price_usdc", 0))
+            candidates.append({
+                "buyer_id": buyer, "seller_id": best_seller,
+                "sku": short["sku"], "name": short.get("name", short["sku"]),
+                "qty": best_surplus, "need": short["need"],
+                "unit_price_usdc": unit,
+                "buyer_qty": inventories[buyer].get(short["sku"], {}).get("qty", 0),
+                "buyer_safety": short["safety"],
+            })
+    candidates.sort(key=lambda c: c["need"], reverse=True)
+    return candidates[:limit]

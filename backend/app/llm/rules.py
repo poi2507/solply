@@ -147,6 +147,51 @@ def choose_supply_route(facts: dict[str, Any], policy: dict[str, Any]) -> dict[s
             "reasoning": f"이웃 잉여 {surplus:g}개로는 필요 {need:g}개를 채우지 못합니다."}
 
 
+def review_order(facts: dict[str, Any], policy: dict[str, Any]) -> dict[str, str]:
+    """(본사) 발주 수량 심사 — 규칙 모드는 주문 수량을 그대로 이행한다.
+
+    시계열의 '파동 vs 추세' 구분은 부등호로 흉내 낼 수 없는 판단이라 규칙을
+    만들지 않는다 — LLM이 없으면 심사 없음이 기존 동작이고 가장 안전하다.
+    """
+    return {"decision": "accept",
+            "reasoning": "규칙 모드 — 발주 수량 심사 없이 그대로 이행합니다.", "choice": -1}
+
+
+def review_brokerage(facts: dict[str, Any], policy: dict[str, Any]) -> dict[str, str]:
+    """(본사) 재고 중개 — 규칙 모드는 중개하지 않는다 (기존 동작 보존)."""
+    return {"decision": "reject",
+            "reasoning": "규칙 모드 — 지점 간 중개는 제안하지 않습니다.", "choice": -1}
+
+
+def respond_order_trim(facts: dict[str, Any], policy: dict[str, Any]) -> dict[str, str]:
+    """(지점) 축소 제안 응답 — 규칙 모드는 원 수량을 고수한다 (기존 동작 보존)."""
+    return {"decision": "insist",
+            "reasoning": "규칙 모드 — 자기 판매 원장 기준 원 수량을 유지합니다."}
+
+
+def respond_p2p_price(facts: dict[str, Any], policy: dict[str, Any]) -> dict[str, str]:
+    """(판매 지점) 직거래 가격 — 규칙 모드는 제안가에 수락한다 (기존 동작 보존)."""
+    return {"decision": "accept",
+            "reasoning": "규칙 모드 — 제안가 그대로 수락합니다."}
+
+
+def decide_p2p_price(facts: dict[str, Any], policy: dict[str, Any]) -> dict[str, str]:
+    """(구매 지점) 가격 역제안 응답 — 본사 공급가 이내면 수락, 넘으면 본사로."""
+    counter = float(facts.get("counter_unit_usdc") or 0)
+    hq_unit = float(facts.get("hq_unit_price_usdc") or 0)
+    if hq_unit and counter > hq_unit + 1e-9:
+        return {"decision": "hq",
+                "reasoning": f"역제안 단가 {counter}가 본사 공급가 {hq_unit}를 넘어 본사 발주로 갑니다."}
+    return {"decision": "accept",
+            "reasoning": f"역제안 단가 {counter}는 본사 공급가({hq_unit}) 이내라 오늘 인수가 이득입니다."}
+
+
+def consider_brokered(facts: dict[str, Any], policy: dict[str, Any]) -> dict[str, str]:
+    """(구매 지점) 중개 제안 — 본사 공급가 기준 부분 수량이라 손해가 없어 수락."""
+    return {"decision": "accept",
+            "reasoning": "본사 공급가 기준 부분 인수 — 잔여는 본사 발주로 채웁니다."}
+
+
 def narrate(facts: list[str], reasoning: list[str]) -> str:
     """보고문 — mock에서는 침묵한다.
 

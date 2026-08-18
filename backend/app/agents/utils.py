@@ -130,6 +130,48 @@ def sellable_surplus(inventory: dict[str, dict], sku: str, safety_multiplier: fl
     return max(0, int(entry["qty"] - entry["safety"] * safety_multiplier))
 
 
+def daily_sales(store_id: str | None, sku: str, days: int = 7) -> list[int]:
+    """일별 판매 수량 시계열 (과거→오늘). store_id가 None이면 전 지점 합산.
+
+    발주량 심사의 재료다 — 문턱값(부등호)이 아니라 이 원자료를 LLM이 읽고
+    "마지막 이틀만 튀는 파동인지, 며칠째 우상향인 추세인지"를 스스로 가린다.
+    """
+    from app.core import kst
+
+    series = []
+    for i in range(days - 1, -1, -1):
+        d = kst.shift(kst.today(), -i)
+        total = 0
+        kwargs = {"day": d, "reason": "sold"}
+        if store_id:
+            kwargs["store_id"] = store_id
+        for m in store.list_docs("inventory_moves", **kwargs):
+            if m.get("sku") == sku:
+                total += abs(int(m.get("qty", 0)))
+        series.append(total)
+    return series
+
+
+def network_daily_sales(sku: str, exclude_store: str, days: int = 7) -> list[int]:
+    """해당 지점을 뺀 나머지 지점의 일별 판매 합산 — 본사만 보는 전국 추이."""
+    whole = daily_sales(None, sku, days)
+    mine = daily_sales(exclude_store, sku, days)
+    return [max(0, w - m) for w, m in zip(whole, mine)]
+
+
+def price_counter_unit(unit: float, hq_unit: float, bump_pct: float = 10.0) -> float | None:
+    """판매측 가격 역제안의 상한 — 코드가 지키는 밴드.
+
+    제안가에서 최대 +bump_pct%, 단 본사 공급가는 절대 넘지 않는다 (넘으면
+    본사 심사에서 반려되고, 구매자도 본사로 가면 그만이라 흥정이 성립하지 않는다).
+    올릴 여지가 없으면 None — 흥정 없이 수락이 맞다.
+    """
+    if unit <= 0:
+        return None
+    ceiling = min(round(unit * (1 + bump_pct / 100), 4), hq_unit if hq_unit > 0 else unit * 2)
+    return ceiling if ceiling > unit + 1e-9 else None
+
+
 def demand_trend(store_id: str, sku: str, window_days: int = 7) -> dict:
     """자기 판매 원장의 소비 추세 — 최근 창 vs 직전 창.
 

@@ -42,7 +42,7 @@ def test_card_skills_match_graph_routes():
     pay_intents = {"invoice.pay_adjusted", "invoice.pay_scheduled",
                    "invoice.pay_installment", "invoice.pay_approved"}
     assert set(card.STORE_SKILLS) == {
-        "invoice.handle", "proposal.counter", *pay_intents, *store_node._P2P_ROUTE
+        "invoice.handle", "proposal.counter", "order.adjust", *pay_intents, *store_node._P2P_ROUTE
     }
 
 

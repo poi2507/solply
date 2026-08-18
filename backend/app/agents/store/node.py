@@ -367,7 +367,12 @@ def respond_counter(state: StoreState) -> dict:
 
 
 def respond_trade(state: StoreState) -> dict:
-    """(판매측) 자기 재고와 안전재고를 확인하고 제안에 응답한다."""
+    """(판매측) 재고를 확인하고 제안에 응답한다 — 팔 수 있으면 가격도 따져본다.
+
+    안전재고 판정은 코드(못 팔면 무조건 거절), 팔 수 있을 때 "제안가에 팔까,
+    값을 올려 되제안할까"는 자기 판매 추세를 근거로 LLM이 판단한다.
+    인상 폭은 utils.price_counter_unit의 밴드가 지킨다 — 본사 공급가를 넘지 못한다.
+    """
     trade = state["trade"]
     store_id = state["store_id"]
     pol = policy_mod.get(store_id)
@@ -375,24 +380,157 @@ def respond_trade(state: StoreState) -> dict:
     sellable = utils.sellable_surplus(inventory, trade["sku"], pol.safety_stock_multiplier)
     entry = inventory.get(trade["sku"], {})
 
-    if sellable >= trade["qty"]:
-        decision = "accept"
-        reasoning = (
-            f"보유 {entry.get('qty', 0)}개 중 안전재고 {entry.get('safety', 0)}개를 지키고도 "
-            f"{sellable}개 판매 가능 — 폐기 위험 재고를 현금화합니다."
-        )
-    else:
-        decision = "reject"
+    if sellable < trade["qty"]:
         reasoning = f"판매 가능 잉여가 {sellable}개뿐이라 요청 수량 {trade['qty']}개를 내주면 안전재고가 깨집니다."
+        result = tools.respond_p2p_trade(store_id, trade["id"], "reject", reasoning)
+        if result.get("error"):
+            return {"outcome": "noop", "messages": [result["error"]]}
+        return {"trade": result, "outcome": "negotiating",
+                "messages": ["제안을 거절했습니다. " + reasoning], "reasoning": [reasoning]}
 
-    result = tools.respond_p2p_trade(store_id, trade["id"], decision, reasoning)
+    unit = round(trade["price_usdc"] / trade["qty"], 4)
+    hq_unit = float(utils.hq_reorder_terms(trade["sku"]).get("unit_price_usdc", 0))
+    counter_unit = utils.price_counter_unit(unit, hq_unit)
+    decision, reasoning = "accept", (
+        f"보유 {entry.get('qty', 0)}개 중 안전재고 {entry.get('safety', 0)}개를 지키고도 "
+        f"{sellable}개 판매 가능 — 폐기 위험 재고를 현금화합니다."
+    )
+    if counter_unit:  # 올릴 여지가 있을 때만 흥정을 판단에 부친다
+        demand = tools.read_demand_trend(store_id, trade["sku"])
+        verdict = judge.store_decide(
+            "p2p_respond",
+            {
+                "품목": trade["name"],
+                "요청_수량": trade["qty"],
+                "판매_가능_잉여": sellable,
+                "제안_단가_usdc": unit,
+                "역제안_가능_단가_usdc": f"{counter_unit} (코드가 계산한 상한 — 본사 공급가 {hq_unit} 이내)",
+                "자기_판매_추세": demand.get("summary") or "판매 기록 없음",
+            },
+            state.get("policy", {}),
+        )
+        decision, reasoning = verdict["decision"], verdict["reasoning"]
+
+    if decision == "counter":
+        result = tools.counter_p2p_price(store_id, trade["id"], counter_unit, reasoning)
+        if result.get("error"):
+            return {"outcome": "noop", "messages": [result["error"]]}
+        return {
+            "trade": result,
+            "decision": {"decision": "counter", "kind": "p2p_price"},
+            "outcome": "negotiating",
+            "messages": [f"단가 {unit} → {counter_unit} USDC로 가격을 되제안했습니다. " + reasoning],
+            "reasoning": [reasoning],
+        }
+
+    result = tools.respond_p2p_trade(store_id, trade["id"], "accept", reasoning)
     if result.get("error"):
         return {"outcome": "noop", "messages": [result["error"]]}
     return {
         "trade": result,
         "outcome": "negotiating",
-        "messages": [("제안을 수락했습니다. " if decision == "accept" else "제안을 거절했습니다. ") + reasoning],
+        "messages": ["제안을 수락했습니다. " + reasoning],
         "reasoning": [reasoning],
+    }
+
+
+def respond_price(state: StoreState) -> dict:
+    """(구매측) 판매측 가격 역제안에 응답한다 — 오늘 인수 vs 본사 발주.
+
+    선택은 LLM, 가격 갱신·상태 전이는 코드(도구)가 한다.
+    """
+    trade = state["trade"]
+    store_id = state["store_id"]
+    counter_unit = float(trade.get("counter_unit_usdc") or 0)
+    unit = round(trade["price_usdc"] / trade["qty"], 4)
+    hq_terms = utils.hq_reorder_terms(trade["sku"])
+    demand = tools.read_demand_trend(store_id, trade["sku"])
+
+    verdict = judge.store_decide(
+        "p2p_price",
+        {
+            "품목": trade["name"],
+            "수량": trade["qty"],
+            "원_제안_단가_usdc": unit,
+            "counter_unit_usdc": counter_unit,
+            "hq_unit_price_usdc": hq_terms.get("unit_price_usdc", 0),
+            "본사_리드타임": hq_terms.get("lead_time", "미확인"),
+            "자기_판매_추세": demand.get("summary") or "판매 기록 없음",
+        },
+        state.get("policy", {}),
+    )
+    accept = verdict["decision"] == "accept"
+    result = tools.settle_p2p_price(
+        store_id, trade["id"], "accept" if accept else "decline", verdict["reasoning"]
+    )
+    if result.get("error"):
+        return {"outcome": "noop", "messages": [result["error"]]}
+    return {
+        "trade": result,
+        "decision": {**verdict, "kind": "p2p_price"},
+        "outcome": "negotiating" if accept else "refused",
+        "messages": [
+            (f"역제안 단가 {counter_unit} USDC를 수락했습니다. " if accept
+             else "역제안을 거절하고 본사 발주로 돌립니다. ") + verdict["reasoning"]
+        ],
+        "reasoning": [verdict["reasoning"]],
+    }
+
+
+def consider_trade(state: StoreState) -> dict:
+    """(구매측) 본사가 중개한 직거래에 동의할지 판단한다 — 중개는 강제가 아니다."""
+    trade = state["trade"]
+    store_id = state["store_id"]
+    demand = tools.read_demand_trend(store_id, trade["sku"])
+    verdict = judge.store_decide(
+        "p2p_consider",
+        {
+            "품목": trade["name"],
+            "중개_수량": f"{trade['qty']}개 (부분 — 잔여는 본사 발주로 채울 수 있음)",
+            "단가_usdc": round(trade["price_usdc"] / trade["qty"], 4),
+            "중개_근거": trade.get("basis") or "제공 안 됨",
+            "자기_판매_추세": demand.get("summary") or "판매 기록 없음",
+        },
+        state.get("policy", {}),
+    )
+    accept = verdict["decision"] == "accept"
+    result = tools.respond_brokered_trade(
+        store_id, trade["id"], "accept" if accept else "decline", verdict["reasoning"]
+    )
+    if result.get("error"):
+        return {"outcome": "noop", "messages": [result["error"]]}
+    return {
+        "trade": result,
+        "decision": {**verdict, "kind": "brokerage"},
+        "outcome": "negotiating" if accept else "refused",
+        "messages": [
+            ("본사 중개를 수락했습니다. " if accept else "본사 중개를 거절했습니다. ") + verdict["reasoning"]
+        ],
+        "reasoning": [verdict["reasoning"]],
+    }
+
+
+def respond_order_trim(state: StoreState) -> dict:
+    """본사의 발주 수량 축소 제안에 응답한다 — 수용 또는 고수.
+
+    본사는 전국 추이를, 지점은 자기 상권의 시계열을 근거로 다툰다.
+    어느 쪽이든 수량의 바닥(안전재고 회복분)은 코드가 지킨다.
+    """
+    p = state.get("payload", {})
+    verdict = judge.store_decide(
+        "order_adjust",
+        {
+            "품목": p.get("name", p.get("sku")),
+            "원_주문_수량": p.get("order_qty"),
+            "본사_축소_제안_수량": p.get("trim_qty"),
+            "본사_근거": p.get("hq_reasoning", ""),
+            "자기_일별판매_7일(과거→오늘)": utils.daily_sales(state["store_id"], p.get("sku", "")),
+        },
+        state.get("policy", {}),
+    )
+    return {
+        "decision": {**verdict, "kind": "order_adjust"},
+        "reasoning": [verdict["reasoning"]],
     }
 
 
@@ -436,9 +574,11 @@ def report(state: StoreState) -> dict:
 # ── 분기 조건 ────────────────────────────────────────────────────────
 
 _P2P_ROUTE = {
-    "restock.check": "check_stock",   # 구매측: 재고 점검 → 조달
-    "p2p.respond": "respond_trade",   # 판매측: 제안 응답
-    "p2p.pay": "pay_trade",           # 구매측: 승인된 거래 결제
+    "restock.check": "check_stock",     # 구매측: 재고 점검 → 조달
+    "p2p.respond": "respond_trade",     # 판매측: 제안 응답 (가격 흥정 포함)
+    "p2p.pay": "pay_trade",             # 구매측: 승인된 거래 결제
+    "p2p.price": "respond_price",       # 구매측: 판매측 가격 역제안에 응답
+    "p2p.consider": "consider_trade",   # 구매측: 본사 중개 제안에 동의/거절
 }
 
 
@@ -449,6 +589,8 @@ def route_after_context(state: StoreState) -> str:
     intent = state.get("intent", "")
     if intent in _P2P_ROUTE:
         return _P2P_ROUTE[intent]
+    if intent == "order.adjust":  # 본사의 발주 수량 축소 제안 재판단
+        return "respond_order_trim"
     if intent == "proposal.counter":  # 본사 역제안에 대한 재응수 (협상 라운드 2)
         return "respond_counter"
     if intent in (

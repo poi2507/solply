@@ -50,6 +50,9 @@ def build():
     g.add_node("propose_trade", node.propose_trade)
     g.add_node("respond_trade", node.respond_trade)
     g.add_node("pay_trade", node.pay_trade)
+    g.add_node("respond_price", node.respond_price)          # 구매측: 가격 역제안 응답
+    g.add_node("consider_trade", node.consider_trade)        # 구매측: 본사 중개 동의/거절
+    g.add_node("respond_order_trim", node.respond_order_trim)  # 발주 축소 제안 재판단
 
     g.set_entry_point("load_context")
     g.add_conditional_edges(
@@ -59,7 +62,10 @@ def build():
             "verify": "verify", "request_terms": "request_terms", "refuse": "refuse",
             "respond_counter": "respond_counter",
             "check_stock": "check_stock", "respond_trade": "respond_trade",
-            "pay_trade": "pay_trade", "end": END,
+            "pay_trade": "pay_trade",
+            "respond_price": "respond_price", "consider_trade": "consider_trade",
+            "respond_order_trim": "respond_order_trim",
+            "end": END,
         },
     )
     g.add_conditional_edges(
@@ -86,8 +92,11 @@ def build():
     for terminal in (
         "propose_adjustment", "pay", "escalate", "propose_deferral", "refuse",
         "respond_counter", "propose_trade", "respond_trade", "pay_trade",
+        "respond_price", "consider_trade",
     ):
         g.add_edge(terminal, "report")
+    # 발주 축소 응답은 발주마다 돌아 요약 호출을 아낀다 — 근거는 협상 기록에 남는다
+    g.add_edge("respond_order_trim", END)
     g.add_edge("report", END)
 
     return g.compile()

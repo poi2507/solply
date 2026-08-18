@@ -356,3 +356,101 @@ def pay_p2p_trade(store_id: str, trade_id: str) -> dict:
         return {**result, "amount": amount, "settled": False,
                 "error": "판매 지점 검증에 실패해 거래가 확정되지 않았습니다."}
     return {**result, "amount": amount, "settled": True, "explorer": receipt.get("explorer", "")}
+
+
+def record_order_response(store_id: str, invoice_id: str, decision: str, reasoning: str) -> dict:
+    """발주 수량 축소 제안에 대한 지점 응답을 협상 기록으로 남긴다."""
+    negotiation = db.put(
+        "negotiations", db.new_id("NEG"),
+        {"invoice_id": invoice_id, "type": "order_response",
+         "proposal": "본사의 발주 수량 축소 제안에 대한 지점 응답",
+         "decision": decision, "reasoning": reasoning},
+    )
+    utils.log(
+        utils.actor_name(store_id), "order.response",
+        {"invoice_id": invoice_id, "decision": decision, "reasoning": reasoning},
+    )
+    return negotiation
+
+
+def counter_p2p_price(store_id: str, trade_id: str, counter_unit_usdc: float, reasoning: str) -> dict:
+    """(판매 지점) 직거래 가격 역제안 — 상태는 유지하고 구매측의 재판단을 기다린다.
+
+    인상 폭은 utils.price_counter_unit이 이미 밴드로 잘랐다(본사 공급가 상한).
+    """
+    trade = utils.get_trade(trade_id)
+    if not trade or trade["seller_id"] != store_id:
+        return utils.error(f"이 지점 앞으로 온 제안이 아님: {trade_id}")
+    if trade["status"] != status_mod.TradeStatus.PROPOSED:
+        return utils.error(f"역제안할 수 있는 상태가 아님: {trade['status']}")
+    updated = db.update("p2p_trades", trade_id, {"counter_unit_usdc": counter_unit_usdc})
+    db.put(
+        "negotiations", db.new_id("NEG"),
+        {"invoice_id": trade_id, "type": "p2p_price",
+         "proposal": f"직거래 단가 {round(trade['price_usdc'] / trade['qty'], 4)} → {counter_unit_usdc} USDC 역제안",
+         "decision": "counter", "reasoning": reasoning},
+    )
+    utils.log(
+        utils.actor_name(store_id), "p2p.price_countered",
+        {"trade_id": trade_id, "counter_unit_usdc": counter_unit_usdc, "reasoning": reasoning},
+    )
+    return updated
+
+
+def settle_p2p_price(store_id: str, trade_id: str, decision: str, reasoning: str) -> dict:
+    """(구매 지점) 판매측 가격 역제안에 대한 응답 — 수락이면 새 가격으로 확정.
+
+    수락 시 거래 문서의 가격을 역제안 단가로 바꾸고 판매측 수락(ACCEPTED)으로
+    진행시킨다. 거절이면 거래를 닫는다 — 그 값이면 본사 발주가 낫다는 뜻이다.
+    """
+    trade = utils.get_trade(trade_id)
+    if not trade or trade["buyer_id"] != store_id:
+        return utils.error(f"이 지점의 직거래 건이 아님: {trade_id}")
+    counter_unit = float(trade.get("counter_unit_usdc") or 0)
+    if trade["status"] != status_mod.TradeStatus.PROPOSED or counter_unit <= 0:
+        return utils.error(f"가격 역제안이 걸려 있는 상태가 아님: {trade['status']}")
+
+    payload = {"trade_id": trade_id, "counter_unit_usdc": counter_unit, "reasoning": reasoning}
+    if decision == "accept":
+        updated = db.update("p2p_trades", trade_id, {
+            "price_usdc": round(counter_unit * trade["qty"], 2),
+            "status": status_mod.TradeStatus.ACCEPTED,
+        })
+        utils.log(utils.actor_name(store_id), "p2p.price_agreed", payload)
+    else:
+        updated = db.update("p2p_trades", trade_id, {"status": status_mod.TradeStatus.REJECTED})
+        utils.log(utils.actor_name(store_id), "p2p.price_declined", payload)
+    db.put(
+        "negotiations", db.new_id("NEG"),
+        {"invoice_id": trade_id, "type": "p2p_price",
+         "proposal": f"역제안 단가 {counter_unit} USDC에 대한 구매측 응답",
+         "decision": decision, "reasoning": reasoning},
+    )
+    return updated
+
+
+def respond_brokered_trade(store_id: str, trade_id: str, decision: str, reasoning: str) -> dict:
+    """(구매 지점) 본사가 중개한 직거래에 대한 동의/거절.
+
+    중개는 강제 배정이 아니다 — 동의하면 기존 P2P 왕복(판매측 응답 → 본사 심사
+    → 결제)이 그대로 이어지고, 거절하면 거래를 닫는다.
+    """
+    trade = utils.get_trade(trade_id)
+    if not trade or trade["buyer_id"] != store_id:
+        return utils.error(f"이 지점의 직거래 건이 아님: {trade_id}")
+    if trade["status"] != status_mod.TradeStatus.PROPOSED:
+        return utils.error(f"응답할 수 있는 상태가 아님: {trade['status']}")
+
+    if decision != "accept":
+        trade = db.update("p2p_trades", trade_id, {"status": status_mod.TradeStatus.REJECTED})
+    db.put(
+        "negotiations", db.new_id("NEG"),
+        {"invoice_id": trade_id, "type": "brokerage_response",
+         "proposal": "본사 중개 직거래에 대한 구매측 응답",
+         "decision": decision, "reasoning": reasoning},
+    )
+    utils.log(
+        utils.actor_name(store_id), "p2p.broker_response",
+        {"trade_id": trade_id, "decision": decision, "reasoning": reasoning},
+    )
+    return trade
