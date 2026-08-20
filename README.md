@@ -4,6 +4,8 @@
 
 에이전트는 청구서를 받으면 입고 기록과 대조하고, 수량이 틀리면 차액을 깎아달라 협상하고,
 발주한 적 없는 품목이면 거부하고, 점주가 정한 한도를 넘으면 멈춰서 사람을 부릅니다.
+발주량이 과하면 본사가 지점과 전국의 일별 시계열을 읽어 축소를 제안하고, 지점끼리는 값을 흥정하고,
+한 지점이 혼자 못 채우는 물량은 본사가 짝을 지어 중개합니다.
 합의가 되면 x402 프로토콜로 Solana 위에서 USDC를 지불하고, 본사가 온체인에서 대조해 정산을 확정합니다.
 
 | | |
@@ -47,10 +49,10 @@ pay.sh는 `--sandbox` 모드라 그 결제는 공개 체인에 남지 않고, **
 
 | 기준 | 우리가 한 것 | 코드 |
 |---|---|---|
-| **① 혁신성·UX** | 에이전트가 **따지고·거부하고·멈춘다**. 협상 6종(정상·차감·유예·분할 역제안·거부·지점 간 직거래). 손님이 직접 수요를 만드는 `/shop` | `agents/*/graph.py` · `api/shop.py` |
+| **① 혁신성·UX** | 에이전트가 **따지고·거부하고·멈춘다**. 협상 9종(정상·차감·유예·분할 역제안·거부·지점 간 직거래·발주량 축소 심사·직거래 가격 흥정·본사 부분잉여 중개 — 뒤 3종은 문턱값 없이 LLM이 시계열을 읽고 판단한다). 손님이 직접 수요를 만드는 `/shop` | `agents/*/graph.py` · `api/shop.py` |
 | **② AI 활용도** | **Vertex AI(Gemini)** + **LangGraph**(거래 두뇌 — 경로가 그래프로 드러난다) + **ADK**(사람 창구 — 대화로 승인). 분담에 근거가 있다 | `llm/judge.py` · `agents/` · `assistant/` |
 | **③ 인프라 연동** | **USDC**(정산 통화 — Circle 공식 devnet 민트) · **x402**(판매자·구매자 양쪽을 직접 구현 — 에이전트가 자기 지갑으로 판단 재료를 사고, 우리 체결 지수를 같은 규약으로 판다) · **pay.sh**(첫 시세 출처였고 지금은 폴백 — 카탈로그 입점은 메인넷 로드맵) | `core/protocol.py` · `api/x402.py` · `core/market.py` · `api/data_products.py` |
-| **④ 실제 구동** | 라이브가 **10분마다 스스로** 거래 중 — 청구서 1,661건·직거래 1,526건, 그중 사람이 개입한 결정은 9건. 모든 결제에 devnet 익스플로러 링크 | `core/economy.py` · `api/dashboard.py` |
+| **④ 실제 구동** | 라이브가 **10분마다 스스로** 거래 중 — 청구서 4,005건·직거래 3,516건, 그중 사람이 개입한 결정은 49건 (8/20 실측). 모든 결제에 devnet 익스플로러 링크 | `core/economy.py` · `api/dashboard.py` |
 
 세부 주제 대응: **A**(결제 요청 생성→입금→정산) = 402 발행·온체인 3중 대조 ·
 **B**(정책 한도 내 자율 서명) = `route_after_cashflow`의 상한·하한·승인 경계 ·
@@ -69,7 +71,7 @@ pay.sh는 `--sandbox` 모드라 그 결제는 공개 체인에 남지 않고, **
 | 블록체인 | devnet (공개 테스트넷) | **localnet** (자기 컴퓨터 속 체인) | devnet 결제엔 자금 있는 지갑이 필요한데 우리 키를 드릴 수 없으니, 무한 에어드랍 되는 로컬 체인을 씁니다 |
 | 지갑 · USDC | Secret Manager의 키 · **Circle 공식 devnet USDC** | `make localnet-setup`이 **새로 생성·발행** | 진짜 키는 저장소에 없고(보안), 로컬 체인엔 공식 민트가 없어 직접 발행합니다 |
 | DB | Cloud SQL (PostgreSQL 16) | `postgres:16` 컨테이너 | 관리형이냐 컨테이너냐 차이일 뿐 — 같은 엔진, 같은 스키마, 같은 store 코드 |
-| 실행 주기 | Cloud Scheduler가 10분마다 | `demo.py` 1회 압축 재생 | 심사가 10분을 기다릴 필요 없이 협상 6종을 한 번에 봅니다 (`make tick`으로 루프도 가능) |
+| 실행 주기 | Cloud Scheduler가 10분마다 | `demo.py` 1회 압축 재생 | 심사가 10분을 기다릴 필요 없이 5개 시나리오를 한 번에 봅니다 (`make tick`으로 루프도 가능) |
 | 시세 구매 | **자가 지수 기본**(우리 데이터 상점, devnet 실결제) · pay.sh 샌드박스는 폴백 | 꺼짐 | pay CLI가 x86_64 전용이라 Apple Silicon 호환을 위해 껐습니다 — 시세는 없어도 조달이 계속되는 선택 재료입니다 |
 
 (운영과 완전히 동일한 Vertex 판단이 굳이 필요하면 `docker-compose.vertex.yml` 오버레이가 있습니다 — GCP 프로젝트 보유자용 선택사항.)
@@ -89,7 +91,7 @@ pay.sh는 `--sandbox` 모드라 그 결제는 공개 체인에 남지 않고, **
 make chain            # 터미널 1 — 로컬 블록체인
 make localnet-setup   # 터미널 2 — 첫 1회: 지갑 생성·SOL·로컬 USDC (.env 자동 기록 — compose가 지갑 경로를 이어받습니다)
 docker compose up --build                 # DB + 결제 + API → http://localhost:8080
-docker compose exec api python demo.py    # 협상 6종 — 온체인 결제 포함 완주
+docker compose exec api python demo.py    # 5개 시나리오 — 온체인 결제 포함 완주
 ```
 
 기본은 규칙 기반 판단(키 불필요)입니다. **자기 키로 진짜 Gemini 판단**을 보려면 —
@@ -112,12 +114,12 @@ make setup     # 의존성 (backend: uv · payments: npm)
 make db        # PostgreSQL 기동 (:5432) — 없으면 Docker로 띄웁니다
 make dev       # 블록체인 + 결제 서비스 + API/대시보드 → http://localhost:8080
 
-# 다른 터미널에서 — 협상 6종을 처음부터 끝까지
+# 다른 터미널에서 — 5개 시나리오(검수 일치·차감·수요 파동·거부·직거래)를 처음부터 끝까지
 make demo-mock # 규칙 기반 판단(빠름). 온체인 결제는 실제로 발생합니다
 make demo      # Gemini 판단 — backend/.env에 GOOGLE_API_KEY 한 줄 (AI Studio 무료 발급)
 
 make tick      # 경제 루프 한 바퀴 (판매→카드정산→조달→재입고→예약납부)
-make test      # 137개
+make test      # 233개
 make help      # 전체 명령
 ```
 
@@ -129,7 +131,7 @@ Apple Silicon 참고: pay.sh CLI가 x86_64 전용이라 로컬 컨테이너에�
 **개발은 로컬넷, 시연은 devnet.** `make localnet` / `make devnet`으로 전환합니다.
 환경 변수는 `backend/.env.example` · `payments/.env.example` 참고
 (핵심은 `LLM_PROVIDER`(gemini|vertex|mock) · `SOLPLY_STORE`(local|postgres) · `SOLANA_NETWORK`).
-**`LLM_PROVIDER=mock`이면 LLM 없이도 6종이 완주합니다** — 판단 규칙이 `llm/rules.py`에 따로 있어서,
+**`LLM_PROVIDER=mock`이면 LLM 없이도 5개 시나리오가 완주합니다** — 판단 규칙이 `llm/rules.py`에 따로 있어서,
 API 키 없이도 온체인 결제까지 그대로 검증할 수 있습니다.
 
 ## 클라우드 배포 — 라이브는 이 저장소의 Docker 이미지 그대로입니다
@@ -172,6 +174,8 @@ scripts/video/         Playwright + ffmpeg 촬영기 — 코드가 바뀌면 영
 
 라이브를 계속 운영하며 발견한 문제와 수리 기록입니다.
 
+- **8/19** — 판매가 많은 지점에 보상이 없어 수익 구조가 기울던 문제 수리 — 로열티를 7일 판매지수에 비례해 깎는 성과 연동으로 ([`80ead36`](../../commit/80ead36))
+- **8/18** — LangGraph 상태 스키마에 선언되지 않은 키가 조용히 버려져 A2A 응답에서 판단이 사라지던 문제 수리 ([`1cf6a50`](../../commit/1cf6a50)) · 청구서 없는 intent가 청구서 조회로 흘러 발주량 축소 제안이 무응답이던 문제 수리 ([`78b5ea2`](../../commit/78b5ea2))
 - **8/11** — 마진 구조상 매출의 26%가 본사에서 지점으로 영구 이동해 본사 유동성이 고갈되고 카드정산이 멈추던 문제 수리 — 정산 지급 때 로열티(정책, 기본 25%)를 원천징수해 환류 ([`069ffaa`](../../commit/069ffaa))
 - **8/8** — 거부된 청구서가 사람 큐에 오르지 않아 "사람에게 넘긴다"가 말뿐이던 문제 수리, 신용점수가 연체를 반영하지 않던 문제 수리 ([`915d6cc`](../../commit/915d6cc), [`d797912`](../../commit/d797912))
 - **8/7** — 재고 고갈 지점이 발주 게이트에 갇혀 회복하지 못하던 사망 나선 수리 ([`d4c988e`](../../commit/d4c988e), [`01ab4e9`](../../commit/01ab4e9))
