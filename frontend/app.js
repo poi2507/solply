@@ -1002,7 +1002,8 @@ if (chatForm) {
       const res = await writeFetch("/api/assistant/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message }),
+        // 역할을 함께 보낸다 — 서버가 이 값으로 조회 범위를 좁힌다 (점주는 자기 지점만)
+        body: JSON.stringify({ message, owner: me?.id ?? "hq" }),
       });
       const data = await res.json();
       if (res.ok) waiting.innerHTML = mdLite(data.reply);

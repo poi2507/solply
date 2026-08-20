@@ -8,6 +8,7 @@
 
 from fastapi import HTTPException
 
+from app.assistant import scope
 from app.core import report
 from app.core import status as status_mod
 from app.db import store as db
@@ -15,12 +16,12 @@ from app.db import store as db
 
 def get_settlement_overview() -> dict:
     """정산 현황 요약을 조회한다 — 청구서 상태별 건수·금액, 미수금, 지점 간 직거래."""
-    invoices = db.list_docs("invoices")
+    invoices = [d for d in db.list_docs("invoices") if scope.mine(d)]
     by_status: dict[str, int] = {}
     for inv in invoices:
         by_status[inv["status"]] = by_status.get(inv["status"], 0) + 1
     # 직거래는 최근 것만 — 전량(수천 건)을 LLM 프롬프트에 밀어 넣지 않는다
-    trades = sorted(db.list_docs("p2p_trades"),
+    trades = sorted([t for t in db.list_docs("p2p_trades") if scope.mine_trade(t)],
                     key=lambda t: t.get("updated_at", ""))[-10:]
     return {
         "invoices_by_status": by_status,
@@ -47,6 +48,8 @@ def get_settlement_overview() -> dict:
 
 def get_weekly_report() -> dict:
     """이번 주기 정산 통계를 조회한다 — 정산·협상·직거래·신용 변화·사람 개입 횟수."""
+    if not scope.is_hq():  # 전 지점 신용·개입 통계가 들어 있다
+        return scope.HQ_ONLY
     return report.collect()
 
 
@@ -58,6 +61,9 @@ def get_store_credit(store_id: str) -> dict:
     """
     from app.agents.hq import tools as hq_tools
 
+    mine = scope.store_id()
+    if mine is not None and store_id != mine:
+        return scope.OTHER_STORE
     return hq_tools.store_credit(store_id)
 
 
@@ -70,6 +76,18 @@ NEGOTIATION_STEP_LABEL = {
 }
 
 
+def _mine_thread(neg: dict) -> bool:
+    """협상 스레드가 우리 것인지 — invoice_id 자리에 직거래 ID(P2P-)가 들어오기도 한다."""
+    ref = neg.get("invoice_id") or ""
+    doc = db.get("invoices", ref)
+    if doc:
+        return scope.mine(doc)
+    trade = db.get("p2p_trades", ref)
+    if trade:
+        return scope.mine_trade(trade)
+    return False
+
+
 def get_negotiation_history(invoice_id: str = "") -> dict:
     """협상 왕복 기록을 조회한다 — 청구서별로 유예 요청→심사→재응수→종결이 시간순으로 나온다.
 
@@ -79,6 +97,8 @@ def get_negotiation_history(invoice_id: str = "") -> dict:
     negs = db.list_docs("negotiations")
     if invoice_id:
         negs = [n for n in negs if n.get("invoice_id") == invoice_id]
+    if not scope.is_hq():
+        negs = [n for n in negs if _mine_thread(n)]
     threads: dict[str, list[dict]] = {}
     for n in sorted(negs, key=lambda d: d.get("updated_at", "")):
         row = {
@@ -106,6 +126,7 @@ def list_pending_approvals() -> list[dict]:
     docs = db.list_docs("invoices", status="pending_approval")
     docs += [d for d in db.list_docs("invoices", status="refused")
              if not d.get("human_reviewed")]
+    docs = [d for d in docs if scope.mine(d)]
     return [
         {"id": d["id"], "store_id": d["store_id"], "amount_usdc": d["amount_usdc"],
          "kind": "상한 초과 승인 대기" if d["status"] == "pending_approval" else "거부 검토"}
@@ -121,6 +142,8 @@ async def approve_payment(invoice_id: str) -> dict:
     """
     from app.api.approvals import Decision, decide
 
+    if not scope.is_hq():
+        return scope.HQ_ACTION
     try:
         return await decide(invoice_id, Decision(decision="approve", note="어시스턴트 경유"))
     except HTTPException as exc:
@@ -136,6 +159,8 @@ async def reject_payment(invoice_id: str, reason: str) -> dict:
     """
     from app.api.approvals import Decision, decide
 
+    if not scope.is_hq():
+        return scope.HQ_ACTION
     try:
         return await decide(invoice_id, Decision(decision="reject", note=f"어시스턴트 경유 — {reason}"))
     except HTTPException as exc:
@@ -148,7 +173,7 @@ def list_scheduled_payments() -> list[dict]:
         {"id": d["id"], "store_id": d["store_id"], "amount_usdc": d["amount_usdc"],
          "installment": d.get("installment")}
         for d in db.list_docs("invoices")
-        if d["status"] == "scheduled"
+        if d["status"] == "scheduled" and scope.mine(d)
     ]
 
 
@@ -160,6 +185,10 @@ async def run_scheduled_payment(invoice_id: str) -> dict:
     """
     from app.api.schedules import RunOptions, run_scheduled
 
+    if not scope.is_hq():
+        doc = db.get("invoices", invoice_id)
+        if not doc or not scope.mine(doc):
+            return scope.OTHER_STORE
     try:
         return await run_scheduled(invoice_id, RunOptions(simulate_inflow=True))
     except HTTPException as exc:

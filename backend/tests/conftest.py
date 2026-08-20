@@ -23,3 +23,16 @@ def _fresh_rate_buckets():
     guard._BUCKETS.clear()
     yield
     guard._BUCKETS.clear()
+
+@pytest.fixture(autouse=True)
+def _assistant_scope_is_hq():
+    """어시스턴트 도구는 요청 범위(scope)를 주입받아야 데이터를 본다.
+
+    주입이 없으면 아무것도 안 보이는 쪽으로 실패하도록 만들었으므로(fail-closed),
+    범위를 따로 다루지 않는 테스트는 본사 관점으로 묶어둔다.
+    """
+    from app.assistant import scope
+
+    token = scope.bind("hq")
+    yield
+    scope.reset(token)

@@ -10,7 +10,7 @@ LangGraph 에이전트가 정책 안에서 수행하고, 모든 행동이 증빙
 
 from functools import lru_cache
 
-from app.assistant import tools
+from app.assistant import scope, tools
 from app.llm import factory
 
 INSTRUCTION = """너는 Solply의 정산 어시스턴트다. 프랜차이즈 본사 정산 담당자와 지점 점주가
@@ -39,24 +39,37 @@ INSTRUCTION = """너는 Solply의 정산 어시스턴트다. 프랜차이즈 본
 """
 
 
-@lru_cache(maxsize=1)
-def _runner():
+STORE_NOTE = """
+
+지금 이 창구는 **가맹점 점주**의 것이다:
+- 우리 지점 것만 조회된다. 다른 지점의 청구서·신용점수·협상은 볼 수 없다.
+- 승인·반려는 본사 정산팀 권한이라 대신 눌러줄 수 없다.
+- 도구가 권한 없음을 알려주면 그대로 전하고, 점주가 할 수 있는 다음 행동을 한 문장 덧붙인다.
+"""
+
+
+# 본사용·지점용 둘. 지시문이 달라 러너를 나눈다 (도구 목록은 같고, 범위는 scope가 정한다).
+@lru_cache(maxsize=2)
+def _runner(kind: str = "hq"):
     from google.adk.agents import Agent
     from google.adk.runners import Runner
     from google.adk.sessions import InMemorySessionService
 
     agent = Agent(
-        name="solply_assistant",
+        name=f"solply_assistant_{kind}",
         model=factory.model_for("hq"),  # provider(gemini|vertex)에 맞는 모델명을 고른다
         description="정산 현황 조회와 사람 권한의 실행(승인·반려·예약)을 돕는 대화 창구",
-        instruction=INSTRUCTION,
+        instruction=INSTRUCTION + (STORE_NOTE if kind == "store" else ""),
         tools=list(tools.ALL),
     )
     return Runner(agent=agent, app_name="solply", session_service=InMemorySessionService())
 
 
-async def chat(session_id: str, message: str, user_id: str = "owner", attempts: int = 3) -> str:
+async def chat(session_id: str, message: str, owner: str = "hq", attempts: int = 3) -> str:
     """한 턴을 처리하고 최종 답변 텍스트를 돌려준다. 세션은 메모리에 유지된다.
+
+    owner가 ADK user_id를 겸한다 — 이걸 고정값으로 두면 점주와 본사가 한 세션을
+    공유해 대화 이력이 섞인다.
 
     모델이 일시적으로 흔들리면(429·5xx·연결 끊김) 조용히 다시 시도한다 —
     데모 중 대화창에 공급자 오류 문구가 뜨는 것보다 몇 초 기다리는 게 낫다.
@@ -66,7 +79,7 @@ async def chat(session_id: str, message: str, user_id: str = "owner", attempts: 
     last: Exception | None = None
     for attempt in range(1, attempts + 1):
         try:
-            return await _turn(session_id, message, user_id)
+            return await _turn(session_id, message, owner)
         except Exception as exc:  # noqa: BLE001 — 공급자 예외 종류가 제각각이다
             last = exc
             if attempt == attempts:
@@ -76,10 +89,20 @@ async def chat(session_id: str, message: str, user_id: str = "owner", attempts: 
     raise last  # type: ignore[misc]
 
 
-async def _turn(session_id: str, message: str, user_id: str) -> str:
+async def _turn(session_id: str, message: str, owner: str) -> str:
+    # 도구 호출 직전에 다시 묶는다 — 범위 주입은 도구와 가장 가까운 자리에 있어야 한다
+    token = scope.bind(owner)
+    try:
+        return await _run(session_id, message, owner)
+    finally:
+        scope.reset(token)
+
+
+async def _run(session_id: str, message: str, owner: str) -> str:
     from google.genai import types
 
-    runner = _runner()
+    user_id = owner
+    runner = _runner("hq" if scope.is_hq() else "store")
     session = await runner.session_service.get_session(
         app_name="solply", user_id=user_id, session_id=session_id
     )

@@ -26,8 +26,14 @@ def test_agent_assembles_with_all_tools():
     from app.assistant.agent import _runner
 
     runner = _runner()
-    assert runner.agent.name == "solply_assistant"
+    assert runner.agent.name == "solply_assistant_hq"
     assert len(tools.ALL) == 9
+
+    # 지점 창구는 같은 도구에 다른 지시문을 받는다 — 조회 범위 자체는 scope가 정한다
+    store = _runner("store")
+    assert store.agent.name == "solply_assistant_store"
+    assert len(store.agent.tools) == len(runner.agent.tools)
+    assert "가맹점 점주" in store.agent.instruction
 
 
 def test_action_tools_survive_bad_targets():

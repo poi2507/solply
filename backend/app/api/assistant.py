@@ -6,13 +6,16 @@ from pydantic import BaseModel
 from app import config
 from app.api import guard
 from app.assistant import agent as assistant
+from app.assistant import scope
 
 router = APIRouter(prefix="/api/assistant", tags=["assistant"])
 
 
 class ChatIn(BaseModel):
     message: str
-    session_id: str = "dashboard"
+    session_id: str = ""
+    # 대시보드에서 고른 역할 (hq · admin · store-a …). 이 값이 조회 범위를 정한다.
+    owner: str = "hq"
 
 
 @router.post("/chat", dependencies=[Depends(guard.require_admin)])
@@ -22,10 +25,17 @@ async def chat(body: ChatIn) -> dict:
         raise HTTPException(503, "어시스턴트는 Gemini/Vertex 모드에서 동작합니다 (지금은 LLM_PROVIDER=mock)")
     if not body.message.strip():
         raise HTTPException(400, "메시지가 비어 있습니다")
+
+    owner = body.owner.strip() or "hq"
+    # 세션도 역할별로 — 기본값 하나를 공유하면 점주와 본사의 대화 이력이 섞인다
+    session_id = body.session_id.strip() or f"dash-{owner}"
+    token = scope.bind(owner)
     try:
-        reply = await assistant.chat(body.session_id, body.message.strip())
+        reply = await assistant.chat(session_id, body.message.strip(), owner=owner)
     except Exception as exc:
         # 공급자 오류 원문(문서 링크·스택)을 대화창에 흘리지 않는다. 진단은 서버 로그에 남긴다.
         print(f"[assistant] 응답 실패: {exc}")
         raise HTTPException(502, "지금 답을 만들지 못했어요. 잠시 뒤 다시 물어봐 주세요.") from exc
+    finally:
+        scope.reset(token)
     return {"reply": reply or "…답변을 만들지 못했습니다. 다시 물어봐 주세요."}
