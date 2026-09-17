@@ -16,6 +16,33 @@
 
 ---
 
+## Background — 개발 이력
+
+**This project predates Crypto World's Fair (Sep 14 – Oct 12, 2026) and is disclosed here as prior work.**
+
+Solply was built between **2026-07-25 and 2026-08-20** for the GCP × Solana AI Agentic Hackathon,
+where it placed first. That version already included the LangGraph settlement agents, the ADK
+assistant, nine negotiation types, x402 implemented on both the buyer and the seller side, and
+A2A agent cards — and it had been running unattended on 10-minute ticks since 2026-07-29.
+
+The repository state at the start of Crypto World's Fair is tagged **`cwf-baseline`**
+(commit [`fbde663`](https://github.com/poi2507/solply/commit/fbde663), 2026-08-20).
+All 201 commits up to that point are dated before 2026-08-22. Everything submitted for
+Crypto World's Fair judging is the diff from that tag onward:
+
+**→ [compare `cwf-baseline`...`main`](https://github.com/poi2507/solply/compare/cwf-baseline...main)**
+
+Usage figures elsewhere in this README were measured in August 2026. They are prior traction
+and labeled with their measurement date; metrics for Crypto World's Fair are measured from
+2026-09-14 onward and reported separately.
+
+> **한국어** — 이 저장소는 2026년 7~8월에 GCP × Solana AI Agentic 해커톤 출품작으로 만들어 수상했습니다.
+> Crypto World's Fair(9/14~10/12) 시작 시점의 상태가 태그 `cwf-baseline`(커밋 `fbde663`, 8/20)이고,
+> 이번 대회 심사 대상은 그 태그 이후의 diff입니다. 아래 본문의 숫자는 8월 실측이며 이전 실적입니다.
+> 이번 대회 지표는 9/14 이후로 따로 계측합니다.
+
+---
+
 ## 이건 목업이 아닙니다
 
 주최측이 "목업은 심사 대상에서 제외"라고 명시했으므로, 무엇이 실제인지 먼저 밝힙니다.
