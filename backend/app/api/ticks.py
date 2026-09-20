@@ -5,22 +5,19 @@
 
 **동시 실행 잠금**: 수동 틱(무대 트리거·검증)이 정시 스케줄러 틱과 겹치면
 두 틱이 같은 거래를 몰아 경합 오류를 만든다 (8/11·8/13 실측 — p2p.pay 500).
-잠금 문서로 한 번에 하나만 돌리고, 죽은 틱의 잠금은 TTL이 자연 해제한다.
+잠금은 economy.acquire_tick_lock — 손님 구매가 촉발하는 즉시 조달(api/shop.py)도
+같은 잠금을 쓰므로, 틱과 상점 트리거가 한 지점을 동시에 건드리지 않는다.
 """
 
 import asyncio
-from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 
 from app import config
 from app.api import guard
 from app.core import economy
-from app.db import store
 
 router = APIRouter(prefix="/api/ticks", tags=["ticks"])
-
-LOCK_TTL_S = 540  # 스케줄러 attempt deadline과 동일 — 이보다 오래 걸린 틱은 죽은 것
 
 
 @router.post("/run", dependencies=[Depends(guard.require_admin)])
@@ -28,18 +25,15 @@ async def run_tick() -> dict:
     if not config.TICK_ENABLED:
         raise HTTPException(409, "경제 루프가 꺼져 있습니다 (TICK_ENABLED=0)")
 
-    lock = store.get("locks", "tick")
-    if lock and lock.get("started_at"):
-        age = (datetime.now(UTC) - datetime.fromisoformat(lock["started_at"])).total_seconds()
-        if age < LOCK_TTL_S:
-            raise HTTPException(
-                409, f"틱이 이미 실행 중입니다 ({int(age)}초째) — 동시 실행은 거래 경합을 만듭니다"
-            )
-    store.put("locks", "tick", {"started_at": datetime.now(UTC).isoformat()})
+    age = economy.acquire_tick_lock()
+    if age is not None:
+        raise HTTPException(
+            409, f"틱이 이미 실행 중입니다 ({int(age)}초째) — 동시 실행은 거래 경합을 만듭니다"
+        )
     try:
         # 작업 스레드의 전용 루프에서 돌린다 — 틱 안의 동기 LLM·DB 호출이
         # 서버의 메인 이벤트 루프를 붙잡으면 모든 요청이 줄을 선다 (8/12 health 33초 실측)
         summary = await asyncio.to_thread(asyncio.run, economy.tick())
     finally:
-        store.put("locks", "tick", {"started_at": None})
+        economy.release_tick_lock()
     return {"ok": True, **summary}

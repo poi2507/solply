@@ -56,6 +56,10 @@ SPEND_LIMIT_USDC = float(os.getenv("AGENT_SPEND_LIMIT_USDC", "50"))
 # ── 경제 루프 ──
 # 라이브에서 스케줄러가 굴리는 틱. 촬영·리허설 중에는 0으로 꺼서 상태를 고정한다
 TICK_ENABLED = os.getenv("TICK_ENABLED", "1").lower() not in ("0", "false")
+# 손님 구매가 안전선을 깨면 다음 틱을 기다리지 않고 그 지점의 조달을 바로 태운다.
+# 심사위원이 사고 10분을 기다리는 데모는 데모가 아니다. 촬영·리허설 중엔 0으로 꺼서
+# 화면 상태를 고정한다 (TICK_ENABLED=0이면 이것도 함께 멈춘다).
+SHOP_TRIGGER_ENABLED = os.getenv("SHOP_TRIGGER_ENABLED", "1").lower() not in ("0", "false")
 
 # ── pay.sh (판단 재료 구매) ──
 # 조달 판단 전에 에이전트가 시세 데이터를 x402로 사서 쓴다. 샌드박스라 실자금은 없다.

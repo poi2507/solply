@@ -17,6 +17,7 @@
 """
 
 import random
+from datetime import UTC, datetime
 
 from app.a2a import client as a2a
 from app.agents import runner, utils
@@ -70,6 +71,33 @@ STARVING_RATIO = 0.6
 # 발주는 안전재고까지가 아니라 그 배수까지 채운다. 딱 안전재고로 맞추면 판매 한 번에
 # 다시 미달이라 매 틱 발주가 나가 청구서가 무의미하게 불어난다.
 REORDER_TO_SAFETY_X = 2
+
+# 조달을 촉발한 주체 → 납품 문서의 출처 표기. 화면과 로그가 "스케줄러가 돌린 것"과
+# "실제 방문자의 구매가 일으킨 것"을 구분해야 한다 — 둘을 섞어 보이면 시뮬레이션을
+# 실사용처럼 꾸미는 셈이다.
+PROCURE_SOURCE = {"tick": "economy-tick", "shop": "shop-purchase"}
+
+# ── 경제 실행 잠금 — 한 번에 하나만 ─────────────────────────────────
+# 스케줄러 틱, 수동 틱, 손님 구매가 촉발한 즉시 조달이 같은 지점의 거래를 동시에
+# 몰면 경합 오류가 난다 (8/11·8/13 실측 — p2p.pay 500). 잠금 문서 하나로 직렬화하고,
+# 죽은 실행이 남긴 잠금은 TTL이 풀어준다. 틱 API와 상점 트리거가 같은 잠금을 쓴다.
+TICK_LOCK_TTL_S = 540  # 스케줄러 attempt deadline과 동일 — 이보다 오래 걸린 실행은 죽은 것
+TICK_LOCK = ("locks", "tick")
+
+
+def acquire_tick_lock() -> float | None:
+    """잠금을 잡으면 None, 누가 잡고 있으면 그 나이(초)를 돌려준다. TTL 지난 잠금은 뺏는다."""
+    lock = db.get(*TICK_LOCK)
+    if lock and lock.get("started_at"):
+        age = (datetime.now(UTC) - datetime.fromisoformat(lock["started_at"])).total_seconds()
+        if age < TICK_LOCK_TTL_S:
+            return age
+    db.put(*TICK_LOCK, {"started_at": datetime.now(UTC).isoformat()})
+    return None
+
+
+def release_tick_lock() -> None:
+    db.put(*TICK_LOCK, {"started_at": None})
 
 
 def _refill_x(store_id: str, sku: str) -> float:
@@ -463,8 +491,11 @@ async def _negotiate_deferral(store_id: str, invoice_id: str) -> str:
     return "installments_agreed" if hq2.get("outcome") == "scheduled" else "negotiation_failed"
 
 
-def _fulfill_order(store_id: str, sku: str, need: int) -> str | None:
-    """본사 이행 — 주문 수량만큼 납품 문서를 만들고 청구서를 발행한다."""
+def _fulfill_order(store_id: str, sku: str, need: int, source: str = "economy-tick") -> str | None:
+    """본사 이행 — 주문 수량만큼 납품 문서를 만들고 청구서를 발행한다.
+
+    source는 이 발주를 일으킨 주체(틱 / 손님 구매) — 납품 문서에 남아 화면이 구분한다.
+    """
     terms = utils.hq_reorder_terms(sku)
     order_qty = max(need, int(terms.get("min_qty", 1)))
     hq_stock = utils.effective_inventory("hq").get(sku, {}).get("qty", 0)
@@ -481,7 +512,7 @@ def _fulfill_order(store_id: str, sku: str, need: int) -> str | None:
             "items": [{"sku": sku, "name": name, "qty": ship_qty,
                        "unit_price_usdc": _sku_price(sku)}],
             "received": {sku: ship_qty},  # 루프 납품은 검수 일치가 기본
-            "source": "economy-tick",
+            "source": source,
         },
     )
     from app.agents.hq import tools as hq_tools
@@ -514,103 +545,112 @@ async def broker_trades() -> list[dict]:
         return [{"route": "brokered", "trade_id": trade["id"], "status": f"error: {str(exc)[:120]}"}]
 
 
+async def procure_store(store_id: str, *, trigger: str = "tick") -> dict | None:
+    """한 지점의 재고를 점검하고, 미달이면 조달 그래프(P2P vs 본사 발주)를 태운다.
+
+    미달이 없으면 None. 틱은 전 지점을 순회하며 이걸 부르고, 손님 구매는 안전선이
+    깨진 그 지점만 바로 부른다 — 심사위원이 사고 10분을 기다리는 데모는 데모가 아니다.
+    """
+    inventory = utils.effective_inventory(store_id)
+    shortages = utils.stock_shortages(inventory)
+    if not shortages:
+        return None
+
+    # 결제가 막힌 지점은 발주를 멈춘다 (8/6: 하루 700건 발행 사고의 재발 방지).
+    open_invoices = [inv for inv in db.list_docs("invoices", store_id=store_id)
+                     if inv["status"] in status_mod.ACTIONABLE]
+    stuck = sum(1 for inv in open_invoices
+                if inv["status"] != status_mod.InvoiceStatus.SCHEDULED)
+    gated = stuck >= MAX_STUCK_INVOICES or len(open_invoices) >= MAX_OPEN_INVOICES
+    starving = len(shortages) >= max(1, round(len(inventory) * STARVING_RATIO))
+    if gated and not starving:
+        return {"store_id": store_id, "route": "hold",
+                "status": f"stuck={stuck} open={len(open_invoices)}"}
+
+    try:
+        # 조달 판단은 에이전트의 몫 — P2P가 유리하면 직거래를 제안한다
+        result = await a2a.send(store_id, "restock.check")
+        trade = result.get("trade")
+        if trade:
+            status = await _p2p_handshake(trade)
+            return {"store_id": store_id, "route": "p2p", "status": status}
+
+        # 잉여 지점이 없으면 본사 발주 — 납품·청구 생성 후 기존 x402 정산 플로우
+        shortage = shortages[0]
+        # 굶어서 우회한 발주는 안전재고까지만 — 빚을 더 키우지 않는다
+        refill = 1 if (gated and starving) else _refill_x(store_id, shortage["sku"])
+        need = round(shortage["need"] + shortage["safety"] * (refill - 1))
+        order_qty = max(1, need)
+        base_qty = max(1, shortage["need"])  # 축소의 바닥 — 안전재고 회복분 (기아 방지)
+
+        # 발주량 협상 — 배수가 붙은 주문은 본사가 시계열로 심사한다 (8/18 팀장 지시:
+        # 지점은 자기 정보만 보니 수요에 과민할 수 있고, 전국 추이는 본사만 본다).
+        # 어떤 실패도 발주를 멈추지 않는다 — 심사가 죽으면 원 수량 그대로 이행.
+        order_review, order_response = None, None
+        if order_qty > base_qty:
+            try:
+                reviewed = await a2a.send(
+                    "hq", "order.review", payload={
+                        "store_id": store_id, "sku": shortage["sku"],
+                        "name": shortage.get("name", shortage["sku"]),
+                        "order_qty": order_qty, "base_qty": base_qty,
+                    })
+                order_review = reviewed.get("decision") or {}
+                if order_review.get("decision") == "counter":
+                    adjusted = await a2a.send(
+                        store_id, "order.adjust", payload={
+                            "sku": shortage["sku"],
+                            "name": shortage.get("name", shortage["sku"]),
+                            "order_qty": order_qty, "trim_qty": base_qty,
+                            "hq_reasoning": order_review.get("reasoning", ""),
+                        })
+                    order_response = adjusted.get("decision") or {}
+                    if order_response.get("decision") == "accept":
+                        order_qty = base_qty  # 수량은 코드가 확정 — 바닥 밑으로 못 내려간다
+            except Exception as exc:  # noqa: BLE001 — 심사가 발주를 멈출 사유는 아니다
+                print(f"[economy] 발주량 심사 불가({store_id}) — 원 수량 이행: {str(exc)[:120]}")
+
+        invoice_id = _fulfill_order(store_id, shortage["sku"], order_qty,
+                                    source=PROCURE_SOURCE.get(trigger, trigger))
+        if not invoice_id:
+            return {"store_id": store_id, "route": "hq_order", "status": "hq_out_of_stock"}
+
+        # 발주량 협상의 왕복을 청구서의 협상 스레드로 남긴다 — 청구서가 생긴 뒤에
+        # 기록해야 대시보드 타임라인이 이 대화를 그 청구서 밑에 묶어 보여준다.
+        if order_review:
+            from app.agents.hq import tools as hq_tools
+            from app.agents.store import tools as store_tools
+            hq_tools.record_decision(
+                invoice_id, "order_review",
+                f"발주 {shortage.get('name', shortage['sku'])} {max(1, need)}개 (기본 {base_qty}개) 심사",
+                order_review.get("decision", "accept"), order_review.get("reasoning", ""),
+            )
+            if order_response:
+                store_tools.record_order_response(
+                    store_id, invoice_id,
+                    order_response.get("decision", "insist"), order_response.get("reasoning", ""),
+                )
+        handled = await a2a.send(store_id, "invoice.handle", invoice_id=invoice_id)
+        outcome = handled.get("outcome")
+        if outcome == "negotiating":  # 잔액 부족 → 유예 제안 → 다회 왕복 협상
+            outcome = await _negotiate_deferral(store_id, invoice_id)
+        return {
+            "store_id": store_id, "route": "hq_order",
+            "invoice_id": invoice_id, "status": outcome, "refill_x": refill,
+            **({"order_review": order_review.get("decision"),
+                "final_qty": order_qty} if order_review else {}),
+        }
+    except Exception as exc:  # noqa: BLE001 — 한 지점의 실패가 다른 지점을 막지 않는다
+        return {"store_id": store_id, "route": "error", "status": str(exc)[:160]}
+
+
 async def run_procurement() -> list[dict]:
     """지점마다 재고를 점검하고, 미달이면 조달 그래프(P2P vs 본사 발주)를 태운다."""
     actions = []
     for store_id in fixtures.load()["stores"]:
-        inventory = utils.effective_inventory(store_id)
-        shortages = utils.stock_shortages(inventory)
-        if not shortages:
-            continue
-
-        # 결제가 막힌 지점은 발주를 멈춘다 (8/6: 하루 700건 발행 사고의 재발 방지).
-        open_invoices = [inv for inv in db.list_docs("invoices", store_id=store_id)
-                         if inv["status"] in status_mod.ACTIONABLE]
-        stuck = sum(1 for inv in open_invoices
-                    if inv["status"] != status_mod.InvoiceStatus.SCHEDULED)
-        gated = stuck >= MAX_STUCK_INVOICES or len(open_invoices) >= MAX_OPEN_INVOICES
-        starving = len(shortages) >= max(1, round(len(inventory) * STARVING_RATIO))
-        if gated and not starving:
-            actions.append({"store_id": store_id, "route": "hold",
-                            "status": f"stuck={stuck} open={len(open_invoices)}"})
-            continue
-
-        try:
-            # 조달 판단은 에이전트의 몫 — P2P가 유리하면 직거래를 제안한다
-            result = await a2a.send(store_id, "restock.check")
-            trade = result.get("trade")
-            if trade:
-                status = await _p2p_handshake(trade)
-                actions.append({"store_id": store_id, "route": "p2p", "status": status})
-                continue
-
-            # 잉여 지점이 없으면 본사 발주 — 납품·청구 생성 후 기존 x402 정산 플로우
-            shortage = shortages[0]
-            # 굶어서 우회한 발주는 안전재고까지만 — 빚을 더 키우지 않는다
-            refill = 1 if (gated and starving) else _refill_x(store_id, shortage["sku"])
-            need = round(shortage["need"] + shortage["safety"] * (refill - 1))
-            order_qty = max(1, need)
-            base_qty = max(1, shortage["need"])  # 축소의 바닥 — 안전재고 회복분 (기아 방지)
-
-            # 발주량 협상 — 배수가 붙은 주문은 본사가 시계열로 심사한다 (8/18 팀장 지시:
-            # 지점은 자기 정보만 보니 수요에 과민할 수 있고, 전국 추이는 본사만 본다).
-            # 어떤 실패도 발주를 멈추지 않는다 — 심사가 죽으면 원 수량 그대로 이행.
-            order_review, order_response = None, None
-            if order_qty > base_qty:
-                try:
-                    reviewed = await a2a.send(
-                        "hq", "order.review", payload={
-                            "store_id": store_id, "sku": shortage["sku"],
-                            "name": shortage.get("name", shortage["sku"]),
-                            "order_qty": order_qty, "base_qty": base_qty,
-                        })
-                    order_review = reviewed.get("decision") or {}
-                    if order_review.get("decision") == "counter":
-                        adjusted = await a2a.send(
-                            store_id, "order.adjust", payload={
-                                "sku": shortage["sku"],
-                                "name": shortage.get("name", shortage["sku"]),
-                                "order_qty": order_qty, "trim_qty": base_qty,
-                                "hq_reasoning": order_review.get("reasoning", ""),
-                            })
-                        order_response = adjusted.get("decision") or {}
-                        if order_response.get("decision") == "accept":
-                            order_qty = base_qty  # 수량은 코드가 확정 — 바닥 밑으로 못 내려간다
-                except Exception as exc:  # noqa: BLE001 — 심사가 발주를 멈출 사유는 아니다
-                    print(f"[economy] 발주량 심사 불가({store_id}) — 원 수량 이행: {str(exc)[:120]}")
-
-            invoice_id = _fulfill_order(store_id, shortage["sku"], order_qty)
-            if not invoice_id:
-                actions.append({"store_id": store_id, "route": "hq_order", "status": "hq_out_of_stock"})
-                continue
-
-            # 발주량 협상의 왕복을 청구서의 협상 스레드로 남긴다 — 청구서가 생긴 뒤에
-            # 기록해야 대시보드 타임라인이 이 대화를 그 청구서 밑에 묶어 보여준다.
-            if order_review:
-                from app.agents.hq import tools as hq_tools
-                from app.agents.store import tools as store_tools
-                hq_tools.record_decision(
-                    invoice_id, "order_review",
-                    f"발주 {shortage.get('name', shortage['sku'])} {max(1, need)}개 (기본 {base_qty}개) 심사",
-                    order_review.get("decision", "accept"), order_review.get("reasoning", ""),
-                )
-                if order_response:
-                    store_tools.record_order_response(
-                        store_id, invoice_id,
-                        order_response.get("decision", "insist"), order_response.get("reasoning", ""),
-                    )
-            handled = await a2a.send(store_id, "invoice.handle", invoice_id=invoice_id)
-            outcome = handled.get("outcome")
-            if outcome == "negotiating":  # 잔액 부족 → 유예 제안 → 다회 왕복 협상
-                outcome = await _negotiate_deferral(store_id, invoice_id)
-            actions.append({
-                "store_id": store_id, "route": "hq_order",
-                "invoice_id": invoice_id, "status": outcome, "refill_x": refill,
-                **({"order_review": order_review.get("decision"),
-                    "final_qty": order_qty} if order_review else {}),
-            })
-        except Exception as exc:  # noqa: BLE001 — 한 지점의 실패가 다른 지점을 막지 않는다
-            actions.append({"store_id": store_id, "route": "error", "status": str(exc)[:160]})
+        action = await procure_store(store_id)
+        if action:
+            actions.append(action)
     return actions
 
 

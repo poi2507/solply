@@ -20,6 +20,9 @@ ACTION_LABELS: dict[str, str] = {
     "p2p.delivery_failed": "인도 실패",
     "shop.sale": "손님 구매 결제",
     "shop.pay_failed": "손님 결제 실패",
+    "shop.trigger": "손님 구매가 조달을 촉발",
+    "shop.procured": "손님 구매 → 조달 완료",
+    "shop.procure_failed": "손님 구매 → 조달 실패",
     # 청구서
     "invoice.created": "청구서 발행",
     "invoice.adjusted": "청구 금액 정정",
