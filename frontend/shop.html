@@ -48,31 +48,33 @@
   .guest-wallet .amt small { font-size: 11px; color: var(--ink-3); font-weight: 400; }
   .guest-wallet .addr { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
   .guest-wallet .gasless { color: var(--accent); font-weight: 650; font-size: 11.5px; }
-  /* 실시간 기록 — 구매 직후 이 지점의 에이전트 활동이 쌓이는 자리 */
-  .live {
-    margin-top: 26px; background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+  /* 실시간 기록 — 구매 직후 이 지점의 에이전트 활동이 쌓이는 자리.
+     공용 style.css에 .live/.dot 같은 이름이 있어 상점 전용 접두사(sl-)를 쓴다 */
+  .sl-live {
+    display: flex; flex-direction: column; margin-top: 26px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
     box-shadow: var(--shadow); overflow: hidden;
   }
-  .live-head { display: flex; align-items: center; gap: 10px; padding: 12px 17px; border-bottom: 1px solid var(--line); font-size: 13px; }
-  .live-head b { color: var(--ink); font-weight: 750; }
-  .live-sub { color: var(--ink-3); font-size: 12px; margin-left: auto; text-align: right; }
-  .live .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-3); flex: none; }
-  .live.running .dot { background: var(--accent-vivid); animation: pulse 1.4s ease-in-out infinite; }
-  @keyframes pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.6); opacity: .45; } }
-  @media (prefers-reduced-motion: reduce) { .live.running .dot { animation: none; } }
-  .live ol { list-style: none; margin: 0; padding: 4px 0; max-height: 320px; overflow-y: auto; }
-  .live li {
+  .sl-live-head { display: flex; align-items: center; gap: 10px; padding: 12px 17px; border-bottom: 1px solid var(--line); font-size: 13px; }
+  .sl-live-head b { color: var(--ink); font-weight: 750; }
+  .sl-live-sub { color: var(--ink-3); font-size: 12px; margin-left: auto; text-align: right; }
+  .sl-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-3); flex: none; }
+  .sl-live.running .sl-dot { background: var(--accent-vivid); animation: sl-pulse 1.4s ease-in-out infinite; }
+  @keyframes sl-pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.6); opacity: .45; } }
+  @media (prefers-reduced-motion: reduce) { .sl-live.running .sl-dot { animation: none; } }
+  .sl-live ol { display: block; list-style: none; margin: 0; padding: 4px 0; max-height: 320px; overflow-y: auto; }
+  .sl-live li {
     display: grid; grid-template-columns: 66px 118px 1fr; gap: 6px 12px; align-items: baseline;
     padding: 7px 17px; font-size: 12.5px; border-bottom: 1px dashed var(--line);
   }
-  .live li:last-child { border-bottom: none; }
-  .live time { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); }
-  .live .who { font-family: var(--mono); font-size: 11.5px; color: var(--accent); font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .live .what { font-weight: 650; color: var(--ink); }
-  .live .detail { grid-column: 3; font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); word-break: break-all; }
-  .live .detail:empty { display: none; }
-  .live .detail a { color: var(--accent); }
-  @media (max-width: 560px) { .live li { grid-template-columns: 66px 1fr; } .live .who { grid-column: 2; } .live .what, .live .detail { grid-column: 1 / -1; } }
+  .sl-live li:last-child { border-bottom: none; }
+  .sl-live time { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); }
+  .sl-live .sl-who { font-family: var(--mono); font-size: 11.5px; color: var(--accent); font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sl-live .sl-what { font-weight: 650; color: var(--ink); }
+  .sl-live .sl-detail { grid-column: 3; font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); word-break: break-all; }
+  .sl-live .sl-detail:empty { display: none; }
+  .sl-live .sl-detail a { color: var(--accent); }
+  @media (max-width: 560px) { .sl-live li { grid-template-columns: 66px 1fr; } .sl-live .sl-who { grid-column: 2; } .sl-live .sl-what, .sl-live .sl-detail { grid-column: 1 / -1; } }
   .howto {
     margin-top: 34px; padding: 15px 18px; background: var(--card);
     border: 1px solid var(--line); border-radius: 12px; font-size: 12.5px; color: var(--ink-2);
@@ -101,11 +103,11 @@
 
   <div id="stores"><div class="empty">진열대를 불러오는 중…</div></div>
 
-  <section class="live" id="live" hidden>
-    <div class="live-head">
-      <span class="dot"></span>
+  <section class="sl-live" id="live" hidden>
+    <div class="sl-live-head">
+      <span class="sl-dot"></span>
       <b id="live-title">에이전트가 움직이는 중</b>
-      <span class="live-sub" id="live-sub"></span>
+      <span class="sl-live-sub" id="live-sub"></span>
     </div>
     <ol id="live-list"></ol>
   </section>

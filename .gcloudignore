@@ -9,3 +9,4 @@ backend/tests/
 payments/node_modules/
 payments/.env
 **/__pycache__/
+solply-video/

@@ -55,7 +55,7 @@ function liveRow(e) {
   if (p.route) bits.push(esc(p.route));
   if (p.amount_usdc != null) bits.push(`${esc(String(p.amount_usdc))} USDC`);
   if (p.tx) bits.push(`<a href="https://explorer.solana.com/tx/${esc(p.tx)}?cluster=devnet" target="_blank" rel="noopener">tx ↗</a>`);
-  return `<li><time>${esc(t)}</time><span class="who">${esc(e.actor)}</span><span class="what">${esc(e.action)}</span><span class="detail">${bits.join(" · ")}</span></li>`;
+  return `<li><time>${esc(t)}</time><span class="sl-who">${esc(e.actor)}</span><span class="sl-what">${esc(e.action)}</span><span class="sl-detail">${bits.join(" · ")}</span></li>`;
 }
 
 function startLive(storeId, storeName, mode) {
