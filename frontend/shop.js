@@ -1,5 +1,8 @@
 // 손님 페이지 — 구매가 라이브 경제의 수요이자 트리거가 된다.
 
+import { startI18n } from "/assets/i18n.js";
+startI18n();  // 화면 언어 — 기본 영어, ?lang=ko 로 한국어
+
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 

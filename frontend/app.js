@@ -4,6 +4,9 @@
 // 어떻게 협상됐는지 펼쳐진다 (/api/invoices/{id}/timeline).
 // 목록을 종류별로 흩어놓으면 "무슨 일이 있었나"가 사라지기 때문이다.
 
+import { startI18n } from "/assets/i18n.js";
+startI18n();  // 화면 언어 — 기본 영어, ?lang=ko 로 한국어
+
 import { mount as mountPolicy } from "./policy.js";
 import * as role from "./role.js";
 

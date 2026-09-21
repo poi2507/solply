@@ -46,7 +46,7 @@ async def replay_negotiation(store_id: str | None = None) -> dict:
         economy._delivery_id(store_id),
         {
             "store_id": store_id,
-            "items": [{"sku": "CHK-10", "name": "냉장 닭 10kg", "qty": 1,
+            "items": [{"sku": "CHK-10", "name": "Chilled chicken 10kg", "qty": 1,
                        "unit_price_usdc": amount}],
             "received": {"CHK-10": 1},  # 검수 일치 — 협상만 시험한다
             "source": "stage-trigger",
