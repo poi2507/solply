@@ -106,8 +106,12 @@ def effective_inventory(store_id: str) -> dict[str, dict]:
         for sku, entry in fixtures.load().get("inventory", {}).get(store_id, {}).items()
     }
     # 이동 원장은 수만 행이 된다 — 행을 나르지 않고 DB가 접은 합계만 받는다 (8/12 overview 15초 실측)
+    catalog = fixtures.load().get("inventory", {}).get("hq", {})
     for sku, qty in store.sum_by("inventory_moves", "sku", "qty", store_id=store_id).items():
-        entry = inventory.setdefault(sku, {"name": sku, "qty": 0, "safety": 0})
+        # 직거래로 들어온 품목은 그 지점 시드에 없다 — 이름을 본사 카탈로그에서 빌린다.
+        # 없으면 화면에 SKU가 그대로 떴다 (상점의 "SAU-01").
+        default = {"name": catalog.get(sku, {}).get("name", sku), "qty": 0, "safety": 0}
+        entry = inventory.setdefault(sku, default)
         entry["qty"] += int(qty)
     return inventory
 

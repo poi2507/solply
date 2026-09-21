@@ -213,7 +213,7 @@ const EN = {
   "직거래 흥정": "Peer-trade haggling",
   "본사 중개": "HQ brokerage",
   "중개 응답 (지점)": "Brokerage reply (store)",
-  "온체인 정산이 확인된 체결만": "Only trades confirmed on-chain",
+  "온체인 정산이 확인된 체결만": "Only trades confirmed on-chain.",
 
   // 재고 원장
   "재고 원장": "Stock ledger",
@@ -560,6 +560,8 @@ export function translate(text) {
   if (BARE_UNIT.test(text)) return "";
   let out = text.replace(RE, (m) => EN[m] ?? m);
   for (const [re, to] of COUNTERS) out = out.replace(re, to);
+  // 한국어는 "이 날 3건", 영어는 "3 on this day" — 사전은 자리를 못 바꾸므로 여기서 뒤집는다
+  out = out.replace(/\bon this day\s+([\d,.]+)/g, "$1 on this day");
   return out;
 }
 
