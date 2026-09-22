@@ -53,7 +53,7 @@ def _safety() -> int:
 def _recorder(result=None, raises=None):
     calls = []
 
-    async def fake(store_id, *, trigger="tick"):
+    async def fake(store_id, *, trigger="tick", trigger_ref=None):  # 주문번호 참조도 받는다
         calls.append((store_id, trigger))
         if raises:
             raise raises

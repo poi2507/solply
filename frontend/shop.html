@@ -1,37 +1,123 @@
 <!doctype html>
-<html lang="ko">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Solply 스토어 — 손님으로 참여하기</title>
+<title>Seoul Fried Chicken — order</title>
 <link rel="stylesheet" href="/assets/style.css">
 <style>
-  .shop-wrap { max-width: 880px; margin: 0 auto; padding: 0 var(--pad) 80px; }
-  .shop-head { padding: 30px 0 20px; }
-  .shop-head .brand p { max-width: 56ch; margin-top: 6px; color: var(--ink-2); font-size: 13.5px; line-height: 1.65; }
-  .shop-head a { font-size: 12.5px; }
-  .shop-store { margin-top: 26px; }
-  .shop-store h2 { font-size: 15px; font-weight: 750; margin: 0 0 3px; }
-  .shop-store .sub { font-size: 12px; color: var(--ink-3); margin-bottom: 12px; }
-  .goods { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
-  .good {
+  /* 상점(SFC) 전용 — 공용 style.css의 대시보드 이름과 겹치지 않게 sf- 접두사 */
+  body { padding-bottom: 132px; }  /* 아래 고정 장바구니 자리 */
+  .sf-wrap { max-width: 960px; margin: 0 auto; padding: 0 var(--pad) 40px; }
+  .sf-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; flex-wrap: wrap; padding: 30px 0 18px; }
+  .sf-brand { display: flex; gap: 14px; align-items: flex-start; }
+  .sf-brand .mark { margin-top: 4px; }
+  .sf-brand h1 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -.01em; }
+  .sf-brand p { margin: 4px 0 0; max-width: 54ch; color: var(--ink-2); font-size: 13.5px; line-height: 1.6; }
+  .sf-brand a { color: var(--accent); font-weight: 650; }
+  .sf-wallet {
+    display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
     background: var(--card); border: 1px solid var(--line); border-radius: 12px;
-    padding: 15px 17px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 8px;
+    padding: 11px 15px; box-shadow: var(--shadow); font-size: 12.5px; color: var(--ink-2);
   }
-  .good .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
-  .good .name { font-weight: 700; font-size: 13.5px; }
-  .good .price { font-family: var(--mono); font-size: 13px; color: var(--accent); font-weight: 700; }
-  .good .stockline { display: flex; align-items: center; gap: 9px; }
-  .good .stockline .stockbar { flex: 1; }
-  .good .qtytxt { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); white-space: nowrap; }
-  .good button {
-    align-self: stretch; font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer;
-    border: none; border-radius: 7px; padding: 8px 0; color: #04231a;
+  .sf-wallet .amt { font-family: var(--mono); font-size: 16px; font-weight: 750; color: var(--ink); }
+  .sf-wallet .amt small { font-size: 11px; color: var(--ink-3); font-weight: 400; }
+  .sf-wallet .addr { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+  .sf-wallet .gasless { color: var(--accent); font-weight: 650; font-size: 11.5px; }
+
+  .sf-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .sf-tab {
+    font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; border-radius: 999px;
+    padding: 8px 16px; border: 1px solid var(--line); background: var(--card); color: var(--ink-2);
+  }
+  .sf-tab.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .sf-store-note { margin: 12px 0 16px; font-size: 12.5px; color: var(--ink-3); line-height: 1.6; }
+
+  .sf-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 14px; }
+  .sf-item {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px;
+    box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 8px;
+  }
+  .sf-item.out { opacity: .62; }
+  .sf-item-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+  .sf-item h3 { margin: 0; font-size: 15px; font-weight: 750; }
+  .sf-price { font-family: var(--mono); font-size: 14px; color: var(--accent); font-weight: 750; white-space: nowrap; }
+  .sf-price small { font-size: 11px; color: var(--ink-3); font-weight: 400; }
+  .sf-badge {
+    align-self: flex-start; font-size: 11px; font-weight: 700; letter-spacing: .02em;
+    padding: 2px 8px; border-radius: 999px; background: var(--raise); color: var(--ink-2);
+  }
+  .sf-blurb { margin: 0; font-size: 13px; color: var(--ink-2); line-height: 1.55; }
+  .sf-uses { margin: 0; font-size: 11.5px; color: var(--ink-3); line-height: 1.5; }
+  .sf-item-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 4px; }
+  .sf-servings { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); }
+  .sf-servings.low { color: var(--warn-vivid); font-weight: 650; }
+  .sf-qty { display: inline-flex; align-items: center; gap: 6px; }
+  .sf-qty button {
+    width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--line); background: var(--card);
+    font: inherit; font-size: 16px; font-weight: 700; cursor: pointer; color: var(--ink);
+  }
+  .sf-qty button:disabled { color: var(--ink-3); cursor: default; background: var(--raise); }
+  .sf-qty b { min-width: 18px; text-align: center; font-family: var(--mono); font-size: 14px; }
+
+  /* 장바구니 — 화면 아래 고정 */
+  .sf-cart {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+    background: var(--card); border-top: 1px solid var(--line);
+    box-shadow: 0 -10px 34px rgba(23,33,27,.10);
+    padding: 12px var(--pad) calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+  .sf-cart-inner { max-width: 960px; margin: 0 auto; display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
+  .sf-cart-meta { display: flex; flex-direction: column; gap: 2px; min-width: 150px; }
+  .sf-cart-meta b { font-size: 13px; }
+  .sf-cart-meta span { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); }
+  .sf-cart ul { list-style: none; margin: 0; padding: 0; flex: 1; min-width: 200px; max-height: 84px; overflow-y: auto; font-size: 12.5px; }
+  .sf-cart li { display: flex; justify-content: space-between; gap: 10px; padding: 2px 0; color: var(--ink-2); }
+  .sf-cart li i { font-style: normal; color: var(--ink-3); }
+  .sf-cart li b { font-family: var(--mono); font-weight: 600; color: var(--ink); }
+  .sf-cart li.sf-empty { color: var(--ink-3); }
+  .sf-cart-total { text-align: right; }
+  .sf-cart-total b { display: block; font-family: var(--mono); font-size: 20px; font-weight: 800; color: var(--ink); }
+  .sf-cart-total small { font-size: 11px; color: var(--ink-3); }
+  .sf-pay {
+    font: inherit; font-size: 13.5px; font-weight: 750; cursor: pointer; border: none; border-radius: 10px;
+    padding: 12px 20px; color: #04231a; white-space: nowrap;
     background: linear-gradient(135deg, var(--accent-vivid), var(--accent-cyan));
   }
-  .good button:disabled { background: var(--raise); color: var(--ink-3); cursor: default; }
+  .sf-pay:disabled { background: var(--raise); color: var(--ink-3); cursor: default; }
+  .sf-cart-note { width: 100%; margin: 0; font-size: 11.5px; color: var(--ink-3); }
+
+  /* 주문 추적 */
+  .sf-order { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 22px 24px; box-shadow: var(--shadow); margin-top: 14px; }
+  .sf-order-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; flex-wrap: wrap; }
+  .sf-eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+  .sf-order h2 { margin: 2px 0 4px; font-family: var(--mono); font-size: 22px; font-weight: 800; letter-spacing: -.01em; }
+  .sf-order-head p { margin: 0; font-size: 13px; color: var(--ink-2); }
+  .sf-link { color: var(--accent); font-weight: 650; font-size: 13px; white-space: nowrap; }
+  .sf-lines { list-style: none; margin: 18px 0 0; padding: 0; border-top: 1px solid var(--line); }
+  .sf-lines li { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px dashed var(--line); font-size: 13.5px; }
+  .sf-lines li i { font-style: normal; color: var(--ink-3); }
+  .sf-lines li b { font-family: var(--mono); font-weight: 600; }
+  .sf-lines li.total { border-bottom: none; font-weight: 750; }
+  .sf-lines li.total b { font-size: 15px; font-weight: 800; }
+  .sf-steps { list-style: none; margin: 22px 0 0; padding: 0; display: grid; gap: 12px; }
+  .sf-steps li { display: grid; grid-template-columns: 14px 1fr; gap: 12px; align-items: start; }
+  .sf-steps li::before {
+    content: ""; width: 12px; height: 12px; border-radius: 50%; margin-top: 4px;
+    background: var(--ink-3); border: 2px solid var(--card); box-shadow: 0 0 0 1px var(--line);
+  }
+  .sf-steps li.ok::before, .sf-steps li.done::before { background: var(--accent-vivid); }
+  .sf-steps li.warn::before { background: var(--warn-vivid); }
+  .sf-steps li.failed::before { background: #c0392b; }
+  .sf-steps li.running::before { background: var(--accent-vivid); animation: sl-pulse 1.4s ease-in-out infinite; }
+  .sf-steps li b { grid-column: 2; display: block; font-size: 13.5px; font-weight: 750; }
+  .sf-steps li span { grid-column: 2; display: block; font-size: 13px; color: var(--ink-2); line-height: 1.6; margin-top: 2px; }
+  .sf-steps li span a { color: var(--accent); font-weight: 650; }
+  .sf-fineprint { margin: 20px 0 0; font-size: 12px; color: var(--ink-3); line-height: 1.65; }
+  .sf-fineprint a { color: var(--accent); font-weight: 650; }
+
   .toast {
-    position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%);
+    position: fixed; left: 50%; bottom: 148px; transform: translateX(-50%); z-index: 30;
     max-width: min(560px, calc(100vw - 40px));
     background: var(--card); border: 1px solid var(--line); border-left: 3px solid var(--accent);
     border-radius: 10px; padding: 12px 16px; font-size: 13px; line-height: 1.6;
@@ -39,19 +125,10 @@
   }
   .toast b { color: var(--ink); }
   .toast.warn { border-left-color: var(--warn-vivid); }
-  .guest-wallet {
-    margin-top: 18px; display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
-    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
-    padding: 13px 17px; box-shadow: var(--shadow); font-size: 12.5px; color: var(--ink-2);
-  }
-  .guest-wallet .amt { font-family: var(--mono); font-size: 17px; font-weight: 750; color: var(--ink); }
-  .guest-wallet .amt small { font-size: 11px; color: var(--ink-3); font-weight: 400; }
-  .guest-wallet .addr { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
-  .guest-wallet .gasless { color: var(--accent); font-weight: 650; font-size: 11.5px; }
-  /* 실시간 기록 — 구매 직후 이 지점의 에이전트 활동이 쌓이는 자리.
-     공용 style.css에 .live/.dot 같은 이름이 있어 상점 전용 접두사(sl-)를 쓴다 */
+
+  /* 실시간 기록 — 주문 직후 이 지점의 에이전트 활동이 쌓이는 자리 (대시보드 SSE 재사용) */
   .sl-live {
-    display: flex; flex-direction: column; margin-top: 26px;
+    display: flex; flex-direction: column; margin-top: 18px;
     background: var(--card); border: 1px solid var(--line); border-radius: 12px;
     box-shadow: var(--shadow); overflow: hidden;
   }
@@ -61,7 +138,7 @@
   .sl-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-3); flex: none; }
   .sl-live.running .sl-dot { background: var(--accent-vivid); animation: sl-pulse 1.4s ease-in-out infinite; }
   @keyframes sl-pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.6); opacity: .45; } }
-  @media (prefers-reduced-motion: reduce) { .sl-live.running .sl-dot { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .sl-live.running .sl-dot, .sf-steps li.running::before { animation: none; } }
   .sl-live ol { display: block; list-style: none; margin: 0; padding: 4px 0; max-height: 320px; overflow-y: auto; }
   .sl-live li {
     display: grid; grid-template-columns: 66px 118px 1fr; gap: 6px 12px; align-items: baseline;
@@ -74,50 +151,57 @@
   .sl-live .sl-detail { grid-column: 3; font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); word-break: break-all; }
   .sl-live .sl-detail:empty { display: none; }
   .sl-live .sl-detail a { color: var(--accent); }
-  @media (max-width: 560px) { .sl-live li { grid-template-columns: 66px 1fr; } .sl-live .sl-who { grid-column: 2; } .sl-live .sl-what, .sl-live .sl-detail { grid-column: 1 / -1; } }
-  .howto {
-    margin-top: 34px; padding: 15px 18px; background: var(--card);
-    border: 1px solid var(--line); border-radius: 12px; font-size: 12.5px; color: var(--ink-2);
-    line-height: 1.7;
+  @media (max-width: 560px) {
+    .sl-live li { grid-template-columns: 66px 1fr; }
+    .sl-live .sl-who { grid-column: 2; }
+    .sl-live .sl-what, .sl-live .sl-detail { grid-column: 1 / -1; }
+    .sf-cart-total { text-align: left; }
   }
 </style>
 </head>
 <body>
-<div class="shop-wrap">
-  <header class="shop-head">
-    <div class="brand" style="align-items:flex-start">
-      <span class="mark" style="margin-top:3px"></span>
+<div class="sf-wrap">
+  <header class="sf-head">
+    <div class="sf-brand">
+      <span class="mark"></span>
       <div>
-        <h1 style="margin:0; font-size:17px; font-weight:650">Solply 스토어</h1>
-        <p>여기서의 구매는 진짜 수요가 됩니다 — 재고가 안전선을 깨면 <b style="color:var(--ink)">지점 에이전트가 스스로 조달(직거래·발주)을 시작하고 온체인으로 정산</b>합니다. 여러분이 누른 버튼이 <b style="color:var(--ink)">그 자리에서</b> 에이전트 상거래를 일으킵니다 — 아래 실시간 기록과 <a href="/">대시보드</a>에서 지켜보세요.</p>
+        <h1 id="brand-name">Seoul Fried Chicken</h1>
+        <p><span id="brand-tag"></span>
+          Order like a customer. Your order draws real ingredients from a real store, is paid in one on-chain
+          transfer, and — if it breaks a safety line — makes the store's agent go procure. Watch it here and on the
+          <a href="/" target="_blank" rel="noopener">dashboard</a>.</p>
       </div>
+    </div>
+    <div class="sf-wallet" id="guest-wallet">
+      <span>Your wallet</span>
+      <span class="amt" id="gw-usdc">Loading…</span>
+      <span class="addr" id="gw-addr"></span>
+      <span class="gasless">⚡ No fees — the store pays them</span>
     </div>
   </header>
 
-  <div class="guest-wallet" id="guest-wallet">
-    <span>내 지갑 (손님)</span>
-    <span class="amt" id="gw-usdc">조회 중…</span>
-    <span class="addr" id="gw-addr"></span>
-    <span class="gasless">⚡ 수수료 없음 — 가게가 대납합니다</span>
-  </div>
-
-  <div id="stores"><div class="empty">진열대를 불러오는 중…</div></div>
+  <main id="view"><div class="empty">Loading the menu…</div></main>
 
   <section class="sl-live" id="live" hidden>
     <div class="sl-live-head">
       <span class="sl-dot"></span>
-      <b id="live-title">에이전트가 움직이는 중</b>
+      <b id="live-title">Agents at work</b>
       <span class="sl-live-sub" id="live-sub"></span>
     </div>
     <ol id="live-list"></ol>
   </section>
-
-  <div class="howto">
-    <b style="color:var(--ink)">동작 원리</b> — 구매 버튼을 누르면 <b style="color:var(--ink)">손님 지갑에서 본사로
-    USDC가 온체인 이체</b>되고(영수증 링크 제공), 매출은 지점 금고에 적립됐다가 다음 정산 틱에 로열티를 공제한 뒤
-    지점에 지급됩니다. 구매 → 재고 감소 → 에이전트 조달 → x402 정산의 전 과정이 실행 증빙으로 남습니다.
-  </div>
 </div>
+
+<aside class="sf-cart" id="cart" hidden aria-label="Your order">
+  <div class="sf-cart-inner">
+    <div class="sf-cart-meta"><b id="cart-store"></b><span id="cart-count"></span></div>
+    <ul id="cart-lines"></ul>
+    <div class="sf-cart-total"><b id="cart-total">0.00</b><small>USDC · one on-chain transfer</small></div>
+    <button class="sf-pay" id="cart-pay" disabled>Place order</button>
+    <p class="sf-cart-note">Paid from the customer wallet above to the franchise HQ, with your order number written into the transaction memo.</p>
+  </div>
+</aside>
+
 <script type="module" src="/assets/shop.js"></script>
 </body>
 </html>

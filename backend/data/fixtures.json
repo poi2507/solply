@@ -84,146 +84,182 @@
   "inventory": {
     "hq": {
       "CHK-10": {
-        "name": "Chilled chicken 10kg",
+        "name": "Chicken (1 bird)",
         "qty": 80,
         "safety": 20
       },
       "VEG-05": {
-        "name": "Mixed vegetables 5kg",
+        "name": "Fresh vegetables",
         "qty": 30,
         "safety": 10
       },
       "SAU-01": {
-        "name": "Signature sauce 1 box",
+        "name": "Signature sauce",
         "qty": 20,
         "safety": 5
       },
       "OIL-18": {
-        "name": "Frying oil 18L",
+        "name": "Frying oil (top-up)",
         "qty": 40,
         "safety": 10
       },
       "FLR-20": {
-        "name": "Frying batter 20kg",
+        "name": "Batter mix",
         "qty": 40,
         "safety": 10
       },
       "MU-03": {
-        "name": "Pickled radish 3kg",
+        "name": "Pickled radish",
         "qty": 60,
         "safety": 15
       },
       "BEV-24": {
-        "name": "Soda 24 cans",
+        "name": "Soda (can)",
         "qty": 50,
         "safety": 12
       },
       "PCK-50": {
-        "name": "Takeout boxes x50",
+        "name": "Takeout box",
         "qty": 45,
         "safety": 10
       }
     },
     "store-a": {
       "CHK-10": {
-        "name": "Chilled chicken 10kg",
+        "name": "Chicken (1 bird)",
         "qty": 10,
         "safety": 4,
         "note": "지난주 과발주로 잉여"
       },
       "VEG-05": {
-        "name": "Mixed vegetables 5kg",
+        "name": "Fresh vegetables",
         "qty": 8,
         "safety": 3
       },
       "OIL-18": {
-        "name": "Frying oil 18L",
+        "name": "Frying oil (top-up)",
         "qty": 6,
         "safety": 2
       },
       "FLR-20": {
-        "name": "Frying batter 20kg",
+        "name": "Batter mix",
         "qty": 7,
         "safety": 3
       },
       "MU-03": {
-        "name": "Pickled radish 3kg",
+        "name": "Pickled radish",
         "qty": 10,
         "safety": 4,
         "note": "프로모션 종료로 잉여"
       },
       "BEV-24": {
-        "name": "Soda 24 cans",
+        "name": "Soda (can)",
         "qty": 9,
         "safety": 3,
         "note": "세트 할인 종료로 잉여"
       },
       "PCK-50": {
-        "name": "Takeout boxes x50",
+        "name": "Takeout box",
         "qty": 8,
         "safety": 3
+      },
+      "SAU-01": {
+        "name": "Signature sauce",
+        "qty": 3,
+        "safety": 1,
+        "note": "SFC 메뉴용 시드 (9/22)"
       }
     },
     "store-b": {
       "CHK-10": {
-        "name": "Chilled chicken 10kg",
+        "name": "Chicken (1 bird)",
         "qty": 0,
         "safety": 4,
         "note": "주말 피크 임박, 재고 소진"
       },
       "OIL-18": {
-        "name": "Frying oil 18L",
+        "name": "Frying oil (top-up)",
         "qty": 5,
         "safety": 2
       },
       "FLR-20": {
-        "name": "Frying batter 20kg",
+        "name": "Batter mix",
         "qty": 6,
         "safety": 2
       },
       "MU-03": {
-        "name": "Pickled radish 3kg",
+        "name": "Pickled radish",
         "qty": 2,
         "safety": 3,
         "note": "배달 세트 급증으로 소진 임박"
       },
       "BEV-24": {
-        "name": "Soda 24 cans",
+        "name": "Soda (can)",
         "qty": 7,
         "safety": 2
       },
       "PCK-50": {
-        "name": "Takeout boxes x50",
+        "name": "Takeout box",
         "qty": 12,
         "safety": 4
+      },
+      "VEG-05": {
+        "name": "Fresh vegetables",
+        "qty": 5,
+        "safety": 2,
+        "note": "SFC 메뉴용 시드 (9/22)"
+      },
+      "SAU-01": {
+        "name": "Signature sauce",
+        "qty": 2,
+        "safety": 1,
+        "note": "SFC 메뉴용 시드 (9/22)"
       }
     },
     "store-c": {
       "CHK-10": {
-        "name": "Chilled chicken 10kg",
+        "name": "Chicken (1 bird)",
         "qty": 5,
         "safety": 4
       },
       "VEG-05": {
-        "name": "Mixed vegetables 5kg",
+        "name": "Fresh vegetables",
         "qty": 6,
         "safety": 2
       },
       "SAU-01": {
-        "name": "Signature sauce 1 box",
+        "name": "Signature sauce",
         "qty": 4,
         "safety": 2
       },
       "MU-03": {
-        "name": "Pickled radish 3kg",
+        "name": "Pickled radish",
         "qty": 8,
         "safety": 3
       },
       "BEV-24": {
-        "name": "Soda 24 cans",
+        "name": "Soda (can)",
         "qty": 0,
         "safety": 3,
         "note": "단체 예약으로 전량 소진"
+      },
+      "OIL-18": {
+        "name": "Frying oil (top-up)",
+        "qty": 4,
+        "safety": 2,
+        "note": "SFC 메뉴용 시드 (9/22)"
+      },
+      "FLR-20": {
+        "name": "Batter mix",
+        "qty": 4,
+        "safety": 2,
+        "note": "SFC 메뉴용 시드 (9/22)"
+      },
+      "PCK-50": {
+        "name": "Takeout box",
+        "qty": 6,
+        "safety": 2,
+        "note": "SFC 메뉴용 시드 (9/22)"
       }
     }
   },
@@ -415,6 +451,87 @@
       "SAU-01": 1.4,
       "MU-03": 1.3,
       "BEV-24": 0.7
+    }
+  },
+  "brand": {
+    "_comment": "가상의 프랜차이즈 — 실제 상표와 무관. 상점 화면 머리에 쓴다.",
+    "name": "Seoul Fried Chicken",
+    "short": "SFC",
+    "tagline": "Korean fried chicken. Three stores, one HQ — settled by agents on Solana."
+  },
+  "menu": {
+    "_comment": "손님 주문 단위. recipe는 1인분에 드는 재료 수량, stores가 없으면 전 지점. 가격은 economy가 레시피에서 계산한다 — 여기 두지 않는다.",
+    "items": {
+      "SFC-FRIED": {
+        "name": "Seoul Fried Chicken",
+        "blurb": "Double-fried, thin crust. Comes with pickled radish.",
+        "recipe": {
+          "CHK-10": 1,
+          "FLR-20": 1,
+          "OIL-18": 1,
+          "MU-03": 1,
+          "PCK-50": 1
+        }
+      },
+      "SFC-YANG": {
+        "name": "Yangnyeom Chicken",
+        "blurb": "Tossed in our sweet-and-spicy signature sauce.",
+        "recipe": {
+          "CHK-10": 1,
+          "FLR-20": 1,
+          "OIL-18": 1,
+          "SAU-01": 1,
+          "MU-03": 1,
+          "PCK-50": 1
+        }
+      },
+      "SFC-SODA": {
+        "name": "Soda",
+        "blurb": "Ice cold.",
+        "recipe": {
+          "BEV-24": 1
+        }
+      },
+      "SFC-SALAD": {
+        "name": "Chicken Salad",
+        "blurb": "Grilled chicken over fresh greens — the Gangnam lunch crowd's pick.",
+        "stores": [
+          "store-a"
+        ],
+        "recipe": {
+          "CHK-10": 1,
+          "VEG-05": 1,
+          "PCK-50": 1
+        }
+      },
+      "SFC-BITES": {
+        "name": "Crispy Veggie Bites",
+        "blurb": "Battered vegetables, fried crisp. The Hongdae late-night special.",
+        "stores": [
+          "store-b"
+        ],
+        "recipe": {
+          "FLR-20": 1,
+          "OIL-18": 1,
+          "VEG-05": 1,
+          "PCK-50": 1
+        }
+      },
+      "SFC-FIRE": {
+        "name": "Busan Fire Chicken",
+        "blurb": "Double sauce, double heat.",
+        "stores": [
+          "store-c"
+        ],
+        "recipe": {
+          "CHK-10": 1,
+          "FLR-20": 1,
+          "OIL-18": 1,
+          "SAU-01": 2,
+          "MU-03": 1,
+          "PCK-50": 1
+        }
+      }
     }
   }
 }

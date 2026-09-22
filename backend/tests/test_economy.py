@@ -107,6 +107,11 @@ def test_card_settlement_pays_partially_within_hq_reserve(monkeypatch):
     통째로 건너뛰면 금고가 hq 잔액보다 커지는 순간 영원히 못 받는다 —
     8/6 라이브에서 카드정산이 멈춰 지점 돈이 말랐던 사고의 회귀 가드.
     """
+    # 앞 테스트의 시뮬 판매가 남긴 흔적을 지운다 — 이 검사는 store-c 한 곳, 정률 25%로만 성립한다.
+    # (판매 지수가 평균을 넘으면 성과 인하가 붙어 20%가 된다 — 그건 별도 테스트의 몫)
+    monkeypatch.setattr("app.agents.utils.weekly_sales_qty", lambda sid, days=7: 100)
+    for sid in ("store-a", "store-b"):
+        db.put(economy.TILL, sid, {"accrued_usdc": 0.0})
     db.put(economy.TILL, "store-c", {"accrued_usdc": 50.0})
     paid = []
     monkeypatch.setattr(
@@ -179,7 +184,16 @@ def test_scheduled_backlog_does_not_block_procurement():
     """
     from app.core import status as status_mod
 
-    for i in range(economy.MAX_STUCK_INVOICES + 5):  # 게이트 기준을 넘는 예약 백로그
+    # 앞 테스트들이 store-b에 남긴 발행 청구서는 검사 대상이 아니다 — 여기서 보는 건
+    # "예약을 아무리 더해도 stuck은 늘지 않는다"는 것이므로 추가 전후의 차이로 본다.
+    def gate():
+        open_ = [d for d in db.list_docs("invoices", store_id="store-b")
+                 if d["status"] in status_mod.ACTIONABLE]
+        return len(open_), sum(1 for d in open_ if d["status"] != status_mod.InvoiceStatus.SCHEDULED)
+    open_before, stuck_before = gate()
+
+    extra = economy.MAX_STUCK_INVOICES + 5  # 게이트 기준을 넘는 예약 백로그
+    for i in range(extra):
         db.put("invoices", f"INV-TEST-SCHED-{i}", {
             "id": f"INV-TEST-SCHED-{i}", "store_id": "store-b",
             "status": status_mod.InvoiceStatus.SCHEDULED, "amount_usdc": 1.0, "items": [],
@@ -189,12 +203,9 @@ def test_scheduled_backlog_does_not_block_procurement():
     utils.record_move("store-b", "CHK-10", inv["name"], -(inv["qty"] - inv["safety"] + 1),
                       "sold", "TEST-DRAIN")
 
-    open_invoices = [d for d in db.list_docs("invoices", store_id="store-b")
-                     if d["status"] in status_mod.ACTIONABLE]
-    stuck = sum(1 for d in open_invoices
-                if d["status"] != status_mod.InvoiceStatus.SCHEDULED)
-    assert len(open_invoices) > economy.MAX_STUCK_INVOICES, "예약 백로그가 기준을 넘어야 의미 있는 검사"
-    assert stuck < economy.MAX_STUCK_INVOICES, "예약은 '막힌' 청구서로 세지 않는다"
+    open_after, stuck_after = gate()
+    assert open_after - open_before == extra, "예약 백로그가 기준을 넘어야 의미 있는 검사"
+    assert stuck_after == stuck_before, "예약은 '막힌' 청구서로 세지 않는다"
     assert utils.stock_shortages(utils.effective_inventory("store-b")), "미달이 있어야 발주 대상"
 
 

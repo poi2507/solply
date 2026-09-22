@@ -29,6 +29,9 @@ from app.solana import payments
 
 TILL = "till"  # 지점별 적립 매출 (카드 매출 — 다음 정산 때 지급)
 GUEST_TAB = "guest-tab"  # 시뮬 손님 소비의 미수납 총액 — 틱마다 guest 지갑에서 일괄 수납
+# 실제 방문자 판매의 표식 — 판매 note가 이걸로 시작하면 시뮬 소비(외상 장부)와 구분한다.
+# /shop의 1개 구매도, 메뉴 주문(뒤에 주문번호가 붙는다)도 같은 표식을 쓴다.
+LIVE_NOTE = "손님 구매 (라이브)"
 
 # 요리 마진 — 지점은 식자재(공급가)로 요리를 만들어 더 받고 판다.
 # 이게 1.0이면 지점의 장기 순현금흐름이 정확히 0이라, 타이밍 어긋남·데모 리셋 같은
@@ -166,7 +169,7 @@ def sell(store_id: str, sku: str, qty: int, note: str) -> dict:
     revenue = round(result["sold"] * _sku_price(sku) * RETAIL_MARGIN, 2)
     till = db.get(TILL, store_id) or {"accrued_usdc": 0.0}
     db.put(TILL, store_id, {"accrued_usdc": round(till["accrued_usdc"] + revenue, 2)})
-    if note != "손님 구매 (라이브)":
+    if not note.startswith(LIVE_NOTE):
         # 시뮬 손님(배경·수요 파동)의 소비도 돈이 나가야 한다 (8/18 팀장 지시 —
         # 최대한 현실과 같게). /shop 실구매는 그 자리에서 직접 결제하므로 제외하고,
         # 나머지는 외상 장부(guest-tab)에 적어 틱마다 guest 지갑에서 일괄 수납한다.
@@ -491,10 +494,12 @@ async def _negotiate_deferral(store_id: str, invoice_id: str) -> str:
     return "installments_agreed" if hq2.get("outcome") == "scheduled" else "negotiation_failed"
 
 
-def _fulfill_order(store_id: str, sku: str, need: int, source: str = "economy-tick") -> str | None:
+def _fulfill_order(store_id: str, sku: str, need: int, source: str = "economy-tick",
+                   ref: str | None = None) -> str | None:
     """본사 이행 — 주문 수량만큼 납품 문서를 만들고 청구서를 발행한다.
 
     source는 이 발주를 일으킨 주체(틱 / 손님 구매) — 납품 문서에 남아 화면이 구분한다.
+    ref는 그 주체의 문서 번호(손님 주문번호) — 손님이 자기 주문을 뒷문에서 다시 찾는 실이다.
     """
     terms = utils.hq_reorder_terms(sku)
     order_qty = max(need, int(terms.get("min_qty", 1)))
@@ -513,6 +518,7 @@ def _fulfill_order(store_id: str, sku: str, need: int, source: str = "economy-ti
                        "unit_price_usdc": _sku_price(sku)}],
             "received": {sku: ship_qty},  # 루프 납품은 검수 일치가 기본
             "source": source,
+            **({"trigger_ref": ref} if ref else {}),
         },
     )
     from app.agents.hq import tools as hq_tools
@@ -545,7 +551,8 @@ async def broker_trades() -> list[dict]:
         return [{"route": "brokered", "trade_id": trade["id"], "status": f"error: {str(exc)[:120]}"}]
 
 
-async def procure_store(store_id: str, *, trigger: str = "tick") -> dict | None:
+async def procure_store(store_id: str, *, trigger: str = "tick",
+                        trigger_ref: str | None = None) -> dict | None:
     """한 지점의 재고를 점검하고, 미달이면 조달 그래프(P2P vs 본사 발주)를 태운다.
 
     미달이 없으면 None. 틱은 전 지점을 순회하며 이걸 부르고, 손님 구매는 안전선이
@@ -611,7 +618,7 @@ async def procure_store(store_id: str, *, trigger: str = "tick") -> dict | None:
                 print(f"[economy] 발주량 심사 불가({store_id}) — 원 수량 이행: {str(exc)[:120]}")
 
         invoice_id = _fulfill_order(store_id, shortage["sku"], order_qty,
-                                    source=PROCURE_SOURCE.get(trigger, trigger))
+                                    source=PROCURE_SOURCE.get(trigger, trigger), ref=trigger_ref)
         if not invoice_id:
             return {"store_id": store_id, "route": "hq_order", "status": "hq_out_of_stock"}
 
