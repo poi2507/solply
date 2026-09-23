@@ -8,6 +8,7 @@
 """
 
 import asyncio
+import hashlib
 import secrets
 from datetime import UTC, datetime
 
@@ -58,6 +59,13 @@ class Purchase(BaseModel):
     store_id: str
     sku: str
     qty: int = Field(default=1, ge=1, le=3)  # 방문자 1회 구매는 소량 — 진열대 보호
+
+
+def _visitor(request: Request) -> str:
+    """방문자 표식 — IP 원문은 남기지 않는다. 소금 친 해시 앞 12자로 고유 방문자만 센다."""
+    fwd = request.headers.get("x-forwarded-for", "")
+    ip = fwd.split(",")[0].strip() or (request.client.host if request.client else "?")
+    return hashlib.sha256(f"{config.VISITOR_SALT}:{ip}".encode()).hexdigest()[:12]
 
 
 def _procure_now(store_id: str, sku: str, ref: str | None = None) -> None:
@@ -138,7 +146,7 @@ def purchase(body: Purchase, request: Request, background: BackgroundTasks) -> d
     if tx:
         utils.log("guest", "shop.sale",
                   {"store_id": body.store_id, "sku": body.sku, "qty": body.qty,
-                   "amount_usdc": amount, "tx": tx})
+                   "amount_usdc": amount, "tx": tx, "visitor": _visitor(request)})
         stats.add_guest_flow(body.store_id, amount)
 
     entry = utils.effective_inventory(body.store_id).get(body.sku, {})
@@ -233,12 +241,14 @@ def place_order(body: Order, request: Request, background: BackgroundTasks) -> d
         "tx": tx, "network": config.NETWORK,
         "status": "paid" if tx else "pay_failed",
         "low_stock": low, "trigger": trigger,
+        "visitor": _visitor(request),
         "created_at": datetime.now(UTC).isoformat(),
     })
     utils.log("guest", "shop.order", {
         "store_id": body.store_id, "order_id": order_id,
         "items": [f"{line['name']} x{line['qty']}" for line in lines],
         "amount_usdc": total, "tx": tx, "low_stock": low, "trigger": trigger,
+        "visitor": doc["visitor"],
     })
     return {**doc, "id": order_id}
 

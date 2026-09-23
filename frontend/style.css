@@ -775,3 +775,37 @@ td .empty, td.empty { text-align: center; }
   font-variant-numeric: tabular-nums; }
 .pm-note { flex: 1; }
 .pm-foot .save { margin-left: auto; }
+
+
+/* ── Traction 패널 (관리자) · 청구서 출처 칩 ───────────────────── */
+.tr-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+.tr-tile { background: var(--raise); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; }
+.tr-tile b { font-family: var(--mono); font-size: 22px; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
+.tr-tile span { font-size: 12.5px; color: var(--ink-2); font-weight: 600; }
+.tr-tile i { font-style: normal; font-size: 11px; color: var(--ink-3); }
+.tr-chart { margin-top: 16px; display: grid; gap: 8px; }
+.tr-row { display: grid; grid-template-columns: 210px 1fr 56px; gap: 12px; align-items: end; }
+.tr-label { font-size: 12px; color: var(--ink-2); align-self: center; }
+.tr-row b { font-family: var(--mono); font-size: 13px; text-align: right; align-self: center; font-variant-numeric: tabular-nums; }
+.tr-bars { display: flex; align-items: flex-end; gap: 3px; height: 44px; }
+.tr-bars i { flex: 1; border-radius: 3px 3px 0 0; min-width: 4px; }
+.tr-row.real .tr-bars i { background: var(--accent); }
+.tr-row.sim .tr-bars i { background: color-mix(in srgb, var(--ink-3) 45%, transparent); }
+.tr-bars i.zero { background: var(--line) !important; }
+.tr-axis { display: grid; grid-template-columns: 210px 1fr 1fr 56px; gap: 12px; font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); }
+.tr-axis span:nth-child(3) { text-align: right; }
+.tr-h { font-size: 12.5px; font-weight: 700; margin: 18px 0 6px; }
+.tr-orders { list-style: none; margin: 0; padding: 0; }
+.tr-orders li { display: grid; grid-template-columns: 150px 1fr auto auto; gap: 12px; padding: 7px 0; border-bottom: 1px dashed var(--line); font-size: 12.5px; }
+.tr-orders li a { font-family: var(--mono); color: var(--accent); font-weight: 650; }
+.tr-orders li .r { font-family: var(--mono); font-size: 12px; color: var(--ink-2); text-align: right; white-space: nowrap; }
+.tr-note { margin: 10px 0 0; font-size: 11.5px; color: var(--ink-3); line-height: 1.6; }
+@media (max-width: 640px) {
+  .tr-row { grid-template-columns: 1fr 48px; } .tr-label { grid-column: 1 / -1; }
+  .tr-axis { display: none; }
+  .tr-orders li { grid-template-columns: 1fr auto; }
+}
+.origin { margin-left: 8px; font-size: 10.5px; font-weight: 700; border-radius: 999px; padding: 1px 7px; white-space: nowrap; vertical-align: 1px; }
+.origin.cust { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); text-decoration: none; }
+a.origin.cust:hover { text-decoration: underline; }
+.origin.sim { color: var(--ink-3); background: var(--raise); }

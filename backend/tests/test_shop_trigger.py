@@ -183,6 +183,7 @@ def test_shop_triggered_order_is_labeled_on_the_delivery(monkeypatch):
         return real_put(collection, doc_id, doc)
     monkeypatch.setattr("app.core.economy.db.put", spy_put)
     monkeypatch.setattr("app.agents.hq.tools.create_invoice", lambda delivery_id: {"id": "INV-FAKE"})
+    monkeypatch.setattr("app.core.economy.db.update", lambda *a: {})  # 가짜 청구서라 출처 새김은 건너뛴다
 
     assert economy._fulfill_order("store-b", "CHK-10", need=2,
                                   source=economy.PROCURE_SOURCE["shop"]) == "INV-FAKE"

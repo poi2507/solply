@@ -524,7 +524,12 @@ def _fulfill_order(store_id: str, sku: str, need: int, source: str = "economy-ti
     from app.agents.hq import tools as hq_tools
 
     invoice = hq_tools.create_invoice(delivery["id"])
-    return None if invoice.get("error") else invoice["id"]
+    if invoice.get("error"):
+        return None
+    # 청구서에도 출처를 새긴다 — 대시보드가 행마다 납품 문서를 다시 읽지 않고
+    # "손님 주문이 일으킨 발주"와 "시뮬 배경 수요의 발주"를 가를 수 있게.
+    db.update("invoices", invoice["id"], {"origin": source, **({"order_ref": ref} if ref else {})})
+    return invoice["id"]
 
 
 async def broker_trades() -> list[dict]:

@@ -61,6 +61,12 @@ TICK_ENABLED = os.getenv("TICK_ENABLED", "1").lower() not in ("0", "false")
 # 화면 상태를 고정한다 (TICK_ENABLED=0이면 이것도 함께 멈춘다).
 SHOP_TRIGGER_ENABLED = os.getenv("SHOP_TRIGGER_ENABLED", "1").lower() not in ("0", "false")
 
+# ── 실사용 계측 (관리자 화면의 Traction 패널) ──
+# 이 날부터 센다 — Colosseum Crypto World's Fair 시작일. 그 전 숫자는 시뮬이라 섞지 않는다.
+TRACTION_SINCE = os.getenv("TRACTION_SINCE", "2026-09-14")
+# 방문자 식별 — IP 원문은 저장하지 않고 소금 친 해시 앞 12자만 남긴다 (고유 방문자 수를 세는 용도)
+VISITOR_SALT = os.getenv("VISITOR_SALT", "solply-visitor")
+
 # ── pay.sh (판단 재료 구매) ──
 # 조달 판단 전에 에이전트가 시세 데이터를 x402로 사서 쓴다. 샌드박스라 실자금은 없다.
 # CLI가 없거나 호출이 실패하면 조용히 건너뛴다 — 시세가 조달을 멈출 사유는 아니다.

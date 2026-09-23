@@ -293,3 +293,11 @@ async def stream(request: Request) -> StreamingResponse:
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+@router.get("/traction")
+def traction() -> dict:
+    """대회 시작일 이후의 실사용 — 실제 방문자 주문·에이전트 반응, 시뮬 배경 수요는 따로."""
+    from app.core import traction as traction_mod
+
+    return traction_mod.snapshot()

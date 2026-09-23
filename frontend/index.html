@@ -81,6 +81,15 @@
   <div class="grid">
     <main class="col-main">
 
+      <!-- 관리자: 대회 시작일 이후의 실사용 — 실제 방문자와 시뮬 배경 수요를 섞지 않는다 -->
+      <section class="panel" data-role="admin" id="p-traction">
+        <div class="panel-head">
+          <h2>Real usage since <span id="tr-since">Sep 14</span></h2>
+          <span class="hint">Real visitors and simulated background demand, counted separately — never mixed</span>
+        </div>
+        <div id="traction"><div class="empty">Loading…</div></div>
+      </section>
+
       <!-- 본사: 전 지점 현황 -->
       <section class="panel" data-role="hq" id="p-stores">
         <div class="panel-head">

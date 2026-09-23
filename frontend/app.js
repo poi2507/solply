@@ -246,12 +246,18 @@ function invoiceRow({ inv, child }, network, firstPaint) {
     : '<span class="dash">—</span>';
   const label = STATUS_LABEL[inv.status] ?? inv.status;
   const round = inv.installment ? ` <span class="dash">${inv.installment}회차</span>` : "";
+  // 이 청구서를 일으킨 것 — 실제 손님 주문인가, 시뮬 배경 수요인가 (9/23부터 새겨진다)
+  const origin = inv.origin === "shop-purchase"
+    ? (inv.order_ref
+        ? `<a class="origin cust" href="/shop/orders/${encodeURIComponent(inv.order_ref)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Raised by a real customer order">customer ${esc(inv.order_ref)}</a>`
+        : '<span class="origin cust" title="Raised by a real customer purchase">customer</span>')
+    : inv.origin === "economy-tick" ? '<span class="origin sim" title="Raised by simulated background demand">simulated</span>' : "";
 
   return `<tr class="pick ${open ? "open" : ""} ${isNew ? "flash" : ""}" data-inv="${esc(inv.id)}">
       <td>
         <span class="caret">${open ? "▾" : "▸"}</span>
         ${child ? '<span class="child-mark">└</span>' : ""}
-        <span class="inv-id">${esc(inv.id)}</span>${round}
+        <span class="inv-id">${esc(inv.id)}</span>${round}${origin}
       </td>
       <td class="col-store">${esc(inv.store_id)}</td>
       <td class="r">${amountCell(inv)}</td>
@@ -889,7 +895,7 @@ const MAIN_ORDER = {
        "p-datastore", "p-invoices", "p-inventory", "p-trades", "p-feedwide", "p-mystore"],
   store: ["p-mystore", "approvals-panel", "schedules-panel", "p-invoices",
           "p-negotiations", "p-inventory", "p-trades", "p-stores", "p-datastore", "p-feedwide"],
-  admin: ["p-feedwide", "p-datastore", "p-invoices", "p-inventory",
+  admin: ["p-traction", "p-feedwide", "p-datastore", "p-invoices", "p-inventory",
           "p-stores", "p-mystore", "approvals-panel", "schedules-panel", "p-negotiations", "p-trades"],
 };
 const SIDE_ORDER = {
@@ -1133,8 +1139,50 @@ $("day-today")?.addEventListener("click", () => goDay(null));
 
 let animateNegs = false; // 협상 이벤트발(發) 갱신에서만 말풍선 등장 효과를 켠다
 
+// ── Traction (관리자) — 대회 시작일 이후의 실사용 ─────────────────
+function barRow(label, values, days, cls, unit) {
+  const max = Math.max(1, ...values);
+  const bars = values.map((v, i) =>
+    `<i class="${v ? "" : "zero"}" style="height:${v ? Math.max(8, (v / max) * 100) : 4}%" title="${esc(days[i])} · ${v} ${unit}"></i>`).join("");
+  const total = values.reduce((a, b) => a + b, 0);
+  return `<div class="tr-row ${cls}"><span class="tr-label">${esc(label)}</span><span class="tr-bars">${bars}</span><b>${total}</b></div>`;
+}
+
+async function loadTraction() {
+  const box = $("traction");
+  if (!box) return;
+  let t;
+  try { t = await getJSON("/api/traction"); } catch { box.innerHTML = '<div class="empty">Could not load usage.</div>'; return; }
+  const T = t.totals, days = t.daily.map((d) => d.day.slice(5));
+  $("tr-since").textContent = new Date(`${t.since}T00:00:00+09:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const tile = (n, label, foot) => `<div class="tr-tile"><b>${n}</b><span>${esc(label)}</span>${foot ? `<i>${esc(foot)}</i>` : ""}</div>`;
+  const orders = t.recentOrders.map((o) => `
+      <li>
+        <a href="/shop/orders/${encodeURIComponent(o.order_id)}" target="_blank" rel="noopener">${esc(o.order_id)}</a>
+        <span>${esc((o.items || []).join(", "))}</span>
+        <span class="r">${o.amount_usdc != null ? `${Number(o.amount_usdc).toFixed(2)} USDC` : ""}</span>
+        <span class="r">${o.invoice_id ? `→ ${esc(o.invoice_id)}` : o.trigger ? "agent reacting" : "no reorder"}</span>
+      </li>`).join("");
+  box.innerHTML = `
+    <div class="tr-tiles">
+      ${tile(T.orders + T.purchases, "real customer orders", `${T.orders} menu orders · ${T.purchases} single items`)}
+      ${tile(T.visitors, "unique visitors", "counted from Sep 23")}
+      ${tile(T.paid_usdc.toFixed(2), "USDC paid on-chain", "by visitors, to HQ")}
+      ${tile(T.triggered, "agent procurements triggered", `${T.procured} finished · ${T.failed} failed`)}
+    </div>
+    <div class="tr-chart">
+      ${barRow("Real visitors — servings sold", t.daily.map((d) => d.real_servings), days, "real", "servings")}
+      ${barRow("Simulated background demand", t.daily.map((d) => d.sim_servings), days, "sim", "servings")}
+      <div class="tr-axis"><span></span><span>${esc(days[0] ?? "")}</span><span>${esc(days.at(-1) ?? "")}</span><span></span></div>
+      <p class="tr-note">Each row has its own scale — simulated demand runs every 10 minutes, so it would flatten the real row on a shared axis.</p>
+    </div>
+    ${orders ? `<h3 class="tr-h">Latest customer orders</h3><ul class="tr-orders">${orders}</ul>` : '<div class="empty">No customer orders yet.</div>'}
+    <p class="tr-note">${t.notes.map(esc).join(" ")}</p>`;
+}
+
 async function refresh() {
   if (!me) return;
+  if (me.kind === "admin") loadTraction();
   try {
     const [ov, ev, health] = await Promise.all([
       getJSON(`/api/overview${viewDay ? `?${dayParam()}` : ""}`),
