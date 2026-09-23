@@ -90,6 +90,7 @@ def compute() -> dict:
         o["invoice_id"] = invoice_of.get(o["order_id"])
     return {
         "since": config.TRACTION_SINCE,
+        "simDemand": config.SIM_DEMAND_ENABLED,
         "totals": {**tot, "visitors": len(visitors)},
         "daily": daily,
         "recentOrders": recent_orders[:6],

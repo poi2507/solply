@@ -61,6 +61,11 @@ TICK_ENABLED = os.getenv("TICK_ENABLED", "1").lower() not in ("0", "false")
 # 화면 상태를 고정한다 (TICK_ENABLED=0이면 이것도 함께 멈춘다).
 SHOP_TRIGGER_ENABLED = os.getenv("SHOP_TRIGGER_ENABLED", "1").lower() not in ("0", "false")
 
+# 시뮬 배경 수요 — 틱이 가짜 손님 판매와 그 수납을 만들지. 끄면 수요는 실제 방문자
+# 주문에서만 나오고, 틱은 그 주문이 일으킨 뒷일(카드정산·예약 납부·재입고·에스크로)만 한다.
+# 라이브는 9/23부터 0 — "손님 주문만이 경제를 움직인다"가 사실이 되도록.
+SIM_DEMAND_ENABLED = os.getenv("SIM_DEMAND_ENABLED", "1").lower() not in ("0", "false")
+
 # ── 실사용 계측 (관리자 화면의 Traction 패널) ──
 # 이 날부터 센다 — Colosseum Crypto World's Fair 시작일. 그 전 숫자는 시뮬이라 섞지 않는다.
 TRACTION_SINCE = os.getenv("TRACTION_SINCE", "2026-09-14")

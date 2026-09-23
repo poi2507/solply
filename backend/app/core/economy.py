@@ -752,11 +752,16 @@ async def tick(rng: random.Random | None = None) -> dict:
         except Exception as exc:  # noqa: BLE001 — 실패는 요약에 남기고 다음 단계로
             return {"stage_error": str(exc)[:200]}
 
+    # 시뮬 배경 수요를 끄면 판매·그 수납 두 단계만 건너뛴다. 나머지는 실제 손님 주문이
+    # 일으킨 뒷일이라 계속 돈다 — 지점 카드정산, 합의한 예약 납부, 창고 재입고, 에스크로.
+    from app import config
+    sim = config.SIM_DEMAND_ENABLED
+    skipped = {"skipped": "simulated demand is off"}
     summary = {
-        "sales": await _stage(lambda: run_sales(rng)),
+        "sales": await _stage(lambda: run_sales(rng)) if sim else skipped,
         # 시뮬 소비의 돈이 먼저 guest→본사로 들어와야, 다음 단계(카드정산)에서
         # 본사가 지점에 지급할 재원이 그 매출에서 나온다 — 현실의 순서 그대로.
-        "guest_card": await _stage(charge_guest_card),
+        "guest_card": await _stage(charge_guest_card) if sim else skipped,
         "card_settlements": await _stage(settle_cards),
         "escrow_settlements": await _stage(settle_escrows),
         "dispute_reviews": await _stage(settle_disputes),

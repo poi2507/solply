@@ -97,3 +97,26 @@ def test_traction_starts_at_the_configured_day(monkeypatch):
     monkeypatch.setattr("app.config.TRACTION_SINCE", "2999-01-01")
     out = traction.compute()
     assert out["daily"] == [] and out["totals"]["orders"] == 0, "시작일 전 기록은 세지 않는다"
+
+
+def test_tick_skips_simulated_demand_when_off(monkeypatch):
+    """시뮬 수요를 끄면 판매·시뮬 수납만 빠지고, 실제 주문의 뒷일(정산·재입고·예약)은 돈다."""
+    import asyncio
+    called = []
+    for name in ("run_sales", "charge_guest_card", "settle_cards", "settle_escrows", "settle_disputes",
+                 "restock_hq", "refill_guest"):
+        monkeypatch.setattr(f"app.core.economy.{name}",
+                            (lambda n: (lambda *a, **k: called.append(n) or []))(name))
+    for name in ("broker_trades", "run_procurement", "run_scheduled_payments"):
+        async def fake(n=name):
+            called.append(n)
+            return []
+        monkeypatch.setattr(f"app.core.economy.{name}", fake)
+    monkeypatch.setattr("app.config.SIM_DEMAND_ENABLED", False)
+
+    summary = asyncio.run(economy.tick())
+
+    assert "run_sales" not in called and "charge_guest_card" not in called
+    for n in ("settle_cards", "run_procurement", "restock_hq", "run_scheduled_payments", "settle_escrows"):
+        assert n in called, n
+    assert summary["sales"] == {"skipped": "simulated demand is off"}

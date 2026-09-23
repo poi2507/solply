@@ -1174,7 +1174,9 @@ async function loadTraction() {
       ${barRow("Real visitors — servings sold", t.daily.map((d) => d.real_servings), days, "real", "servings")}
       ${barRow("Simulated background demand", t.daily.map((d) => d.sim_servings), days, "sim", "servings")}
       <div class="tr-axis"><span></span><span>${esc(days[0] ?? "")}</span><span>${esc(days.at(-1) ?? "")}</span><span></span></div>
-      <p class="tr-note">Each row has its own scale — simulated demand runs every 10 minutes, so it would flatten the real row on a shared axis.</p>
+      <p class="tr-note">${t.simDemand
+        ? "Each row has its own scale — simulated demand runs on the scheduler, so it would flatten the real row on a shared axis."
+        : "Demand comes only from real customer orders. Simulated background demand is switched off; an hourly job still settles what those orders set in motion — card payouts, scheduled payments, restocking."}</p>
     </div>
     ${orders ? `<h3 class="tr-h">Latest customer orders</h3><ul class="tr-orders">${orders}</ul>` : '<div class="empty">No customer orders yet.</div>'}
     <p class="tr-note">${t.notes.map(esc).join(" ")}</p>`;
