@@ -345,7 +345,8 @@ def test_every_status_the_code_writes_is_declared():
     others = {"proposed", "accepted", "approved", "confirmed", "rejected",
               "needs_human_approval", "already_settled", "hq_out_of_stock",
               "escrow_deposited",
-              "declined_by_buyer"}  # 중개 틱 액션의 결과 표기 (문서 상태 아님)
+              "declined_by_buyer",  # 중개 틱 액션의 결과 표기 (문서 상태 아님)
+              "awaiting_payment", "payment_rejected"}  # 손님 주문(customer_orders)의 상태 — 청구서 아님
     assert (written - others) <= declared, f"enum에 없는 청구서 상태: {written - others - declared}"
 
 

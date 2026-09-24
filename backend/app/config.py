@@ -70,6 +70,12 @@ SHOP_TRIGGER_ENABLED = os.getenv("SHOP_TRIGGER_ENABLED", "1").lower() not in ("0
 # 라이브는 9/23부터 0 — "손님 주문만이 경제를 움직인다"가 사실이 되도록.
 SIM_DEMAND_ENABLED = os.getenv("SIM_DEMAND_ENABLED", "1").lower() not in ("0", "false")
 
+# 방문자가 자기 지갑(Phantom, devnet)으로 결제할 때 받는 곳 — 전부 공개 주소다.
+# 서버는 체인에서 이 토큰 계좌로 들어온 이체만 결제로 인정한다 (프런트가 보낸 값을 믿지 않는다).
+USDC_MINT = os.getenv("USDC_MINT", "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU")  # Circle devnet USDC
+HQ_ADDRESS = os.getenv("HQ_ADDRESS", "HzQ9FXdXTPmLVs1Q4J89FGqq6zKUFdXbje5EBfX3gdDJ")
+HQ_USDC_ATA = os.getenv("HQ_USDC_ATA", "5F6BepncKQ5b2chBdmuFWx2muBzYGxfuit3xPggwKruB")
+
 # ── 실사용 계측 (관리자 화면의 Traction 패널) ──
 # 이 날부터 센다 — Colosseum Crypto World's Fair 시작일. 그 전 숫자는 시뮬이라 섞지 않는다.
 TRACTION_SINCE = os.getenv("TRACTION_SINCE", "2026-09-14")

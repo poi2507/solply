@@ -184,6 +184,14 @@ class OrderLine(BaseModel):
 class Order(BaseModel):
     store_id: str
     items: list[OrderLine] = Field(min_length=1, max_length=8)
+    # demo: 프로젝트가 채운 공용 손님 지갑이 대신 낸다 (지갑 없는 방문자용)
+    # wallet: 방문자가 자기 Phantom 지갑으로 직접 서명해 낸다 — 이게 진짜 사용자 결제다
+    pay: str = Field(default="demo", pattern="^(demo|wallet)$")
+    wallet: str | None = Field(default=None, min_length=32, max_length=44)
+
+
+class Confirm(BaseModel):
+    signature: str = Field(min_length=64, max_length=100)
 
 
 def _order_id(store_id: str) -> str:
@@ -193,6 +201,42 @@ def _order_id(store_id: str) -> str:
         oid = f"ORD-{kst.mmdd()}-{initial}{secrets.token_hex(2)}"
         if not db.get("customer_orders", oid):
             return oid
+
+
+def _quote(need: dict[str, int]) -> float:
+    """손님이 낼 돈 — economy.sell이 금고에 적립하는 식과 똑같이 재료별로 반올림해 더한다."""
+    return round(sum(round(n * economy._sku_price(sku) * economy.RETAIL_MARGIN, 2)
+                     for sku, n in need.items()), 2)
+
+
+def _fulfil(order_id: str, store_id: str, need: dict[str, int], background: BackgroundTasks) -> tuple[dict, list]:
+    """결제가 된(또는 데모 결제를 시도한) 주문의 재료를 판매로 기록하고 안전선을 본다.
+
+    틱의 시뮬 판매·1개 구매와 정확히 같은 경로(economy.sell). 안전선이 깨지면 즉시 조달.
+    """
+    note = f"{economy.LIVE_NOTE} {order_id}"
+    drawn = {}
+    for sku, n in need.items():
+        result = economy.sell(store_id, sku, n, note)
+        if result.get("error"):
+            raise HTTPException(409, result["error"])
+        drawn[sku] = result["qty"]
+    inv = utils.effective_inventory(store_id)
+    low = [sku for sku in need
+           if inv.get(sku, {}).get("qty", 0) < inv.get(sku, {}).get("safety", 0)]
+    trigger = _maybe_trigger(background, store_id, low[0] if low else None, bool(low), ref=order_id)
+    return {"ingredients": drawn, "low_stock": low, "trigger": trigger}, low
+
+
+def _log_order(doc: dict, order_id: str) -> None:
+    utils.log("guest", "shop.order", {
+        "store_id": doc["store_id"], "order_id": order_id,
+        "items": [f"{line['name']} x{line['qty']}" for line in doc["lines"]],
+        "amount_usdc": doc["total_usdc"], "tx": doc.get("tx"),
+        "low_stock": doc.get("low_stock"), "trigger": doc.get("trigger"),
+        "visitor": doc.get("visitor"), "payer": doc.get("payer", "demo"),
+        **({"wallet": doc["wallet"]} if doc.get("wallet") else {}),
+    })
 
 
 @router.post("/order")
@@ -207,49 +251,107 @@ def place_order(body: Order, request: Request, background: BackgroundTasks) -> d
         raise HTTPException(409, str(exc)) from None
 
     order_id = _order_id(body.store_id)
-    note = f"{economy.LIVE_NOTE} {order_id}"
-    # 재료별로 판매 기록 — 틱의 시뮬 판매·1개 구매와 정확히 같은 경로(economy.sell).
-    # 손님이 낼 돈은 금고에 적립된 합계다 — 메뉴판 값과 센트 단위로 어긋날 수 있어도 장부가 기준.
-    total, drawn = 0.0, {}
-    for sku, n in need.items():
-        result = economy.sell(body.store_id, sku, n, note)
-        if result.get("error"):
-            raise HTTPException(409, result["error"])
-        total = round(total + result["revenue"], 2)
-        drawn[sku] = result["qty"]
+    total = _quote(need)
+    base = {
+        "store_id": body.store_id, "store_name": stores[body.store_id]["name"],
+        "lines": lines, "need": need, "total_usdc": total, "network": config.NETWORK,
+        "visitor": _visitor(request), "created_at": datetime.now(UTC).isoformat(),
+    }
 
+    if body.pay == "wallet":
+        # 방문자 지갑 결제 — 여기서는 청구만 한다. 재고는 체인에서 결제를 확인한 뒤에 뺀다.
+        if not body.wallet:
+            raise HTTPException(422, "wallet address is required to pay with your own wallet")
+        doc = db.put("customer_orders", order_id, {
+            **base, "payer": "own_wallet", "wallet": body.wallet,
+            "status": "awaiting_payment", "paid_usdc": None, "tx": None,
+        })
+        return {**doc, "id": order_id, "payment": {
+            "network": config.NETWORK, "mint": config.USDC_MINT, "decimals": 6,
+            "recipient": config.HQ_ADDRESS, "recipient_token_account": config.HQ_USDC_ATA,
+            "amount_usdc": total, "amount_base_units": round(total * 1_000_000), "memo": order_id,
+        }}
+
+    # 데모 지갑 결제 — 프로젝트가 채운 공용 손님 지갑이 대신 낸다
     tx = None
     try:
         receipt = payments.pay("guest", payments.balance("hq")["address"], total, order_id)
         tx = receipt.get("signature")
-    except Exception as exc:  # noqa: BLE001 — 결제 실패는 기록하고 계속, 판매 기록은 이미 남았다
+    except Exception as exc:  # noqa: BLE001 — 결제 실패는 기록하고 계속, 판매 기록은 남긴다
         utils.log("guest", "shop.pay_failed",
                   {"store_id": body.store_id, "order_id": order_id,
                    "amount_usdc": total, "reason": str(exc)[:120]})
     if tx:
         stats.add_guest_flow(body.store_id, total)
-
-    inv = utils.effective_inventory(body.store_id)
-    low = [sku for sku in need
-           if inv.get(sku, {}).get("qty", 0) < inv.get(sku, {}).get("safety", 0)]
-    trigger = _maybe_trigger(background, body.store_id, low[0] if low else None, bool(low), ref=order_id)
-
+    effects, _ = _fulfil(order_id, body.store_id, need, background)
     doc = db.put("customer_orders", order_id, {
-        "store_id": body.store_id, "store_name": stores[body.store_id]["name"],
-        "lines": lines, "ingredients": drawn,
-        "total_usdc": total, "paid_usdc": total if tx else None,
-        "tx": tx, "network": config.NETWORK,
+        **base, **effects, "payer": "demo",
+        "paid_usdc": total if tx else None, "tx": tx,
         "status": "paid" if tx else "pay_failed",
-        "low_stock": low, "trigger": trigger,
-        "visitor": _visitor(request),
-        "created_at": datetime.now(UTC).isoformat(),
     })
-    utils.log("guest", "shop.order", {
-        "store_id": body.store_id, "order_id": order_id,
-        "items": [f"{line['name']} x{line['qty']}" for line in lines],
-        "amount_usdc": total, "tx": tx, "low_stock": low, "trigger": trigger,
-        "visitor": doc["visitor"],
+    _log_order(doc, order_id)
+    return {**doc, "id": order_id}
+
+
+def _verify_wallet_payment(doc: dict, order_id: str, signature: str) -> dict | None:
+    """체인에서 방문자의 이체를 대조한다 — 프런트가 보낸 값은 믿지 않는다.
+
+    성공·수취 계좌(본사 USDC)·금액·메모(주문번호)·수수료 낸 지갑(=방문자, 서명자) 다섯 가지.
+    아직 체인에 안 보이면 None (잠시 뒤 다시).
+    """
+    try:
+        tx = payments.verify_tx(signature)
+    except Exception:  # noqa: BLE001 — 404(아직 전파 전)·일시 오류는 "아직"으로 본다
+        return None
+    if not tx.get("found"):
+        return None
+    t = tx.get("transfer") or {}
+    problems = []
+    if not tx.get("success"):
+        problems.append("the transaction failed on-chain")
+    if t.get("destination") != config.HQ_USDC_ATA:
+        problems.append("it was not sent to the franchise HQ's USDC account")
+    if abs(float(t.get("amount") or 0) - doc["total_usdc"]) > 0.000001:
+        problems.append(f"amount {t.get('amount')} USDC does not match {doc['total_usdc']} USDC")
+    if (tx.get("memo") or "").strip() != order_id and order_id not in (tx.get("memo") or ""):
+        problems.append("the memo does not carry this order number")
+    if tx.get("feePayer") != doc.get("wallet"):
+        problems.append("it was not signed and paid by the wallet that placed the order")
+    return {"ok": not problems, "problems": problems, "tx": tx}
+
+
+@router.post("/orders/{order_id}/confirm")
+def confirm_wallet_order(order_id: str, body: Confirm, request: Request,
+                         background: BackgroundTasks) -> dict:
+    """방문자 지갑 결제 확인 — 서명이 체인에서 확인되면 그때 재료를 판매로 기록한다."""
+    guard.rate_limit(request, "shop")
+    doc = db.get("customer_orders", order_id)
+    if not doc or doc.get("payer") != "own_wallet":
+        raise HTTPException(404, f"no such wallet order: {order_id}")
+    if doc.get("status") == "paid":
+        return {**doc, "id": order_id}  # 같은 확인이 두 번 와도 한 번만 판다
+    # 이미 다른 주문의 결제로 인정된 트랜잭션은 다시 못 쓴다 (거절된 시도는 세지 않는다)
+    used = db.list_docs("customer_orders", tx=body.signature)
+    if any(o.get("id") != order_id and o.get("status") == "paid" for o in used):
+        raise HTTPException(409, "this transaction already paid for another order")
+
+    check = _verify_wallet_payment(doc, order_id, body.signature)
+    if check is None:
+        raise HTTPException(425, "transaction not visible on-chain yet — retry in a few seconds")
+    if not check["ok"]:
+        db.update("customer_orders", order_id, {"status": "payment_rejected",
+                                                "rejected_tx": body.signature, "problems": check["problems"]})
+        utils.log("guest", "shop.pay_failed", {"store_id": doc["store_id"], "order_id": order_id,
+                                               "reason": "; ".join(check["problems"])[:160]})
+        raise HTTPException(409, "payment did not check out: " + "; ".join(check["problems"]))
+
+    effects, _ = _fulfil(order_id, doc["store_id"], doc["need"], background)
+    stats.add_guest_flow(doc["store_id"], doc["total_usdc"])
+    doc = db.put("customer_orders", order_id, {
+        **doc, **effects, "status": "paid", "paid_usdc": doc["total_usdc"], "tx": body.signature,
+        "confirmed_at": datetime.now(UTC).isoformat(),
     })
+    _log_order(doc, order_id)
     return {**doc, "id": order_id}
 
 

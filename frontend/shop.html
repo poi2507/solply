@@ -85,6 +85,15 @@
     background: linear-gradient(135deg, var(--accent-vivid), var(--accent-cyan));
   }
   .sf-pay:disabled { background: var(--raise); color: var(--ink-3); cursor: default; }
+  .sf-pay-group { display: flex; gap: 8px; flex-wrap: wrap; }
+  .sf-pay.alt { background: var(--card); color: var(--ink); border: 1px solid var(--line); }
+  .sf-pay.alt:disabled { background: var(--raise); color: var(--ink-3); }
+  .sf-help {
+    width: 100%; font-size: 12.5px; line-height: 1.6; color: #7a4e14;
+    background: #fdf6ec; border: 1px solid #f1dcb5; border-radius: 8px; padding: 9px 12px;
+  }
+  .sf-help a { color: inherit; font-weight: 700; }
+  .sf-help code { font-family: var(--mono); font-size: 11.5px; word-break: break-all; }
   .sf-cart-note { width: 100%; margin: 0; font-size: 11.5px; color: var(--ink-3); }
 
   /* 주문 추적 */
@@ -197,8 +206,14 @@
     <div class="sf-cart-meta"><b id="cart-store"></b><span id="cart-count"></span></div>
     <ul id="cart-lines"></ul>
     <div class="sf-cart-total"><b id="cart-total">0.00</b><small>USDC · one on-chain transfer</small></div>
-    <button class="sf-pay" id="cart-pay" disabled>Place order</button>
-    <p class="sf-cart-note">Paid from the customer wallet above to the franchise HQ, with your order number written into the transaction memo.</p>
+    <div class="sf-pay-group">
+      <button class="sf-pay" id="cart-pay-wallet" disabled>Pay with Phantom</button>
+      <button class="sf-pay alt" id="cart-pay" disabled>Use demo wallet</button>
+    </div>
+    <p class="sf-cart-note"><b>Phantom</b>: you sign and pay from your own wallet on Solana devnet (test money — turn on Testnet Mode).
+      <b>Demo wallet</b>: no wallet needed; a shared wallet the project funds pays for you.
+      Either way the order number is written into the transaction memo.</p>
+    <div class="sf-help" id="cart-help" hidden></div>
   </div>
 </aside>
 

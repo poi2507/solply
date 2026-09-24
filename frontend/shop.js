@@ -158,11 +158,74 @@ function renderCart() {
     : '<li class="sf-empty">Your cart is empty — add something from the menu.</li>';
   $("cart-total").textContent = fmt(total);
   $("cart-pay").disabled = !lines.length;
+  $("cart-pay-wallet").disabled = !lines.length;
 }
+
+function help(html) {
+  const box = $("cart-help");
+  box.hidden = !html;
+  box.innerHTML = html || "";
+}
+
+// 방문자 자기 지갑 결제 — 청구 → Phantom 서명·전송 → 서버가 체인에서 대조한 뒤 판매
+async function payWithWallet() {
+  const btn = $("cart-pay-wallet");
+  if (btn.disabled) return;
+  const label = btn.textContent;
+  btn.disabled = true;
+  help("");
+  let W;
+  try {
+    W = await import("/assets/wallet.js");
+    btn.textContent = "Connecting Phantom…";
+    const address = await W.connect();
+    const items = [...state.cart].map(([item_id, qty]) => ({ item_id, qty }));
+    const expected = Number($("cart-total").textContent);
+    btn.textContent = "Checking balance…";
+    await W.preflight(address, "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU", expected);
+
+    btn.textContent = "Creating order…";
+    const res = await fetch("/api/shop/order", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ store_id: state.storeId, items, pay: "wallet", wallet: address }),
+    });
+    const order = await res.json();
+    if (!res.ok) { toast(esc(order.detail ?? "Order failed"), true); return; }
+
+    btn.textContent = "Approve in Phantom…";
+    const signature = await W.pay(address, order.payment);
+
+    btn.textContent = "Confirming on-chain…";
+    for (let i = 0; i < 25; i++) {
+      const r = await fetch(`/api/shop/orders/${encodeURIComponent(order.id)}/confirm`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ signature }),
+      });
+      if (r.status === 425) { await new Promise((ok) => setTimeout(ok, 2000)); continue; }
+      const d = await r.json();
+      if (!r.ok) { toast(esc(d.detail ?? "Payment could not be confirmed"), true); return; }
+      state.cart.clear();
+      state.board = null;  // 재고가 바뀌었다 — 다음 메뉴판은 새로 읽는다
+      go(`/shop/orders/${encodeURIComponent(order.id)}`);
+      return;
+    }
+    toast(`Sent, but not confirmed yet. Your order is <a href="/shop/orders/${encodeURIComponent(order.id)}">${esc(order.id)}</a>.`, true);
+  } catch (e) {
+    if (W && e instanceof W.WalletError) {
+      toast(esc(e.message), true);
+      help(e.help ? `${e.help}` : "");
+    } else {
+      toast("Something went wrong with the wallet payment.", true);
+    }
+  } finally {
+    btn.disabled = false; btn.textContent = label;
+  }
+}
+$("cart-pay-wallet").addEventListener("click", payWithWallet);
 
 async function placeOrder() {
   const btn = $("cart-pay");
   if (btn.disabled) return;
+  help("");
   btn.disabled = true; btn.textContent = "Paying on-chain…";
   try {
     const res = await fetch("/api/shop/order", {
@@ -182,7 +245,7 @@ async function placeOrder() {
   } catch {
     toast("Connection failed.", true);
   } finally {
-    btn.disabled = false; btn.textContent = "Place order";
+    btn.disabled = false; btn.textContent = "Use demo wallet";
   }
 }
 $("cart-pay").addEventListener("click", placeOrder);
@@ -237,8 +300,11 @@ function agentStep(o) {
   return ["running", "The store's agent is procuring now — its log is streaming below."];
 }
 
+const short = (a) => (a ? `${a.slice(0, 4)}…${a.slice(-4)}` : "");
+
 function renderOrder(o) {
   const paid = o.status === "paid";
+  const own = o.payer === "own_wallet";
   const [agentState, agentText] = agentStep(o);
   const when = o.created_at ? new Date(o.created_at).toLocaleString() : "";
   $("view").innerHTML = `
@@ -257,9 +323,11 @@ function renderOrder(o) {
       </ul>
       <ol class="sf-steps">
         <li class="${paid ? "ok" : "warn"}">
-          <b>${paid ? "Paid on-chain" : "Payment did not go through"}</b>
+          <b>${paid ? (own ? "Paid on-chain — from your own wallet" : "Paid on-chain — demo wallet") : o.status === "awaiting_payment" ? "Waiting for your payment" : "Payment did not go through"}</b>
           <span>${paid
-            ? `${fmt(o.paid_usdc)} USDC from your wallet to the franchise HQ, in one transaction with this order number in the memo. <a href="${explorer(o.tx, o.network)}" target="_blank" rel="noopener">View on Solana Explorer ↗</a>`
+            ? `${fmt(o.paid_usdc)} USDC ${own ? `from your wallet <code>${esc(short(o.wallet))}</code>, signed by you,` : "from the shared demo wallet"} to the franchise HQ, in one transaction with this order number in the memo.${own ? " The store verified the transfer on-chain before recording the sale." : ""} <a href="${explorer(o.tx, o.network)}" target="_blank" rel="noopener">View on Solana Explorer ↗</a>`
+            : o.status === "awaiting_payment" ? "Nothing has been charged or drawn from stock yet."
+            : o.status === "payment_rejected" ? `The transfer did not check out: ${esc((o.problems || []).join("; "))}.`
             : "The sale was still recorded at the store; the transfer failed (usually the customer wallet or the RPC). No fees were charged."}</span>
         </li>
         <li class="ok">

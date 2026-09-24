@@ -40,7 +40,9 @@ def compute() -> dict:
     recent_orders: list[dict] = []
     invoice_of: dict[str, str] = {}
     tot = {"orders": 0, "purchases": 0, "paid_usdc": 0.0, "triggered": 0,
-           "procured": 0, "failed": 0, "sim_servings": 0, "real_servings": 0}
+           "procured": 0, "failed": 0, "sim_servings": 0, "real_servings": 0,
+           "own_wallet_orders": 0, "own_wallet_usdc": 0.0}
+    wallets: set[str] = set()
 
     for day in _days():
         orders = _events(day, "shop.order")
@@ -59,11 +61,17 @@ def compute() -> dict:
             else:
                 sim += n
 
-        paid = 0.0
+        paid = own_n = 0
+        own_usdc = 0.0
         for e in orders + sales:
             p = e.get("payload") or {}
             if p.get("tx"):
                 paid += float(p.get("amount_usdc") or 0)
+                if p.get("payer") == "own_wallet":
+                    own_n += 1
+                    own_usdc += float(p.get("amount_usdc") or 0)
+                    if p.get("wallet"):
+                        wallets.add(p["wallet"])
             if p.get("visitor"):
                 visitors.add(p["visitor"])
         for e in procured:
@@ -75,15 +83,16 @@ def compute() -> dict:
             recent_orders.append({"ts": e["ts"], "order_id": p.get("order_id"),
                                   "store_id": p.get("store_id"), "items": p.get("items", []),
                                   "amount_usdc": p.get("amount_usdc"), "tx": p.get("tx"),
-                                  "trigger": p.get("trigger")})
+                                  "trigger": p.get("trigger"), "payer": p.get("payer", "demo")})
 
         row = {"day": day, "orders": len(orders), "purchases": len(sales),
                "paid_usdc": round(paid, 2), "triggered": len(triggers),
                "procured": len(procured), "failed": len(failed),
-               "real_servings": real, "sim_servings": sim}
+               "real_servings": real, "sim_servings": sim,
+               "own_wallet_orders": own_n, "own_wallet_usdc": round(own_usdc, 2)}
         daily.append(row)
         for k in tot:
-            tot[k] = round(tot[k] + row[k], 2) if k == "paid_usdc" else tot[k] + row[k]
+            tot[k] = round(tot[k] + row[k], 2) if k.endswith("usdc") else tot[k] + row[k]
 
     recent_orders.sort(key=lambda o: o["ts"], reverse=True)
     for o in recent_orders:
@@ -91,15 +100,15 @@ def compute() -> dict:
     return {
         "since": config.TRACTION_SINCE,
         "simDemand": config.SIM_DEMAND_ENABLED,
-        "totals": {**tot, "visitors": len(visitors)},
+        "totals": {**tot, "visitors": len(visitors), "own_wallets": len(wallets)},
         "daily": daily,
         "recentOrders": recent_orders[:6],
         "notes": [
             "Visitors are counted from a salted hash of the IP; raw IPs are not stored.",
             "Unique visitors are only counted from Sep 23, when hashing began.",
             "Includes the team's own test orders.",
-            ("Visitors pay from a shared demo customer wallet that the project funds with devnet USDC — "
-             "the transfers are real on-chain transactions, but the money is not the visitor's own."),
+            ("Demo-wallet orders are paid from a shared customer wallet the project funds with devnet USDC; "
+             "own-wallet orders are signed and paid by the visitor's own Phantom wallet, verified on-chain."),
         ],
     }
 
