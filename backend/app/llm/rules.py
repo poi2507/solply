@@ -18,20 +18,20 @@ def review_adjustment(facts: dict[str, Any], policy: dict[str, Any]) -> dict[str
     limit = float(policy.get("auto_adjust_limit_usdc", HQPolicy.auto_adjust_limit_usdc))
 
     if requested <= 0:
-        return {"decision": "reject", "reasoning": "차감 요청액이 없습니다."}
+        return {"decision": "reject", "reasoning": "No deduction amount was requested."}
     if requested > limit:
         return {
             "decision": "counter",
-            "reasoning": f"차감 요청 {requested} USDC가 자동 승인 한도 {limit} USDC를 넘어 담당자 확인이 필요합니다.",
+            "reasoning": f"The {requested} USDC deduction exceeds the {limit} USDC auto-approval limit, so a person must confirm it.",
         }
     if abs(requested - verified) > 1e-6:
         return {
             "decision": "reject",
-            "reasoning": f"납품 로그상 과청구는 {verified} USDC인데 {requested} USDC를 요청해 근거가 맞지 않습니다.",
+            "reasoning": f"The delivery log shows {verified} USDC overbilled, but {requested} USDC was requested — the claim does not match.",
         }
     return {
         "decision": "accept",
-        "reasoning": f"납품 로그 대조 결과 {facts.get('detail', '불일치')} 확인. {requested} USDC 차감이 타당합니다.",
+        "reasoning": f"The delivery log confirms {facts.get('detail', 'a mismatch')}. A {requested} USDC deduction is justified.",
     }
 
 
@@ -51,7 +51,7 @@ def review_deferral(facts: dict[str, Any], policy: dict[str, Any]) -> dict[str, 
     if score < min_score:
         return {
             "decision": "reject",
-            "reasoning": f"신용점수 {score}점으로 기준({min_score}점)에 미달해 유예를 수락할 수 없습니다.",
+            "reasoning": f"Credit score {score} is below the {min_score} threshold, so the deferral cannot be accepted.",
         }
     if credit_limit and exposure > limit_pct:
         # LLM 판단의 기준선: 이력이 넉넉히 좋으면 최소 회차, 아니면 상한까지 잘게.
@@ -60,16 +60,16 @@ def review_deferral(facts: dict[str, Any], policy: dict[str, Any]) -> dict[str, 
             "decision": "counter",
             "parts": parts,
             "reasoning": (
-                f"유예액 {amount} USDC가 외상 한도 {credit_limit:g} USDC의 {exposure:.0f}%로 "
-                f"허용치 {limit_pct:.0f}%를 넘어 {parts}회 분할을 제안합니다."
+                f"Deferring {amount} USDC is {exposure:.0f}% of the {credit_limit:g} USDC credit line, "
+                f"above the {limit_pct:.0f}% allowed — proposing {parts} installments instead."
             ),
         }
     return {
         "decision": "accept",
         "reasoning": (
-            f"신용점수 {score}점으로 기준({min_score}점)을 충족하고 {facts.get('history', '납부 이력')}이 양호합니다. "
-            f"유예액은 외상 한도의 {exposure:.0f}%로 허용치({limit_pct:.0f}%) 안이므로 "
-            f"{facts.get('pay_when', '제시 시점')} 납부를 수락합니다."
+            f"Credit score {score} meets the {min_score} threshold and the payment history is good. "
+            f"The deferral is {exposure:.0f}% of the credit line, within the {limit_pct:.0f}% allowed, "
+            f"so paying {facts.get('pay_when', 'at the proposed time')} is accepted."
         ),
     }
 
@@ -91,26 +91,26 @@ def review_p2p(facts: dict[str, Any], policy: dict[str, Any]) -> dict[str, str]:
     if surplus < qty:
         return {
             "decision": "reject",
-            "reasoning": f"판매 지점 잉여가 {surplus}개로 요청 수량 {qty}개에 못 미쳐 안전재고를 침범합니다.",
+            "reasoning": f"The seller has only {surplus} spare against {qty} requested — selling would breach its safety stock.",
         }
     if min(buyer_score, seller_score) < min_score:
         return {
             "decision": "reject",
             "reasoning": (
-                f"신용점수 기준({min_score}점) 미달 — 구매측 {buyer_score}점 / 판매측 {seller_score}점."
+                f"Below the {min_score} credit threshold — buyer {buyer_score} / seller {seller_score}."
             ),
         }
     if unit > hq_unit:
         return {
             "decision": "counter",
-            "reasoning": f"거래 단가 {unit} USDC가 본사 공급가 {hq_unit} USDC를 넘어 조정이 필요합니다.",
+            "reasoning": f"The unit price {unit} USDC is above the HQ supply price {hq_unit} USDC and needs adjusting.",
         }
     return {
         "decision": "accept",
         "reasoning": (
-            f"판매측 잉여 {surplus}개 ≥ 요청 {qty}개로 안전재고가 지켜지고, "
-            f"양측 신용 {buyer_score}/{seller_score}점이 기준({min_score}점)을 충족하며, "
-            f"단가 {unit} USDC는 본사 공급가 이내입니다. 승인합니다."
+            f"Seller spare {surplus} ≥ {qty} requested keeps its safety stock, "
+            f"both credit scores {buyer_score}/{seller_score} meet the {min_score} threshold, "
+            f"and the {unit} USDC unit price is within the HQ supply price. Approved."
         ),
     }
 
@@ -124,12 +124,12 @@ def respond_counter(facts: dict[str, Any], policy: dict[str, Any]) -> dict[str, 
     afford = float(facts.get("affordable_usdc") or 0)
     if per and afford >= per:
         return {"decision": "accept",
-                "reasoning": f"가용액 {afford} USDC로 회당 {per} USDC를 감당할 수 있습니다."}
+                "reasoning": f"With {afford} USDC available, {per} USDC per installment is affordable."}
     if per and afford >= max(round(per * 0.3, 2), 0.1):
         return {"decision": "counter",
-                "reasoning": f"회당 {per} USDC는 부담이지만 {afford} USDC 선납은 가능합니다."}
+                "reasoning": f"{per} USDC per installment is too heavy, but {afford} USDC can be paid upfront."}
     return {"decision": "reject",
-            "reasoning": f"가용액 {afford} USDC로는 선납 여력이 없습니다."}
+            "reasoning": f"With {afford} USDC available there is no room for an upfront payment."}
 
 
 def choose_supply_route(facts: dict[str, Any], policy: dict[str, Any]) -> dict[str, str]:
@@ -139,12 +139,12 @@ def choose_supply_route(facts: dict[str, Any], policy: dict[str, Any]) -> dict[s
     min_qty = float(facts.get("hq_min_order_qty") or 0)
     if surplus >= need and need < min_qty:
         return {"decision": "p2p",
-                "reasoning": f"필요 {need:g}개는 최소 발주량 {min_qty:g}개 미만이고 이웃 잉여 {surplus:g}개로 덮입니다."}
+                "reasoning": f"Needing {need:g} is under the HQ minimum order of {min_qty:g}, and a neighbour's {surplus:g} spare covers it."}
     if surplus >= need:
         return {"decision": "p2p",
-                "reasoning": f"이웃 잉여 {surplus:g}개로 오늘 인수 가능 — 리드타임을 기다리지 않습니다."}
+                "reasoning": f"A neighbour's {surplus:g} spare can be taken today — no waiting on lead time."}
     return {"decision": "hq",
-            "reasoning": f"이웃 잉여 {surplus:g}개로는 필요 {need:g}개를 채우지 못합니다."}
+            "reasoning": f"A neighbour's {surplus:g} spare cannot cover the {need:g} needed."}
 
 
 def review_order(facts: dict[str, Any], policy: dict[str, Any]) -> dict[str, str]:
@@ -154,25 +154,25 @@ def review_order(facts: dict[str, Any], policy: dict[str, Any]) -> dict[str, str
     만들지 않는다 — LLM이 없으면 심사 없음이 기존 동작이고 가장 안전하다.
     """
     return {"decision": "accept",
-            "reasoning": "발주 수량을 그대로 이행합니다.", "choice": -1}
+            "reasoning": "Fulfilling the order quantity as placed.", "choice": -1}
 
 
 def review_brokerage(facts: dict[str, Any], policy: dict[str, Any]) -> dict[str, str]:
     """(본사) 재고 중개 — 규칙 모드는 중개하지 않는다 (기존 동작 보존)."""
     return {"decision": "reject",
-            "reasoning": "이번에는 지점 간 중개를 제안하지 않습니다.", "choice": -1}
+            "reasoning": "No store-to-store brokerage this round.", "choice": -1}
 
 
 def respond_order_trim(facts: dict[str, Any], policy: dict[str, Any]) -> dict[str, str]:
     """(지점) 축소 제안 응답 — 규칙 모드는 원 수량을 고수한다 (기존 동작 보존)."""
     return {"decision": "insist",
-            "reasoning": "자기 판매 원장 기준으로 원 수량을 유지합니다."}
+            "reasoning": "Keeping the original quantity, based on our own sales ledger."}
 
 
 def respond_p2p_price(facts: dict[str, Any], policy: dict[str, Any]) -> dict[str, str]:
     """(판매 지점) 직거래 가격 — 규칙 모드는 제안가에 수락한다 (기존 동작 보존)."""
     return {"decision": "accept",
-            "reasoning": "제안가 그대로 수락합니다."}
+            "reasoning": "Accepting the offered price as is."}
 
 
 def decide_p2p_price(facts: dict[str, Any], policy: dict[str, Any]) -> dict[str, str]:
@@ -181,15 +181,15 @@ def decide_p2p_price(facts: dict[str, Any], policy: dict[str, Any]) -> dict[str,
     hq_unit = float(facts.get("hq_unit_price_usdc") or 0)
     if hq_unit and counter > hq_unit + 1e-9:
         return {"decision": "hq",
-                "reasoning": f"역제안 단가 {counter}가 본사 공급가 {hq_unit}를 넘어 본사 발주로 갑니다."}
+                "reasoning": f"The counter price {counter} is above the HQ supply price {hq_unit} — ordering from HQ instead."}
     return {"decision": "accept",
-            "reasoning": f"역제안 단가 {counter}는 본사 공급가({hq_unit}) 이내라 오늘 인수가 이득입니다."}
+            "reasoning": f"The counter price {counter} is within the HQ supply price ({hq_unit}), so taking it today pays off."}
 
 
 def consider_brokered(facts: dict[str, Any], policy: dict[str, Any]) -> dict[str, str]:
     """(구매 지점) 중개 제안 — 본사 공급가 기준 부분 수량이라 손해가 없어 수락."""
     return {"decision": "accept",
-            "reasoning": "본사 공급가 기준 부분 인수 — 잔여는 본사 발주로 채웁니다."}
+            "reasoning": "Taking the partial quantity at the HQ supply price — the rest comes from an HQ order."}
 
 
 def narrate(facts: list[str], reasoning: list[str]) -> str:
