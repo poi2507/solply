@@ -7,7 +7,7 @@
 
 const RPC = "https://api.devnet.solana.com";
 const TOKEN_PROGRAM = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
-const ATA_PROGRAM = "ATokenGPvbdGVxr1b2hGZbsiqW5xWby2xQx9uUkCAbnL";
+const ATA_PROGRAM = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
 const MEMO_PROGRAM = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr";
 
 export class WalletError extends Error {
