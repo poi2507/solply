@@ -49,6 +49,10 @@ GOOGLE_CLOUD_LOCATION = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
 VERTEX_HQ_MODEL = os.getenv("VERTEX_HQ_MODEL", "gemini-2.5-flash")
 VERTEX_STORE_MODEL = os.getenv("VERTEX_STORE_MODEL", "gemini-2.5-flash-lite")
 
+# 에이전트가 쓰는 문장(판단 근거·보고문·리포트)의 언어. 화면을 읽는 심사위원이 영어권이라
+# 라이브는 English. 프롬프트 본문은 한국어로 두고, 호출 끝에서 출력 언어만 못박는다.
+AGENT_OUTPUT_LANGUAGE = os.getenv("AGENT_OUTPUT_LANGUAGE", "English")
+
 # ── 에이전트 정책 ──
 STORE_ID = os.getenv("STORE_ID", "store-a")
 SPEND_LIMIT_USDC = float(os.getenv("AGENT_SPEND_LIMIT_USDC", "50"))

@@ -1167,7 +1167,7 @@ async function loadTraction() {
     <div class="tr-tiles">
       ${tile(T.orders + T.purchases, "real customer orders", `${T.orders} menu orders · ${T.purchases} single items`)}
       ${tile(T.visitors, "unique visitors", "counted from Sep 23")}
-      ${tile(T.paid_usdc.toFixed(2), "USDC paid on-chain", "by visitors, to HQ")}
+      ${tile(T.paid_usdc.toFixed(2), "USDC paid on-chain", "from the shared demo customer wallet, to HQ")}
       ${tile(T.triggered, "agent procurements triggered", `${T.procured} finished · ${T.failed} failed`)}
     </div>
     <div class="tr-chart">

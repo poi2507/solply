@@ -553,13 +553,36 @@ function build() {
 }
 const RE = build();
 
+// 숫자를 끼워 만든 요약 문장 — 사전 치환보다 먼저 돈다 (사전이 조각을 먼저 먹지 않게)
+const PATTERNS_RAW = [
+  [/발주 (.+?) (\d+)개 \(기본 (\d+)개\) 심사/g, "Order review: $1 ×$2 (base $3)"],
+  [/검수 불일치분 ([\d.]+) USDC 차감 요청/g, "Deduction request: $1 USDC for the delivery mismatch"],
+  [/납부 유예 요청 \((.+?)\)/g, "Deferral request ($1)"],
+  [/(store-[a-z]) → (store-[a-z]) (.+?) (\d+)개 중개 제안/g, "Brokered trade: $1 → $2, $3 ×$4"],
+  [/직거래 단가 ([\d.]+) → ([\d.]+) USDC 역제안/g, "Peer-trade counter: unit price $1 → $2 USDC"],
+  [/역제안 단가 ([\d.]+) USDC에 대한 구매측 응답/g, "Buyer's reply to counter price $1 USDC"],
+  [/선납 후 잔여 노출 (\d+)% ≤ 허용 ([\d.]+)% — 수정안 수용/g, "Exposure after upfront payment $1% ≤ allowed $2% — revision accepted"],
+];
+const PRE_EN = {
+  "지점 수정안(선납 분할)": "Store's revision (upfront + installments)",
+  "본사 분할 역제안에 대한 지점 응답": "Store's reply to HQ's installment counter-offer",
+  "본사의 발주 수량 축소 제안에 대한 지점 응답": "Store's reply to HQ's order-quantity trim",
+  "본사 중개 직거래에 대한 구매측 응답": "Buyer's reply to an HQ-brokered trade",
+  "시점 미지정": "no date given",
+};
+const PATTERNS = PATTERNS_RAW;
+
 // 숫자와 떨어져 제 요소에 홀로 있는 단위 (role.js의 unit:"건") — 영어에선 지운다
 const BARE_UNIT = /^\s*(건|회|개|명|종|장)\s*$/;
 
 export function translate(text) {
   if (!text || !/[가-힣]/.test(text)) return text;
   if (BARE_UNIT.test(text)) return "";
-  let out = text.replace(RE, (m) => EN[m] ?? m);
+  // 코드가 숫자를 끼워 만드는 협상 요약 — 사전으로는 못 잡아 패턴으로 옮긴다 (hq/node.py·economy.py·store/tools.py)
+  let out = text;
+  for (const [ko, en] of Object.entries(PRE_EN)) out = out.split(ko).join(en);
+  for (const [re, to] of PATTERNS) out = out.replace(re, to);
+  out = out.replace(RE, (m) => EN[m] ?? m);
   for (const [re, to] of COUNTERS) out = out.replace(re, to);
   // 한국어는 "이 날 3건", 영어는 "3 on this day" — 사전은 자리를 못 바꾸므로 여기서 뒤집는다
   out = out.replace(/\bon this day\s+([\d,.]+)/g, "$1 on this day");

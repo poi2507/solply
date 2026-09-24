@@ -11,6 +11,7 @@ import time
 
 from pydantic import BaseModel, Field
 
+from app import config
 from app.agents import prompts
 from app.llm import factory, rules
 
@@ -22,11 +23,18 @@ class Verdict(BaseModel):
     """협상 제안에 대한 심사 결과."""
 
     decision: str = Field(description="accept | reject | counter 중 하나")
-    reasoning: str = Field(description="판단 근거를 한국어 한두 문장으로. 수치를 포함할 것")
+    reasoning: str = Field(description="판단 근거 한두 문장. 수치를 포함할 것 (언어는 지시문을 따른다)")
     # 회차 선택은 LLM, 회당 금액과 허용 범위는 코드 — 범위 밖 값은 호출부가 한도로 되돌린다.
     parts: int = Field(0, description="decision이 counter일 때 제안하는 분할 회차. 해당 없으면 0")
     # 중개 심사 전용 — 코드가 만들어 준 후보 중 고른 번호. 해당 없으면 -1.
     choice: int = Field(-1, description="후보 목록에서 고른 번호(0부터). 해당 없으면 -1")
+
+
+def _lang() -> str:
+    """출력 언어 못박기 — 사용자 지시 끝에 붙인다. 프롬프트 본문이 한국어여도 문장은 이 언어로."""
+    lang = config.AGENT_OUTPUT_LANGUAGE
+    return (f"\n\nWrite every sentence you produce — including `reasoning` — in {lang}. "
+            f"Keep IDs, SKUs, numbers and USDC amounts exactly as given.")
 
 
 def _retry_delay(message: str, attempt: int) -> float:
@@ -120,7 +128,7 @@ def review_proposal(kind: str, facts: dict, policy_values: dict) -> dict[str, st
         "accept / reject / counter 중 하나로 결정해라.\n\n"
         f"{lines}\n\n"
         "정책 기준에 비추어 판단하고, 근거에 수치를 반드시 포함해라."
-        f"{extra}"
+        f"{extra}{_lang()}"
     )
     verdict: Verdict = _invoke("hq", system, user, schema=Verdict)
     decision = verdict.decision.strip().lower()
@@ -194,6 +202,7 @@ def store_decide(kind: str, facts: dict, policy_values: dict) -> dict[str, str]:
             f"{guide}\n\n"
             f"{lines}\n\n"
             "우리 지점의 지불 여력과 재고 사정을 기준으로 판단하고, 근거에 수치를 포함해라."
+            f"{_lang()}"
         )
         verdict: Verdict = _invoke("store", system, user, schema=Verdict)
         decision = verdict.decision.strip().lower()
@@ -214,9 +223,9 @@ def weekly_report(stats: dict, prompt_values: dict) -> str:
 
     system = prompts.system("hq", **prompt_values)
     user = (
-        "아래 정산 통계로 경영진 보고용 정산 리포트를 한국어 3~4문장 한 문단으로 써라. "
+        "아래 정산 통계로 경영진 보고용 정산 리포트를 3~4문장 한 문단으로 써라. "
         "수치를 반드시 포함하고, 에이전트가 자율 처리한 범위와 사람 개입 횟수를 대비시켜라.\n\n"
-        + json.dumps(stats, ensure_ascii=False)
+        + json.dumps(stats, ensure_ascii=False) + _lang()
     )
     try:
         response = _invoke("hq", system, user)
@@ -235,7 +244,7 @@ def narrate(agent: str, prompt_values: dict, facts: list[str], reasoning: list[s
     system = prompts.system(agent, **prompt_values)
     body = "\n".join(f"- {f}" for f in facts)
     why = "\n".join(f"- {r}" for r in reasoning)
-    user = f"아래 처리 결과를 보고해라.\n\n[사실]\n{body}\n\n[판단 근거]\n{why or '- 없음'}"
+    user = f"아래 처리 결과를 보고해라.\n\n[사실]\n{body}\n\n[판단 근거]\n{why or '- 없음'}{_lang()}"
     try:
         response = _invoke(agent, system, user)
         return getattr(response, "content", str(response)).strip()

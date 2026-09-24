@@ -98,6 +98,8 @@ def compute() -> dict:
             "Visitors are counted from a salted hash of the IP; raw IPs are not stored.",
             "Unique visitors are only counted from Sep 23, when hashing began.",
             "Includes the team's own test orders.",
+            ("Visitors pay from a shared demo customer wallet that the project funds with devnet USDC — "
+             "the transfers are real on-chain transactions, but the money is not the visitor's own."),
         ],
     }
 
