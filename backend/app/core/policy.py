@@ -105,6 +105,13 @@ class HQPolicy:
         }
 
 
+# 기본 사정·기조의 영어판 — Jev(영어 1순위)에 넣을 때 쓴다. 화면·LLM 프롬프트는 원문 그대로.
+DEFAULT_PERSONA_EN = {
+    "특별한 사정 없이 정책대로 판단한다.": "No special circumstances; decide by the policy.",
+    "특별한 기조 없이 정책 기준대로 심사한다.": "No special stance; review by the policy thresholds.",
+}
+
+
 def _num(value: float) -> str:
     """25.0 → "25" / 12.5 → "12.5" — 프롬프트에 소수점 잔여를 남기지 않는다."""
     return f"{value:g}"
@@ -157,14 +164,17 @@ MAX_PERSONA_CHARS = 400
 # 저장되는 것은 어디까지나 최종 글이다 (프리셋은 입력 도우미일 뿐 별도 상태가 아니다).
 PERSONA_PRESETS = [
     {"label": "적극 확장",
+     "text_en": "Sales are steady, so there is spare cash. Losing customers to stock-outs is the worst outcome, so keep generous stock and restock aggressively. Accept an affordable installment plan without dragging out the negotiation.",
      "text": ("매출이 안정적이라 현금 여유가 있다. 결품으로 손님을 놓치는 것을 가장 싫어해 "
               "재고를 넉넉히 잡고 조달에 적극적이다. 감당 가능한 분할 조건이면 협상을 "
               "길게 끌지 않고 받아들인다.")},
     {"label": "균형",
+     "text_en": "Sales swing, so spend cash carefully and avoid large one-off payments. Prefer splitting into a partial upfront payment over paying in full, and look first for a cheaper peer trade with a neighbour.",
      "text": ("매출 편차가 있어 현금을 아껴 쓰고, 한 번에 큰 금액이 나가는 것을 피한다. "
               "전액보다 일부 선납으로 쪼개는 조건을 선호하고, 이웃 직거래로 단가를 "
               "낮출 기회를 먼저 살핀다.")},
     {"label": "절약 보수",
+     "text_en": "Spare cash is thin, so protecting the ability to pay comes first. Keep minimal stock, ask for a deferral before taking on a heavy installment plan, and if it cannot be afforded, accept a breakdown and ask a human to decide.",
      "text": ("여유 자금이 얇아 지불 여력을 지키는 것이 최우선이다. 재고는 최소로 가져가고, "
               "무리한 분할을 떠안기보다 유예를 먼저 요청한다. 감당할 수 없으면 결렬을 "
               "감수하고 사람의 판단을 구한다.")},
@@ -173,12 +183,15 @@ PERSONA_PRESETS = [
 
 HQ_PERSONA_PRESETS = [
     {"label": "원칙 준수",
+     "text_en": "Review strictly by the policy thresholds, with no special stance. Accept only proposals backed by numbers.",
      "text": "특별한 기조 없이 정책 기준대로 심사한다. 근거가 수치로 제시된 제안만 받아들인다."},
     {"label": "현금 확보 우선",
+     "text_en": "This quarter HQ cash comes first. Steer stores toward installments and upfront payments instead of full deferral, be conservative with deferral requests that lack a concrete repayment date, and approve peer trades mainly when they are small and do not replace HQ sales.",
      "text": ("이번 분기는 본사 현금 확보가 우선이다. 전액 유예보다 분할·선납을 유도하고, "
               "회수 일정이 구체적이지 않은 유예 요청에는 보수적으로 판단한다. "
               "직거래는 본사 매출을 대체하지 않는 소액 건 위주로 승인한다.")},
     {"label": "가맹점 상생",
+     "text_en": "Be generous about stores' cash situations. Accept deferrals readily when there is a clear will and schedule to repay, be lenient with a first late payment from a store with a short credit history, and actively approve peer trades as mutual support between stores.",
      "text": ("지점의 현금 사정을 넉넉히 봐준다. 납부 의지와 회수 일정이 보이면 유예를 "
               "너그럽게 수락하고, 신용 이력이 짧은 지점의 첫 연체는 관대하게 본다. "
               "직거래는 지점 간 상생이므로 적극 승인한다.")},

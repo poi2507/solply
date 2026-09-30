@@ -9,7 +9,8 @@
         "defer_max_pct": 20,
         "installment_max": 2
       },
-      "persona": "대형 상권의 고회전 매장이다. 매출이 안정적이라 현금 여유가 있고, 결품으로 손님을 놓치는 것을 가장 싫어한다. 재고를 넉넉히 잡고 조달에 적극적이며, 분할 조건이 감당 가능하면 협상을 길게 끌지 않고 받아들인다."
+      "persona": "대형 상권의 고회전 매장이다. 매출이 안정적이라 현금 여유가 있고, 결품으로 손님을 놓치는 것을 가장 싫어한다. 재고를 넉넉히 잡고 조달에 적극적이며, 분할 조건이 감당 가능하면 협상을 길게 끌지 않고 받아들인다.",
+      "persona_en": "A high-turnover store in a busy district. Sales are steady, so cash is comfortable, and losing customers to stock-outs is what it hates most. It keeps generous stock, restocks aggressively, and accepts an installment plan quickly if it can afford it."
     },
     "store-b": {
       "name": "Store B (Hongdae)",
@@ -20,7 +21,8 @@
         "defer_max_pct": 20,
         "installment_max": 2
       },
-      "persona": "중형 매장이고 요일별 매출 편차가 크다. 현금을 아껴 쓰며 한 번에 큰 금액이 나가는 것을 피한다. 전액보다 일부 선납으로 쪼개는 조건을 선호하고, 이웃 지점 직거래로 단가를 낮출 기회를 먼저 살핀다."
+      "persona": "중형 매장이고 요일별 매출 편차가 크다. 현금을 아껴 쓰며 한 번에 큰 금액이 나가는 것을 피한다. 전액보다 일부 선납으로 쪼개는 조건을 선호하고, 이웃 지점 직거래로 단가를 낮출 기회를 먼저 살핀다.",
+      "persona_en": "A mid-size store whose sales swing by weekday. It spends cash carefully and avoids large one-off payments. It prefers paying part upfront over paying in full, and looks first for a cheaper peer trade with a neighbouring store."
     },
     "store-c": {
       "name": "Store C (Busan)",
@@ -31,7 +33,8 @@
         "defer_max_pct": 20,
         "installment_max": 2
       },
-      "persona": "소형 매장이라 회전이 느리고 여유 자금이 얇다. 재고를 최소로 가져가며 지불 여력을 지키는 것을 최우선에 둔다. 무리한 분할을 떠안기보다 유예를 먼저 요청하고, 감당할 수 없으면 결렬을 감수하고 사람의 판단을 구한다."
+      "persona": "소형 매장이라 회전이 느리고 여유 자금이 얇다. 재고를 최소로 가져가며 지불 여력을 지키는 것을 최우선에 둔다. 무리한 분할을 떠안기보다 유예를 먼저 요청하고, 감당할 수 없으면 결렬을 감수하고 사람의 판단을 구한다.",
+      "persona_en": "A small, slow-turnover store with thin spare cash. It keeps minimal stock and protects its ability to pay above all. It asks for a deferral before taking on a heavy installment plan, and if it cannot afford a deal it accepts a breakdown and asks a human to decide."
     }
   },
   "payment_history": {

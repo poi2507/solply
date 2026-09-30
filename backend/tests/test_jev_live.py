@@ -124,3 +124,39 @@ def test_order_adjust_stays_with_llm(live):
     live["answer"]("insist", 0.95)
     judge.store_decide("order_adjust", {"order_qty": 5}, POL)
     assert live["jev"] == 0
+
+
+def test_jev_input_is_english():
+    """Jev는 영어 1순위 — 코드가 만든 한국어 값·기본 사정은 넣기 직전에 영어로 옮긴다."""
+    import json
+    import re
+
+    from app.core import market
+    from app.llm import jev
+
+    facts = {
+        "품목": "Chicken (1 bird)",
+        "base_qty": "1 (안전재고 회복분 — 축소 제안의 바닥)",
+        "후보 목록": "\n0) store-a → store-b: Batter mix 2개 (부족 지점 재고 0/3, 필요 3개 중 부분) "
+                   "단가 0.4 USDC · 전국 일별 [0, 1, 2]",
+        "구매한_시세": market._summary("CHK-10", 0.5, 0.45, "solply-index"),
+        "first_quote": market._summary("CHK-10", 0.5, None, "mpp-demo"),
+        "자기_소비_추세": "최근 7일 6개 판매, 직전 창 대비 +20.0% (자기 판매 원장)",
+        "no_prior": "최근 7일 0개 판매, 비교 기준 없음 (자기 판매 원장)",
+        "본사_리드타임": "미확인",
+        "buyer_basis": "구매한 외부 시세: CHK-10 0.5 USD (첫 조회 — 기준 시세로 기록, 제공 pay.sh 데모 시세) — pay.sh(x402) 결제",
+        "series": [0, 0, 2],
+    }
+    for owner in ("hq", "store-a", "store-b", "store-c"):
+        state = jev.state_for("order", facts, policy_mod.get(owner).as_prompt_values())
+        text = json.dumps(state, ensure_ascii=False)
+        assert not re.search(r"[가-힣]", text), re.findall(r"[^\"]{0,30}[가-힣]+", text)[:3]
+    assert state["facts"]["series"] == [0, 0, 2], "숫자는 그대로"
+
+
+def test_custom_persona_passes_through():
+    """점주가 직접 쓴 글은 번역 사전에 없으니 원문 그대로 간다 (지어내 옮기지 않는다)."""
+    from app.llm import jev
+
+    state = jev.state_for("order", {}, {"persona": "새벽 재고를 넉넉히"})
+    assert state["policy"]["persona"] == "새벽 재고를 넉넉히"

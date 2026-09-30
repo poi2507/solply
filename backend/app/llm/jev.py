@@ -9,6 +9,7 @@ LLM이 문장을 생성해 결론을 뽑는 대신, 선택지마다 확률을 �
 """
 
 import json
+import re
 import time
 import urllib.error
 import urllib.request
@@ -27,6 +28,8 @@ KEY_EN = {
     "이웃_지점": "neighbour_store",
     "본사_리드타임": "hq_lead_time",
     "본사_공급가_usdc": "hq_unit_price_usdc",
+    "구매한_시세": "purchased_market_quote",
+    "자기_소비_추세": "own_sales_trend",
 }
 
 # 판단 종류별: 무엇을 묻는가 + 선택지별 경계 조건 (judge.py의 지시와 같은 뜻).
@@ -83,6 +86,60 @@ LIVE_KINDS = {"supply_route", "p2p_trade", "order", "brokerage"}
 # Jev 질문은 수락/거절만 묻는다. 거절(이번엔 중개 안 함)만 바로 확정한다.
 NEEDS_SYSTEM_TWO = {("brokerage", "accept")}
 
+# 코드가 만드는 한국어 값 → 영어. 화면에 보이는 원문(협상 기록·시세 요약)은 한국어로 두고
+# (화면 번역은 i18n.js가 한다) Jev에 넣기 직전에만 옮긴다. 긴 구가 먼저 와야 한다.
+VALUE_PATTERNS = [
+    (r"\(안전재고 회복분 — 축소 제안의 바닥\)", "(restores safety stock — the floor for any trim)"),
+    (r"(\d+)개 \(부족 지점 재고 (\d+)/(\d+), 필요 (\d+)개 중 부분\) 단가 ([\d.]+) USDC · 전국 일별 ",
+     r"×\1 (short store stock \2 / safety line \3, partial of \4 needed) unit price \5 USDC · national daily "),
+    (r"최근 (\d+)일 (\d+)개 판매", r"sold \2 in the last \1 days"),
+    (r", 직전 창 대비 ([+-][\d.]+)%", r", \1% vs the previous window"),
+    (r"직전 구매가 대비 ([+-][\d.]+)%", r"\1% vs the last purchased price"),
+    (r"구매한 외부 시세: ", "purchased external quote: "),
+    (r"본사 중개\(부분 잉여\) — ", "HQ-brokered (partial surplus) — "),
+]
+VALUE_WORDS = {
+    ", 비교 기준 없음": ", no previous window to compare",
+    " (자기 판매 원장)": " (own sales ledger)",
+    "첫 조회 — 기준 시세로 기록": "first lookup — recorded as the baseline",
+    " — pay.sh(x402) 결제": " — paid via pay.sh (x402)",
+    "pay.sh 데모 시세": "pay.sh demo quote",
+    "Solply 자체 체결가 지수": "Solply trade-price index",
+    ", 제공 ": ", source: ",
+    "판매 기록 없음": "no sales records",
+    "제공 안 됨": "not provided",
+    "미확인": "unknown",
+    "없음": "none",
+}
+
+
+def _personas() -> dict[str, str]:
+    """사정·기조 원문 → 영어판 (시드 프로필·프리셋·기본값). 점주가 직접 쓴 글은 원문 그대로 간다."""
+    from app.core import fixtures, policy
+
+    out = dict(policy.DEFAULT_PERSONA_EN)
+    for p in policy.PERSONA_PRESETS + policy.HQ_PERSONA_PRESETS:
+        if p.get("text_en"):
+            out[p["text"]] = p["text_en"]
+    for st in fixtures.load().get("stores", {}).values():
+        if st.get("persona") and st.get("persona_en"):
+            out[st["persona"]] = st["persona_en"]
+    return out
+
+
+def english(value):
+    """값 하나를 영어로 — 문자열은 패턴·단어 치환, 목록은 원소마다. 숫자는 그대로."""
+    if isinstance(value, list):
+        return [english(v) for v in value]
+    if not isinstance(value, str) or not re.search(r"[가-힣]", value):
+        return value
+    out = value
+    for pat, to in VALUE_PATTERNS:
+        out = re.sub(pat, to, out)
+    for ko, en in VALUE_WORDS.items():
+        out = out.replace(ko, en)
+    return out
+
 
 def enabled() -> bool:
     return bool(config.TYPESAFE_API_KEY)
@@ -90,11 +147,15 @@ def enabled() -> bool:
 
 def state_for(kind: str, facts: dict, policy_values: dict) -> dict:
     situation = QUESTIONS[kind][0]
+    personas = _personas()
+    policy = {k: v for k, v in policy_values.items()
+              if isinstance(v, (int, float, str, bool)) and k != "fast_decision_min_confidence_pct"}
+    if isinstance(policy.get("persona"), str):
+        policy["persona"] = personas.get(policy["persona"].strip(), policy["persona"])
     return {
         "situation": situation,
-        "facts": {KEY_EN.get(k, k): v for k, v in facts.items()},
-        "policy": {k: v for k, v in policy_values.items()
-                   if isinstance(v, (int, float, str, bool)) and k != "fast_decision_min_confidence_pct"},
+        "facts": {KEY_EN.get(k, k): english(v) for k, v in facts.items()},
+        "policy": policy,
     }
 
 
