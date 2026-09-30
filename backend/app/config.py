@@ -52,6 +52,11 @@ VERTEX_STORE_MODEL = os.getenv("VERTEX_STORE_MODEL", "gemini-2.5-flash-lite")
 # 에이전트가 쓰는 문장(판단 근거·보고문·리포트)의 언어. 화면을 읽는 심사위원이 영어권이라
 # 라이브는 English. 프롬프트 본문은 한국어로 두고, 호출 끝에서 출력 언어만 못박는다.
 AGENT_OUTPUT_LANGUAGE = os.getenv("AGENT_OUTPUT_LANGUAGE", "English")
+# 판단 기록 — 에이전트 판단마다 입력(facts)·결정·근거·걸린 시간을 decision_log에 남긴다.
+# 협상 문서엔 결론만 남아 "같은 입력을 다른 모델에 다시 넣어 보기"가 불가능했다 (Jev 평가).
+DECISION_LOG = os.getenv("DECISION_LOG", "1").lower() not in ("0", "false")
+# TypeSafe Jev (System One 결정 모델) — 평가용. 비어 있으면 호출하지 않는다.
+TYPESAFE_API_KEY = os.getenv("TYPESAFE_API_KEY", "")
 
 # ── 에이전트 정책 ──
 STORE_ID = os.getenv("STORE_ID", "store-a")

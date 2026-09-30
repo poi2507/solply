@@ -8,6 +8,7 @@
 
 import re
 import time
+from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field
 
@@ -77,6 +78,34 @@ def _invoke(agent: str, system_prompt: str, user_prompt: str, schema=None, attem
     raise RuntimeError("LLM 호출 실패")
 
 
+# ── 판단 기록 ─────────────────────────────────────────────────────────
+
+def _record(agent: str, kind: str, facts: dict, options: str, result: dict, started: float,
+            policy_values: dict | None = None) -> None:
+    """판단 한 건의 입력과 결론을 남긴다 — 같은 입력을 다른 모델에 다시 넣어 볼 수 있게.
+
+    기록이 실패해도 판단은 계속된다 (감사 로그가 거래를 멈출 이유는 없다).
+    """
+    if not config.DECISION_LOG:
+        return
+    try:
+        from app.db import store
+
+        store.put("decision_log", store.new_id("DEC"), {
+            "agent": agent, "kind": kind, "options": options,
+            "facts": {k: (v if isinstance(v, (int, float, str, bool, list, dict, type(None))) else str(v))
+                      for k, v in facts.items()},
+            "policy": {k: v for k, v in (policy_values or {}).items()
+                       if isinstance(v, (int, float, str, bool))},
+            "decision": result.get("decision"), "reasoning": result.get("reasoning", ""),
+            "provider": "mock" if factory.is_mock() else config.LLM_PROVIDER,
+            "latency_ms": round((time.monotonic() - started) * 1000),
+            "at": datetime.now(UTC).isoformat(),
+        })
+    except Exception as exc:  # noqa: BLE001
+        print(f"[judge] 판단 기록 실패: {str(exc)[:120]}")
+
+
 # ── 판단 ──────────────────────────────────────────────────────────────
 
 _REVIEW_RULES = {
@@ -103,6 +132,13 @@ _REVIEW_EXTRA = {
 
 
 def review_proposal(kind: str, facts: dict, policy_values: dict) -> dict[str, str]:
+    started = time.monotonic()
+    result = _review_proposal(kind, facts, policy_values)
+    _record("hq", kind, facts, "accept / reject / counter", result, started, policy_values)
+    return result
+
+
+def _review_proposal(kind: str, facts: dict, policy_values: dict) -> dict[str, str]:
     """차감·유예·직거래 제안을 심사한다. 본사 에이전트가 부른다.
 
     Args:
@@ -182,6 +218,13 @@ _STORE_RULES = {
 
 
 def store_decide(kind: str, facts: dict, policy_values: dict) -> dict[str, str]:
+    started = time.monotonic()
+    result = _store_decide(kind, facts, policy_values)
+    _record("store", kind, facts, _STORE_RULES[kind][1], result, started, policy_values)
+    return result
+
+
+def _store_decide(kind: str, facts: dict, policy_values: dict) -> dict[str, str]:
     """지점 에이전트의 판단 — 역제안 응답, 조달 경로.
 
     **선택만 맡기고 금액·수량은 코드가 계산한다** — 환각이 잔액을 넘는 선납을
