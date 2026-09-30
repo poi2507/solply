@@ -52,9 +52,11 @@ QUESTIONS = {
               {"accept": "Sales have risen over several days, so the larger order matches real demand",
                "counter": "Sales are flat or a one-day spike, so trim to the base quantity",
                "reject": "The order should not be fulfilled at all"}),
-    "brokerage": ("HQ decides whether to broker one stock transfer between stores from the candidate list.",
-                  {"accept": "One candidate is clearly worth brokering: the short store is urgent and the surplus store can spare it",
-                   "reject": "No candidate is clearly worth brokering this round",
+    "brokerage": ("HQ decides whether to broker one stock transfer between stores from the candidate list. "
+                  "Brokering is optional every round; when in doubt, HQ does not broker.",
+                  {"accept": "One candidate is clearly worth it: the short store is below its safety line now "
+                             "and the surplus store keeps its own safety stock after giving",
+                   "reject": "No candidate is clearly worth it this round, or it is a close call",
                    "counter": "Not applicable"}),
     "counter_response": ("A store replies to HQ's offer to split an invoice into installments.",
                          {"accept": "The store can afford each installment",
