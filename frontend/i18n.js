@@ -6,7 +6,7 @@
 // 한 번 훑어 사전대로 바꾼다 — 프론트와 백엔드 라벨이 같은 사전 하나로 덮이고,
 // 되돌리려면 이 파일과 import 두 줄만 지우면 된다.
 //
-// 한국어로 보려면 주소에 ?lang=ko (한 번 주면 이 브라우저에 기억된다).
+// 한국어로 보려면 상단 KO/EN 전환 또는 주소에 ?lang=ko (한 번 고르면 이 브라우저에 기억된다).
 
 // ── 사전: 한국어 구 → 영어 ────────────────────────────────────────
 // 긴 구부터 맞춰야 짧은 조각이 먼저 먹지 않는다 (아래 build()가 길이순 정렬).
@@ -33,8 +33,8 @@ const EN = {
   "손님으로 구매해보기 →": "Try buying as a customer →",
   "여러분의 구매가 에이전트 조달을 일으킵니다.": "Your purchase triggers agent procurement.",
   "심사 중이시라면 —": "Judging? —",
-  "에서 협상 기록·데이터 상점을": "for negotiation history and the data shop;",
-  "에서 실행 로그와 무대 트리거를 보세요.": "for the activity log and demo triggers.",
+  "에서 협상 기록·데이터 상점을": " for negotiation history and the data shop",
+  "에서 실행 로그와 무대 트리거를 보세요.": " for the activity log and demo triggers.",
   "본인확인이 완료되지 않았습니다 (": "Verification did not complete (",
   "등록이 완료되지 않았습니다 (": "Registration did not complete (",
   "다시 등록하거나 데모 모드로 입장하세요.": "Register again, or enter in demo mode.",
@@ -628,9 +628,41 @@ export function translateTree(root) {
   }
 }
 
+// ── 언어 전환 ─────────────────────────────────────────────────────
+// 번역은 한국어 → 영어 한 방향으로 DOM을 덮어쓴다 — 되돌릴 원문이 없으므로
+// 전환은 선택을 기억하고 다시 그린다(새로고침). 주소의 ?lang은 지워 선택이 이기게 한다.
+function setLang(code) {
+  if (code === lang) return;
+  try { localStorage.setItem(KEY, code); } catch { /* 저장이 막혀도 이번 이동에는 ?lang으로 싣는다 */ }
+  const url = new URL(location.href);
+  url.searchParams.set("lang", code);
+  location.replace(url);
+}
+
+// 역할 선택 화면과 상단 막대 양쪽에 둔다 — 첫 화면에서부터 언어를 고를 수 있게
+function mountLangSwitch() {
+  for (const host of document.querySelectorAll(".lang-switch")) mountOne(host);
+}
+
+function mountOne(host) {
+  if (host.childElementCount) return;
+  host.setAttribute("role", "group");
+  host.setAttribute("aria-label", "Language");
+  for (const code of ["ko", "en"]) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = code.toUpperCase();
+    b.setAttribute("aria-pressed", String(code === lang));
+    b.addEventListener("click", () => setLang(code));
+    host.append(b);
+  }
+}
+
 // ── 시작 ──────────────────────────────────────────────────────────
 // 화면은 fetch 결과로 계속 다시 그려진다 — 관찰자를 붙여 새로 들어온 것만 훑는다.
 export function startI18n() {
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mountLangSwitch);
+  else mountLangSwitch();
   if (lang === "ko") return;
   document.documentElement.lang = "en";
   const run = () => {

@@ -86,7 +86,7 @@ body::after {
 .brand h1 { margin: 0; font-size: 17px; font-weight: 650; letter-spacing: -.01em; }
 .brand p { margin: 0; font-size: 12px; color: var(--ink-3); }
 
-.live { display: flex; align-items: center; gap: 16px; }
+.live { display: flex; align-items: center; gap: 10px 16px; flex-wrap: wrap; }
 .daynav { display: flex; align-items: center; gap: 2px; }
 .daybtn {
   font: inherit; font-size: 15px; line-height: 1; cursor: pointer;
@@ -129,6 +129,19 @@ body::after {
 }
 @keyframes pulse { 50% { opacity: .3; } }
 @media (prefers-reduced-motion: reduce) { .beacon.hot i { animation: none; } }
+/* 화면 언어 KO/EN — 누른 쪽이 채워진다 */
+.lang-switch {
+  display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 2px;
+}
+.lang-switch button {
+  font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: .06em;
+  background: none; border: none; color: var(--ink-3); cursor: pointer;
+  padding: 2px 9px; border-radius: 999px;
+}
+.lang-switch button[aria-pressed="true"] { background: var(--ink); color: var(--card); }
+.lang-switch button:hover:not([aria-pressed="true"]),
+.lang-switch button:focus-visible { color: var(--accent); outline: none; }
+
 .linkish {
   background: none; border: none; color: var(--ink-3);
   font: inherit; font-size: 12px; cursor: pointer; padding: 3px 2px;
@@ -430,6 +443,7 @@ tr.detail > td { padding: 4px 12px 22px 2px; border-bottom: 1px solid var(--line
   box-shadow: 0 10px 34px rgba(23, 33, 27, .08);
 }
 .gate-brand { margin-bottom: 36px; }
+.gate-brand .lang-switch { margin-left: auto; align-self: flex-start; }
 .gate-card h2 { font-size: 19px; margin: 0 0 5px; font-weight: 650; }
 .gate-help { margin: 0 0 24px; font-size: 13px; color: var(--ink-3); }
 .gate-list { display: flex; flex-direction: column; }
