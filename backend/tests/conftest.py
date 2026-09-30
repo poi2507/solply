@@ -13,6 +13,8 @@ import pytest
 @pytest.fixture(autouse=True)
 def _judgment_is_deterministic(monkeypatch):
     monkeypatch.setattr("app.llm.factory.is_mock", lambda: True)
+    # .env에 Jev 키가 있어도 테스트는 바깥 API를 부르지 않는다 — Jev 경로 테스트는 decide를 바꿔 끼운다
+    monkeypatch.setattr("app.config.TYPESAFE_API_KEY", "")
 
 
 @pytest.fixture(autouse=True)

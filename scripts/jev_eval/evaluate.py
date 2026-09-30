@@ -24,60 +24,11 @@ from app import config  # noqa: E402
 from app.core import policy as policy_mod  # noqa: E402
 from app.db import store  # noqa: E402
 
-MODEL = "jev-1.13.0"  # 임계값을 맞출 버전을 고정한다 (별칭은 옮겨간다)
+from app.llm import jev  # noqa: E402 — 질문·경계 조건은 라이브와 같은 정의를 쓴다
 
-KEY_EN = {
-    "품목": "item",
-    "지점_일별판매_7일(과거→오늘)": "store_daily_sales_7d_oldest_to_today",
-    "전국_일별판매_7일(해당 지점 제외)": "national_daily_sales_7d_excluding_this_store",
-    "본사_창고_잔량": "hq_warehouse_stock",
-    "후보 목록": "candidates",
-}
-
-# 판단 종류별: 무엇을 묻는가 + 선택지별 경계 조건 (judge.py의 지시와 같은 뜻)
-QUESTIONS = {
-    "adjustment": ("HQ reviews a store's request to deduct part of an invoice for a delivery mismatch.",
-                   {"accept": "The delivery log supports the requested deduction and it is within the auto-approval limit",
-                    "reject": "The request is not supported by the delivery log, or it is missing",
-                    "counter": "Part of the claim is valid but a different amount should be offered"}),
-    "deferral": ("HQ reviews a store's request to defer paying an invoice.",
-                 {"accept": "Credit score meets the threshold and the deferred exposure is within the allowed share of the credit line",
-                  "reject": "Credit score is below the threshold or the risk is too high",
-                  "counter": "Creditworthy, but the deferred exposure is too large, so offer installments instead"}),
-    "p2p_trade": ("HQ reviews a proposed peer trade of stock between two stores.",
-                  {"accept": "Seller keeps its safety stock, both credit scores meet the threshold, and the price is within the HQ supply price",
-                   "reject": "The seller would breach safety stock, or a credit score is below threshold",
-                   "counter": "Otherwise fine, but the unit price is above the HQ supply price"}),
-    "order": ("HQ reviews a store's restock order that is larger than the base quantity.",
-              {"accept": "Sales have risen over several days, so the larger order matches real demand",
-               "counter": "Sales are flat or a one-day spike, so trim to the base quantity",
-               "reject": "The order should not be fulfilled at all"}),
-    "brokerage": ("HQ decides whether to broker one stock transfer between stores from the candidate list. "
-                  "Brokering is optional every round; when in doubt, HQ does not broker.",
-                  {"accept": "One candidate is clearly worth it: the short store is below its safety line now "
-                             "and the surplus store keeps its own safety stock after giving",
-                   "reject": "No candidate is clearly worth it this round, or it is a close call",
-                   "counter": "Not applicable"}),
-    "counter_response": ("A store replies to HQ's offer to split an invoice into installments.",
-                         {"accept": "The store can afford each installment",
-                          "counter": "Each installment is too heavy, but the store can pay part upfront",
-                          "reject": "The store cannot even pay part upfront"}),
-    "supply_route": ("A store chooses how to restock a short item.",
-                     {"p2p": "A neighbour's surplus covers it today, avoiding HQ lead time or minimum order",
-                      "hq": "Order from HQ: not enough neighbour surplus, or HQ terms are better"}),
-    "order_adjust": ("A store replies to HQ's proposal to trim its restock order.",
-                     {"accept": "HQ's reading of flat demand is right, so take the smaller quantity",
-                      "insist": "The store's own sales show real demand, so keep the original quantity"}),
-    "p2p_respond": ("A selling store replies to a peer trade offer.",
-                    {"accept": "Sell at the offered price",
-                     "counter": "This item sells well here and spare stock is thin, so ask a higher price"}),
-    "p2p_price": ("A buying store replies to the seller's higher counter price.",
-                  {"accept": "Taking it today is still worth the higher price",
-                   "hq": "At that price, ordering from HQ is better despite the lead time"}),
-    "p2p_consider": ("A buying store replies to a peer trade that HQ brokered.",
-                     {"accept": "Taking the partial quantity today helps; the rest can come from HQ",
-                      "decline": "The brokered terms do not fit this store's situation"}),
-}
+MODEL = config.JEV_MODEL
+KEY_EN = jev.KEY_EN
+QUESTIONS = jev.QUESTIONS
 
 
 def _key() -> str:

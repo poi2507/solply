@@ -31,6 +31,9 @@ class StorePolicy:
     # 이 지점의 사정 — 협상·조달에서 에이전트가 참고하는 서술. 비우면 시드값을 쓴다.
     # 한도는 위 숫자들이 강제하고, 이 글은 그 안에서의 재량에만 영향을 준다.
     persona: str = ""
+    # 빠른 판단(Jev, System One)의 확신도 기준 — 이 % 이상이면 Jev의 선택을 그대로 쓰고,
+    # 미만이면 LLM이 처음부터 다시 따진다 (System Two). 100이면 빠른 판단을 끈다.
+    fast_decision_min_confidence_pct: float = 70.0
 
     kind: str = "store"
 
@@ -47,6 +50,7 @@ class StorePolicy:
             # 점주가 화면에서 고친 값이 있으면 그것을, 없으면 시드 프로필을 쓴다
             "persona": (self.persona.strip()
                         or profile.get("persona", "특별한 사정 없이 정책대로 판단한다.")),
+            "fast_decision_min_confidence_pct": self.fast_decision_min_confidence_pct,
         }
 
 
@@ -84,6 +88,9 @@ class HQPolicy:
     persona: str = ""
     # 데이터 상품(체결가 지수·수요 지수) 판매 단가 — 본사의 세 번째 매출원
     data_price_usdc: float = 0.1
+    # 빠른 판단(Jev, System One)의 확신도 기준 — 이 % 이상이면 Jev의 선택을 그대로 쓰고,
+    # 미만이면 LLM이 처음부터 다시 따진다 (System Two). 100이면 빠른 판단을 끈다.
+    fast_decision_min_confidence_pct: float = 70.0
 
     kind: str = "hq"
 
@@ -94,6 +101,7 @@ class HQPolicy:
             "installment_max": self.installment_max,
             "persona": (self.persona.strip()
                         or "특별한 기조 없이 정책 기준대로 심사한다."),
+            "fast_decision_min_confidence_pct": self.fast_decision_min_confidence_pct,
         }
 
 
@@ -180,6 +188,8 @@ HQ_PERSONA_PRESETS = [
 def _validate(policy: StorePolicy | HQPolicy) -> None:
     if len(policy.persona) > MAX_PERSONA_CHARS:
         raise ValueError(f"협상 전략·심사 기조는 {MAX_PERSONA_CHARS}자 이내로 적어 주세요")
+    if not 0 <= policy.fast_decision_min_confidence_pct <= 100:
+        raise ValueError("빠른 판단 확신도 기준은 0~100% 사이여야 합니다")
     if isinstance(policy, StorePolicy):
         if policy.auto_pay_limit_usdc <= 0:
             raise ValueError("자동결제 상한은 0보다 커야 합니다")
@@ -214,6 +224,8 @@ def describe(owner_id: str) -> list[dict[str, Any]]:
             ("min_reserve_usdc", "최소 보유 잔액", "결제 후 이 아래로 내려가면 결제하지 않습니다", "USDC", 0, 1000),
             ("defer_request_threshold_pct", "유예 제안 기준", "잔액이 부족할 때 유예를 제안할 비율", "%", 0, 100),
             ("safety_stock_multiplier", "안전재고 배수", "지점 간 직거래로 팔 때 남겨둘 재고 배수", "배", 0, 5),
+            ("fast_decision_min_confidence_pct", "빠른 판단 확신도 기준",
+             "Jev(System One)가 이 확신도 이상이면 바로 결정하고, 미만이면 LLM이 다시 따져 봅니다. 100이면 끕니다", "%", 0, 100),
         ]
         text_spec += [
             ("persona", "협상 전략",
@@ -230,6 +242,8 @@ def describe(owner_id: str) -> list[dict[str, Any]]:
             ("royalty_pct", "카드정산 로열티", "카드매출 정산 때 공제하는 비율 — 마진으로 새는 본사 유동성을 환류시킵니다", "%", 0, 50),
             ("royalty_reward_pct", "판매 성과 보상 폭", "7일 판매가 전 지점 평균을 넘는 지점은 그만큼 로열티를 덜 뗍니다 (최대 이 %p)", "%", 0, 20),
             ("data_price_usdc", "데이터 판매 단가", "체결가·수요 지수 1건 조회 가격 (x402)", "USDC", 0, 10),
+            ("fast_decision_min_confidence_pct", "빠른 판단 확신도 기준",
+             "Jev(System One)가 이 확신도 이상이면 바로 결정하고, 미만이면 LLM이 다시 따져 봅니다. 100이면 끕니다", "%", 0, 100),
         ]
         text_spec += [
             ("persona", "심사 기조",

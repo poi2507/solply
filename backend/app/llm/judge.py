@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 
 from app import config
 from app.agents import prompts
-from app.llm import factory, rules
+from app.llm import factory, jev, rules
 
 _MIN_GAP_SEC = 4.0   # 무료 티어 분당 한도를 넘기지 않기 위한 최소 간격
 _last_call_at = 0.0
@@ -81,7 +81,7 @@ def _invoke(agent: str, system_prompt: str, user_prompt: str, schema=None, attem
 # ── 판단 기록 ─────────────────────────────────────────────────────────
 
 def _record(agent: str, kind: str, facts: dict, options: str, result: dict, started: float,
-            policy_values: dict | None = None) -> None:
+            policy_values: dict | None = None, fast: dict | None = None) -> None:
     """판단 한 건의 입력과 결론을 남긴다 — 같은 입력을 다른 모델에 다시 넣어 볼 수 있게.
 
     기록이 실패해도 판단은 계속된다 (감사 로그가 거래를 멈출 이유는 없다).
@@ -99,11 +99,80 @@ def _record(agent: str, kind: str, facts: dict, options: str, result: dict, star
                        if isinstance(v, (int, float, str, bool))},
             "decision": result.get("decision"), "reasoning": result.get("reasoning", ""),
             "provider": "mock" if factory.is_mock() else config.LLM_PROVIDER,
+            # 누가 결정했나 — jev(System One) / llm(System Two) / rules(mock·폴백)
+            "decider": result.get("decider") or ("rules" if factory.is_mock() else "llm"),
+            **({"jev": fast} if fast else {}),
             "latency_ms": round((time.monotonic() - started) * 1000),
             "at": datetime.now(UTC).isoformat(),
         })
     except Exception as exc:  # noqa: BLE001
         print(f"[judge] 판단 기록 실패: {str(exc)[:120]}")
+
+
+# ── 빠른 판단 (System One) ────────────────────────────────────────────
+#
+# Jev가 선택지마다 확률을 매겨 고른다. 확신도가 정책 기준 이상이면 그 선택을 확정하고
+# LLM은 근거 문장만 쓴다. 기준 미만·호출 실패·평가 밖 종류는 LLM이 처음부터 판단한다.
+# 사람 경계(자동결제 한도 등)는 이 뒤의 코드가 그대로 지킨다 — 여기는 선택만 바뀐다.
+
+def _fast(kind: str, facts: dict, policy_values: dict, allowed: set[str]) -> dict | None:
+    """Jev 답을 받아 온다. 쓸 수 없으면 None — 호출부는 그대로 LLM으로 간다."""
+    if factory.is_mock() or not jev.enabled() or kind not in jev.LIVE_KINDS:
+        return None
+    min_pct = float(policy_values.get("fast_decision_min_confidence_pct", 100))
+    if min_pct >= 100:
+        return None
+    try:
+        ans = jev.decide(kind, facts, policy_values, allowed)
+    except Exception as exc:  # noqa: BLE001 — 빠른 판단이 막혀도 LLM이 판단한다
+        print(f"[judge] Jev 호출 실패({kind}) — LLM으로 판단: {str(exc)[:120]}")
+        return None
+    ans["min_confidence_pct"] = min_pct
+    ans["accepted"] = (ans["choice"] in allowed
+                       and ans["confidence"] * 100 >= min_pct
+                       and (kind, ans["choice"]) not in jev.NEEDS_SYSTEM_TWO)
+    return ans
+
+
+def _explain(agent: str, kind: str, facts: dict, policy_values: dict, decision: str) -> str:
+    """이미 내려진 결정의 근거를 LLM이 쓴다 — 결정은 바꾸지 않는다."""
+    criterion = jev.QUESTIONS[kind][1].get(decision, "")
+    try:
+        system = prompts.system(agent, **policy_values)
+        lines = "\n".join(f"- {k}: {v}" for k, v in facts.items())
+        user = (
+            f"아래 상황에서 결정은 이미 '{decision}'으로 내려졌다 ({criterion}). "
+            "결정을 바꾸지 말고, 이 결정이 왜 맞는지 한두 문장으로 설명해라. 수치를 포함해라.\n\n"
+            f"{lines}{_lang()}"
+        )
+        response = _invoke(agent, system, user, attempts=2)
+        text = getattr(response, "content", str(response)).strip()
+        return text or criterion
+    except Exception as exc:  # noqa: BLE001 — 근거문 실패가 결정을 막지 않는다
+        print(f"[judge] 근거문 실패({kind}) — 기준 문장으로 대신: {str(exc)[:120]}")
+        return criterion
+
+
+def _tag(fast: dict, decided: bool) -> str:
+    pct = round(fast["confidence"] * 100)
+    if decided:
+        return f" (decided by Jev · confidence {pct}%)"
+    return f" (Jev confidence {pct}% < {fast['min_confidence_pct']:g}% — reviewed by Gemini)"
+
+
+def _decide(agent: str, kind: str, facts: dict, policy_values: dict, allowed: set[str],
+            slow) -> tuple[dict, dict | None]:
+    """Jev 먼저, 확신이 모자라면 slow()(LLM 판단)."""
+    fast = _fast(kind, facts, policy_values, allowed)
+    if fast and fast["accepted"]:
+        decision = fast["choice"]
+        reasoning = _explain(agent, kind, facts, policy_values, decision) + _tag(fast, True)
+        return {"decision": decision, "reasoning": reasoning, "parts": 0, "choice": -1,
+                "decider": "jev", "confidence": fast["confidence"]}, fast
+    result = slow()
+    if fast:
+        result = {**result, "reasoning": result.get("reasoning", "") + _tag(fast, False)}
+    return result, fast
 
 
 # ── 판단 ──────────────────────────────────────────────────────────────
@@ -133,8 +202,9 @@ _REVIEW_EXTRA = {
 
 def review_proposal(kind: str, facts: dict, policy_values: dict) -> dict[str, str]:
     started = time.monotonic()
-    result = _review_proposal(kind, facts, policy_values)
-    _record("hq", kind, facts, "accept / reject / counter", result, started, policy_values)
+    result, fast = _decide("hq", kind, facts, policy_values, {"accept", "reject", "counter"},
+                           lambda: _review_proposal(kind, facts, policy_values))
+    _record("hq", kind, facts, "accept / reject / counter", result, started, policy_values, fast)
     return result
 
 
@@ -219,8 +289,10 @@ _STORE_RULES = {
 
 def store_decide(kind: str, facts: dict, policy_values: dict) -> dict[str, str]:
     started = time.monotonic()
-    result = _store_decide(kind, facts, policy_values)
-    _record("store", kind, facts, _STORE_RULES[kind][1], result, started, policy_values)
+    allowed = {o.strip() for o in _STORE_RULES[kind][1].split("/")}
+    result, fast = _decide("store", kind, facts, policy_values, allowed,
+                           lambda: _store_decide(kind, facts, policy_values))
+    _record("store", kind, facts, _STORE_RULES[kind][1], result, started, policy_values, fast)
     return result
 
 

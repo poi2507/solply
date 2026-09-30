@@ -55,8 +55,11 @@ AGENT_OUTPUT_LANGUAGE = os.getenv("AGENT_OUTPUT_LANGUAGE", "English")
 # 판단 기록 — 에이전트 판단마다 입력(facts)·결정·근거·걸린 시간을 decision_log에 남긴다.
 # 협상 문서엔 결론만 남아 "같은 입력을 다른 모델에 다시 넣어 보기"가 불가능했다 (Jev 평가).
 DECISION_LOG = os.getenv("DECISION_LOG", "1").lower() not in ("0", "false")
-# TypeSafe Jev (System One 결정 모델) — 평가용. 비어 있으면 호출하지 않는다.
+# TypeSafe Jev (System One 결정 모델). 비어 있으면 호출하지 않고 기존 LLM 판단만 쓴다.
+# 확신도 기준은 정책(fast_decision_min_confidence_pct)이 정한다 — 여기는 연결만.
 TYPESAFE_API_KEY = os.getenv("TYPESAFE_API_KEY", "")
+# 확신도 기준을 맞춘 버전을 고정한다 (별칭은 옮겨간다)
+JEV_MODEL = os.getenv("JEV_MODEL", "jev-1.13.0")
 
 # ── 에이전트 정책 ──
 STORE_ID = os.getenv("STORE_ID", "store-a")
