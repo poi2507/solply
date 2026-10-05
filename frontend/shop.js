@@ -93,6 +93,23 @@ function regionOf(storeName) {
   return m ? m[1] : storeName;
 }
 
+// 처음 온 사람용 세 줄 안내 — 닫으면 이 브라우저에선 다시 안 뜬다
+const GUIDE_KEY = "sfc.guide.closed";
+function guideHtml() {
+  let closed = false;
+  try { closed = localStorage.getItem(GUIDE_KEY) === "1"; } catch { /* 저장소가 막혀도 안내는 보인다 */ }
+  if (closed) return "";
+  return `
+    <section class="sf-guide" aria-label="How this works">
+      <ol>
+        <li><b>Pick a dish.</b> It draws real ingredients from that store's stock.</li>
+        <li><b>Pay.</b> <i>Use demo wallet</i> needs nothing from you. <i>Pay with Phantom</i> uses your own devnet wallet — free test money, never real funds.</li>
+        <li><b>Watch.</b> If an ingredient falls below its safety line, the store's agent restocks on the spot and pays on-chain. Your order page shows it live, and <a href="/proof" target="_blank" rel="noopener">every real order so far</a> is public.</li>
+      </ol>
+      <button class="sf-guide-x" data-guide-close aria-label="Hide this guide">Got it</button>
+    </section>`;
+}
+
 function renderMenu() {
   const store = currentStore();
   const tabs = state.board.stores.map((s) =>
@@ -121,11 +138,16 @@ function renderMenu() {
   }).join("");
 
   $("view").innerHTML = `
+    ${guideHtml()}
     <nav class="sf-tabs" aria-label="Stores">${tabs}</nav>
     <p class="sf-store-note">${esc(store.id)} · every order here is real demand — when an ingredient drops below its
       safety line, this store's agent starts procuring on the spot (a peer trade with a neighbouring store, or an order from HQ).</p>
     <div class="sf-grid">${cards}</div>`;
 
+  $("view").querySelector("[data-guide-close]")?.addEventListener("click", () => {
+    try { localStorage.setItem(GUIDE_KEY, "1"); } catch { /* 기억 못 해도 이번엔 닫힌다 */ }
+    $("view").querySelector(".sf-guide")?.remove();
+  });
   $("view").querySelectorAll("[data-store]").forEach((b) => b.addEventListener("click", () => {
     if (b.dataset.store === state.storeId) return;
     state.storeId = b.dataset.store;
@@ -345,11 +367,39 @@ function renderOrder(o) {
           <span>${esc(agentText)}</span>
         </li>
       </ol>
+      ${paid ? shareHtml(o) : ""}
       <p class="sf-fineprint">Nothing on this page was staged for you: the payment, the stock movement and the agent's decisions are the live
         system's own records. To follow the invoice the agent raised, <a href="/" target="_blank" rel="noopener">open the dashboard ↗</a>
         and choose <b>System Administrator</b>.</p>
     </div>`;
   $("view").querySelector("[data-nav]")?.addEventListener("click", (e) => { e.preventDefault(); go("/shop"); });
+  const copy = $("view").querySelector("[data-copy]");
+  copy?.addEventListener("click", async () => {
+    const field = $("view").querySelector(".sf-share input");
+    try {
+      await navigator.clipboard.writeText(field.value);
+      copy.textContent = "Copied";
+    } catch {
+      field.select();  // 클립보드가 막힌 환경 — 골라 두면 직접 복사할 수 있다
+      copy.textContent = "Press ⌘C / Ctrl+C";
+    }
+  });
+}
+
+// 주문 한 건이 일으킨 일을 남에게 보여주는 링크 — 테스터가 테스터를 데려오게
+function shareHtml(o) {
+  const url = `${location.origin}/shop/orders/${encodeURIComponent(o.id)}`;
+  const text = `I ordered from a fried-chicken franchise run by AI agents — paid in USDC on Solana devnet, and the store's agent restocked on its own. Try one:`;
+  const x = `https://x.com/intent/post?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+  return `
+      <div class="sf-share">
+        <b>Show someone what your order set off</b>
+        <div class="sf-share-row">
+          <input readonly value="${esc(url)}" aria-label="Link to this order">
+          <button type="button" data-copy>Copy link</button>
+          <a href="${x}" target="_blank" rel="noopener">Post on X ↗</a>
+        </div>
+      </div>`;
 }
 
 // ── 실시간 기록 — 대시보드의 SSE(/api/stream)를 그대로 구독한다 ────

@@ -88,6 +88,16 @@
   .sf-pay-group { display: flex; gap: 8px; flex-wrap: wrap; }
   .sf-pay.alt { background: var(--card); color: var(--ink); border: 1px solid var(--line); }
   .sf-pay.alt:disabled { background: var(--raise); color: var(--ink-3); }
+  .sf-guide { display: flex; gap: 16px; align-items: flex-start; background: var(--accent-quiet); border: 1px solid color-mix(in srgb, var(--accent-vivid) 35%, transparent); border-radius: 12px; padding: 14px 18px; margin: 4px 0 16px; }
+  .sf-guide ol { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 13px; line-height: 1.5; color: var(--ink-2); flex: 1; min-width: 0; }
+  .sf-guide b { color: var(--ink); }
+  .sf-guide a { color: var(--accent); font-weight: 650; }
+  .sf-guide-x { flex: none; font: inherit; font-size: 12px; font-weight: 650; background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; cursor: pointer; color: var(--ink-2); }
+  .sf-share { margin-top: 18px; padding: 14px 16px; border: 1px dashed var(--line); border-radius: 10px; }
+  .sf-share b { display: block; font-size: 13px; margin-bottom: 8px; }
+  .sf-share-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .sf-share input { flex: 1 1 220px; min-width: 0; font: 12px var(--mono); padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--raise); color: var(--ink-2); }
+  .sf-share button, .sf-share a { font: inherit; font-size: 12.5px; font-weight: 650; padding: 7px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; text-decoration: none; }
   .sf-help {
     width: 100%; font-size: 12.5px; line-height: 1.6; color: #7a4e14;
     background: #fdf6ec; border: 1px solid #f1dcb5; border-radius: 8px; padding: 9px 12px;
@@ -164,7 +174,18 @@
     .sl-live li { grid-template-columns: 66px 1fr; }
     .sl-live .sl-who { grid-column: 2; }
     .sl-live .sl-what, .sl-live .sl-detail { grid-column: 1 / -1; }
-    .sf-cart-total { text-align: left; }
+    /* 폰에서 장바구니 막대가 화면 절반을 덮던 것 — 한 줄 요약 + 버튼 한 줄로. 결제 설명은 위 안내가 맡는다 */
+    .sf-cart-inner { gap: 8px 12px; }
+    .sf-cart-note { display: none; }
+    .sf-cart-meta { min-width: 0; flex: 1; }
+    .sf-cart ul { flex: 1 1 100%; order: 3; max-height: 52px; }
+    .sf-cart li.sf-empty { display: none; }
+    .sf-cart-total { text-align: right; }
+    .sf-cart-total b { font-size: 17px; }
+    .sf-cart-total small { display: none; }
+    .sf-pay-group { flex: 1 1 100%; order: 4; flex-wrap: nowrap; }
+    .sf-pay-group .sf-pay { flex: 1; }
+    .sf-help { order: 5; }
   }
 </style>
 </head>
