@@ -201,28 +201,32 @@ def narrate(facts: list[str], reasoning: list[str]) -> str:
     return ""
 
 
+def _n(count: int, word: str) -> str:
+    return f"{count} {word}{'' if count == 1 else 's'}"
+
+
 def weekly_report(stats: dict[str, Any]) -> str:
     """정산 리포트 — mock에서는 통계를 정형 문장으로 조립한다."""
     if not stats.get("settled_count") and not stats.get("p2p_count"):
         return ""
     neg = stats.get("negotiations", {})
     credit_line = " · ".join(
-        f"{sid} {c['score']}점" + (f"(+{c['delta']})" if c.get("delta") else "")
+        f"{sid} {c['score']}" + (f" (+{c['delta']})" if c.get("delta") else "")
         for sid, c in stats.get("credit", {}).items()
     )
     parts = [
-        f"이번 주기 정산 {stats['settled_count']}건, {stats['settled_usdc']} USDC를 온체인으로 완결했습니다.",
+        f"This cycle {_n(stats['settled_count'], 'invoice')} settled on-chain for {stats['settled_usdc']} USDC.",
         (
-            f"협상은 수락 {neg.get('accept', 0)}건 · 역제안 {neg.get('counter', 0)}건 · "
-            f"거절 {neg.get('reject', 0)}건이었고, 이상 청구 {stats['refused_count']}건을 거부해 "
-            "사람에게 넘겼습니다."
+            f"Negotiations: {neg.get('accept', 0)} accepted · {neg.get('counter', 0)} countered · "
+            f"{neg.get('reject', 0)} rejected; {_n(stats['refused_count'], 'suspicious invoice')} refused "
+            "and handed to a person."
         ),
     ]
     if stats.get("p2p_count"):
         parts.append(
-            f"지점 간 직거래 {stats['p2p_count']}건({stats['p2p_usdc']} USDC)이 본사 승인 아래 체결됐습니다."
+            f"{_n(stats['p2p_count'], 'store-to-store trade')} ({stats['p2p_usdc']} USDC) closed with HQ approval."
         )
     if stats.get("scheduled_count"):
-        parts.append(f"예약 대기 {stats['scheduled_count']}건은 예약 실행기가 처리합니다.")
-    parts.append(f"납부 이력 반영 신용점수: {credit_line}. 사람 개입은 {stats['human_actions']}회였습니다.")
+        parts.append(f"{_n(stats['scheduled_count'], 'scheduled payment')} queued for the scheduler.")
+    parts.append(f"Credit scores after payment history: {credit_line}. People stepped in {_n(stats['human_actions'], 'time')}.")
     return " ".join(parts)

@@ -267,6 +267,55 @@ const EN = {
   "정책을 불러오지 못했습니다": "Could not load the policy",
   "직접 작성": "Write your own",
   "크게 편집": "Edit in a larger box",
+  // 거래 정책 화면 — 항목 이름·설명은 백엔드(policy.describe)가 한국어로 준다
+  "자동결제 상한": "Auto-pay limit",
+  "이 금액까지는 사람 승인 없이 결제합니다": "Up to this amount the agent pays without a person approving",
+  "최소 보유 잔액": "Minimum balance to keep",
+  "결제 후 이 아래로 내려가면 결제하지 않습니다": "The agent will not pay if the wallet would fall below this",
+  "유예 제안 기준": "Deferral request threshold",
+  "잔액이 부족할 때 유예를 제안할 비율": "Share of an invoice the agent may ask to defer when cash is short",
+  "안전재고 배수": "Safety stock multiplier",
+  "지점 간 직거래로 팔 때 남겨둘 재고 배수": "How much safety stock to keep when selling to another store",
+  "빠른 판단 확신도 기준": "Fast-decision confidence bar",
+  "Jev(System One)가 이 확신도 이상이면 바로 결정하고, 미만이면 LLM이 다시 따져 봅니다. 100이면 끕니다": "At or above this confidence Jev (System One) decides on the spot; below it, an LLM reasons it through again. 100 turns it off",
+  "협상 전략": "Negotiation strategy",
+  "에이전트가 협상·조달에서 따르는 전략입니다. 성향을 고르거나 직접 고쳐 쓰세요 — 같은 조건에도 다르게 판단합니다. 한도는 위 숫자가 강제합니다.": "The strategy the agent follows when negotiating and restocking. Pick a style or write your own — the same situation will be judged differently. The numbers above still enforce the limits.",
+  "유예 승인 최소 신용점수": "Minimum credit score to approve a deferral",
+  "이 점수 이상이면 유예를 자동 수락합니다": "At or above this score, deferrals are approved automatically",
+  "직거래 참가 신용점수": "Credit score to join peer trades",
+  "지점 간 직거래는 즉시 결제라 유예보다 완만한 기준을 씁니다": "Peer trades settle immediately, so the bar is gentler than for deferrals",
+  "유예 허용 비율": "Allowed deferral share",
+  "외상 한도의 몇 %까지 유예를 허용할지": "How much of a store's credit line may be deferred (%)",
+  "분할 최대 회차": "Maximum installments",
+  "몇 회까지 나눠 받을지": "Most installments HQ will split an invoice into",
+  "자동 차감 승인 한도": "Auto-approve deductions up to",
+  "이 금액을 넘는 차감은 사람이 확인합니다": "A person reviews deductions above this amount",
+  "카드정산 로열티": "Card-settlement royalty",
+  "카드매출 정산 때 공제하는 비율 — 마진으로 새는 본사 유동성을 환류시킵니다": "Share withheld when card sales are paid out — returns to HQ the cash that store margins drain",
+  "판매 성과 보상 폭": "Sales performance discount",
+  "7일 판매가 전 지점 평균을 넘는 지점은 그만큼 로열티를 덜 뗍니다 (최대 이 %p)": "Stores selling above the network's 7-day average pay less royalty (by up to this many points)",
+  "데이터 판매 단가": "Data price",
+  "체결가·수요 지수 1건 조회 가격 (x402)": "Price of one trade-price or demand index lookup (x402)",
+  "심사 기조": "Review stance",
+  "본사 에이전트가 심사(차감·유예·직거래)에서 따르는 경영 방침입니다. 숫자 한도는 위 항목이 강제하고, 이 문장은 한도 안의 재량을 조종합니다.": "The management stance HQ's agent follows when reviewing deductions, deferrals and peer trades. The numbers above enforce the limits; this text steers judgment within them.",
+  "적극 확장": "Expansive",
+  "균형": "Balanced",
+  "절약 보수": "Frugal",
+  "원칙 준수": "By the book",
+  "현금 확보 우선": "Cash first",
+  "가맹점 상생": "Store-friendly",
+  "편집 ›": "Edit ›",
+  "매출이 안정적이라 현금 여유가 있다. 결품으로 손님을 놓치는 것을 가장 싫어해 재고를 넉넉히 잡고 조달에 적극적이다. 감당 가능한 분할 조건이면 협상을 길게 끌지 않고 받아들인다.": "Sales are steady, so there is spare cash. Losing customers to stock-outs is the worst outcome, so keep generous stock and restock aggressively. Accept an affordable installment plan without dragging out the negotiation.",
+  "매출 편차가 있어 현금을 아껴 쓰고, 한 번에 큰 금액이 나가는 것을 피한다. 전액보다 일부 선납으로 쪼개는 조건을 선호하고, 이웃 직거래로 단가를 낮출 기회를 먼저 살핀다.": "Sales swing, so spend cash carefully and avoid large one-off payments. Prefer splitting into a partial upfront payment over paying in full, and look first for a cheaper peer trade with a neighbour.",
+  "여유 자금이 얇아 지불 여력을 지키는 것이 최우선이다. 재고는 최소로 가져가고, 무리한 분할을 떠안기보다 유예를 먼저 요청한다. 감당할 수 없으면 결렬을 감수하고 사람의 판단을 구한다.": "Spare cash is thin, so protecting the ability to pay comes first. Keep minimal stock, ask for a deferral before taking on a heavy installment plan, and if it cannot be afforded, accept a breakdown and ask a human to decide.",
+  "특별한 기조 없이 정책 기준대로 심사한다. 근거가 수치로 제시된 제안만 받아들인다.": "Review strictly by the policy thresholds, with no special stance. Accept only proposals backed by numbers.",
+  "이번 분기는 본사 현금 확보가 우선이다. 전액 유예보다 분할·선납을 유도하고, 회수 일정이 구체적이지 않은 유예 요청에는 보수적으로 판단한다. 직거래는 본사 매출을 대체하지 않는 소액 건 위주로 승인한다.": "This quarter HQ cash comes first. Steer stores toward installments and upfront payments instead of full deferral, be conservative with deferral requests that lack a concrete repayment date, and approve peer trades mainly when they are small and do not replace HQ sales.",
+  "지점의 현금 사정을 넉넉히 봐준다. 납부 의지와 회수 일정이 보이면 유예를 너그럽게 수락하고, 신용 이력이 짧은 지점의 첫 연체는 관대하게 본다. 직거래는 지점 간 상생이므로 적극 승인한다.": "Be generous about stores' cash situations. Accept deferrals readily when there is a clear will and schedule to repay, be lenient with a first late payment from a store with a short credit history, and actively approve peer trades as mutual support between stores.",
+  "대형 상권의 고회전 매장이다. 매출이 안정적이라 현금 여유가 있고, 결품으로 손님을 놓치는 것을 가장 싫어한다. 재고를 넉넉히 잡고 조달에 적극적이며, 분할 조건이 감당 가능하면 협상을 길게 끌지 않고 받아들인다.": "A high-turnover store in a busy district. Sales are steady, so cash is comfortable, and losing customers to stock-outs is what it hates most. It keeps generous stock, restocks aggressively, and accepts an installment plan quickly if it can afford it.",
+  "중형 매장이고 요일별 매출 편차가 크다. 현금을 아껴 쓰며 한 번에 큰 금액이 나가는 것을 피한다. 전액보다 일부 선납으로 쪼개는 조건을 선호하고, 이웃 지점 직거래로 단가를 낮출 기회를 먼저 살핀다.": "A mid-size store whose sales swing by weekday. It spends cash carefully and avoids large one-off payments. It prefers paying part upfront over paying in full, and looks first for a cheaper peer trade with a neighbouring store.",
+  "소형 매장이라 회전이 느리고 여유 자금이 얇다. 재고를 최소로 가져가며 지불 여력을 지키는 것을 최우선에 둔다. 무리한 분할을 떠안기보다 유예를 먼저 요청하고, 감당할 수 없으면 결렬을 감수하고 사람의 판단을 구한다.": "A small, slow-turnover store with thin spare cash. It keeps minimal stock and protects its ability to pay above all. It asks for a deferral before taking on a heavy installment plan, and if it cannot afford a deal it accepts a breakdown and asks a human to decide.",
+  "특별한 사정 없이 정책대로 판단한다.": "No special circumstances; decide by the policy.",
+  "특별한 기조 없이 정책 기준대로 심사한다.": "No special stance; review by the policy thresholds.",
 
   // 실행 로그·리포트
   "실행 로그": "Activity log",
@@ -577,8 +626,13 @@ const PATTERNS = PATTERNS_RAW;
 // 숫자와 떨어져 제 요소에 홀로 있는 단위 (role.js의 unit:"건") — 영어에선 지운다
 const BARE_UNIT = /^\s*(건|회|개|명|종|장)\s*$/;
 
+// 정책 칸 옆 단위 — 지우면 뜻이 사라지는 것만 옮긴다
+const BARE_MAP = { "점": "pts", "배": "×" };
+
 export function translate(text) {
   if (!text || !/[가-힣]/.test(text)) return text;
+  const bare = BARE_MAP[text.trim()];
+  if (bare) return text.replace(text.trim(), bare);
   if (BARE_UNIT.test(text)) return "";
   // 코드가 숫자를 끼워 만드는 협상 요약 — 사전으로는 못 잡아 패턴으로 옮긴다 (hq/node.py·economy.py·store/tools.py)
   let out = text;

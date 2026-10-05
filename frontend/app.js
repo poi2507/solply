@@ -93,6 +93,20 @@ async function getJSON(url) {
   return res.json();
 }
 
+// 판단 주체 표시 — judge.py가 근거문 끝에 붙이는 꼬리표를 배지로 바꾼다
+//   "(decided by Jev · confidence 93%)"                    → Jev가 결정
+//   "(Jev confidence 44% < 70% — reviewed by Gemini)"       → Jev 확신 부족, Gemini가 다시 판단
+const JEV_DECIDED = /\s*\(decided by Jev · confidence (\d+)%\)\s*$/;
+const JEV_ESCALATED = /\s*\(Jev confidence (\d+)% < ([\d.]+)% — reviewed by Gemini\)\s*$/;
+function whyHtml(text) {
+  const t = String(text ?? "");
+  let m = JEV_DECIDED.exec(t);
+  if (m) return `${esc(t.slice(0, m.index))} <span class="decider jev" title="Decided by Jev (System One), confidence ${m[1]}%">Jev · ${m[1]}%</span>`;
+  m = JEV_ESCALATED.exec(t);
+  if (m) return `${esc(t.slice(0, m.index))} <span class="decider llm" title="Jev was ${m[1]}% sure, under the ${m[2]}% bar — Gemini reasoned it through">Jev ${m[1]}% → Gemini</span>`;
+  return esc(t);
+}
+
 function explorerUrl(sig, network) {
   const cluster = network === "localnet" ? "custom" : (network ?? "devnet");
   return `https://explorer.solana.com/tx/${sig}?cluster=${cluster}`;
@@ -343,7 +357,7 @@ function detailBody(id) {
       if (neg) {
         why = `<div class="tl-why ${esc(neg.decision)}">
           <b>${KIND_LABEL[neg.type] ?? neg.type} ${VERDICT_LABEL[neg.decision] ?? neg.decision}</b> —
-          ${esc(neg.proposal)}<br>${esc(neg.reasoning)}</div>`;
+          ${esc(neg.proposal)}<br>${whyHtml(neg.reasoning)}</div>`;
       }
     }
     return `<div class="tl-step ${toneOf(evt)}">
@@ -423,7 +437,7 @@ function renderNegotiations(negs, invoices = []) {
   const bubble = (side, title, body, tone) => `
     <div class="msg ${side}">
       <span class="who3">${side === "store" ? "지점" : "본사"}</span>
-      <div class="bubble ${tone}"><b>${esc(title)}</b>${body ? `<span>${esc(body)}</span>` : ""}</div>
+      <div class="bubble ${tone}"><b>${esc(title)}</b>${body ? `<span>${whyHtml(body)}</span>` : ""}</div>
     </div>`;
   const threadHtml = (inv, rows) => {
     rows.sort((a, b) => (a.updated_at ?? "").localeCompare(b.updated_at ?? ""));
@@ -491,7 +505,7 @@ function renderNegotiations(negs, invoices = []) {
       <span class="kind">${KIND_LABEL[n.type] ?? esc(n.type)}</span>
       <div class="body">
         <div class="head">${esc(n.proposal ?? "")}</div>
-        <div class="why"><b>${STORE_SIDE_KINDS.has(n.type) ? "지점 판단" : "본사 판단"}:</b> ${esc(n.reasoning ?? "")}</div>
+        <div class="why"><b>${STORE_SIDE_KINDS.has(n.type) ? "지점 판단" : "본사 판단"}:</b> ${whyHtml(n.reasoning)}</div>
       </div>
       <span class="verdict ${esc(n.decision)}">${VERDICT_LABEL[n.decision] ?? esc(n.decision)}</span>
     </div>`;

@@ -247,7 +247,7 @@ def test_report_stats_and_mock_narration(monkeypatch):
     assert stats["p2p_count"] == 1
 
     text = rules.weekly_report(stats)
-    assert "2건" in text and "67.5" in text and "직거래 1건" in text
+    assert "2 invoices" in text and "67.5" in text and "1 store-to-store trade " in text
 
 
 def test_event_log_reads_only_what_it_shows():
