@@ -105,7 +105,7 @@ function decisions(t) {
       otherwise Gemini reasons it through from scratch. Amounts and limits are always enforced by code.</p>
     <div class="pf-split">
       ${tile(D.total, "agent decisions logged")}
-      ${tile(D.jev, "decided by Jev", D.confidenceMedian != null ? `median confidence ${Math.round(D.confidenceMedian * 100)}%` : "")}
+      ${tile(D.jev, "decided by Jev", D.jevAsked ? `asked ${D.jevAsked}× · median confidence ${Math.round(D.confidenceMedian * 100)}%` : "")}
       ${tile(D.escalated, "sent on to Gemini", "Jev was not confident enough")}
       ${tile(D.jevAnswerMsMedian != null ? `${D.jevAnswerMsMedian} ms` : "—", "Jev answer, median",
         D.llmDecisionMsMedian != null ? `Gemini-only decision: ${(D.llmDecisionMsMedian / 1000).toFixed(1)} s` : "")}

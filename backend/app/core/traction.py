@@ -10,6 +10,7 @@ traction이 아니다. 여기서는 config.TRACTION_SINCE(대회 시작일) 이�
 같은 원장(events · inventory_moves)을 읽는다 — 화면 숫자와 기록이 다른 곳에서 오면 안 된다.
 """
 
+import re
 import statistics
 import time
 
@@ -140,6 +141,9 @@ def _median(xs: list) -> int | None:
     return round(statistics.median(xs)) if xs else None
 
 
+_JEV_TAG = re.compile(r"\s*\((?:decided by Jev · confidence \d+%|Jev confidence \d+% < [\d.]+% — reviewed by Gemini)\)\s*$")
+
+
 def decisions() -> dict:
     """에이전트 판단을 누가 내렸나 — Jev(System One) / LLM(System Two) / 규칙.
 
@@ -172,10 +176,11 @@ def decisions() -> dict:
         "decider": d.get("decider") or ("rules" if d.get("provider") == "mock" else "llm"),
         "confidence": (d.get("jev") or {}).get("confidence"),
         "probabilities": (d.get("jev") or {}).get("probabilities"),
-        "reasoning": (d.get("reasoning") or "")[:280],
+        # 판단 주체 꼬리표는 배지(decider·confidence)가 대신한다 — 자르다 꼬리표가 반쯤 남지 않게 먼저 뗀다
+        "reasoning": _JEV_TAG.sub("", d.get("reasoning") or "")[:280],
     } for d in reversed(logs[-10:])]
     return {
-        "total": len(logs), **count, "escalated": escalated,
+        "total": len(logs), **count, "escalated": escalated, "jevAsked": len(jev_ms),
         "jevAnswerMsMedian": _median(jev_ms),
         "llmDecisionMsMedian": _median(llm_ms),
         "confidenceMedian": (round(statistics.median([c for c in conf if c is not None]), 2)

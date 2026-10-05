@@ -143,6 +143,15 @@ def test_decision_stats_split_jev_llm_and_escalated():
     assert d["escalated"] - before["escalated"] == 1
     assert d["recent"][0]["at"] >= d["recent"][-1]["at"], "최근 것이 먼저"
     assert "facts" not in d["recent"][0], "공개 집계에 판단 재료 원문은 싣지 않는다"
+    assert d["jevAsked"] - before["jevAsked"] == 2
+
+
+def test_decider_tag_is_stripped_before_truncation():
+    long = "x" * 300 + " (Jev confidence 26% < 70% — reviewed by Gemini)"
+    db.put("decision_log", db.new_id("DEC"), {"agent": "hq", "kind": "order", "decision": "counter",
+           "decider": "llm", "reasoning": long, "at": "2026-12-01T00:00:00+00:00"})
+    top = traction.decisions()["recent"][0]
+    assert "Jev confidence" not in top["reasoning"] and len(top["reasoning"]) == 280
 
 
 def test_traction_exposes_ledger_and_decisions():
