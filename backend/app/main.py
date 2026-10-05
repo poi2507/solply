@@ -71,6 +71,11 @@ if config.FRONTEND_DIR.exists():
         """손님 페이지 — 방문자가 라이브 경제에 수요를 넣는 입구."""
         return FileResponse(config.FRONTEND_DIR / "shop.html")
 
+    @app.get("/proof", include_in_schema=False)
+    def proof_page() -> FileResponse:
+        """공개 증빙 — 로그인 없이 실사용·결제 tx·판단 주체를 본다 (심사위원·테스터용)."""
+        return FileResponse(config.FRONTEND_DIR / "proof.html")
+
     @app.get("/shop/orders/{order_id}", include_in_schema=False)
     def shop_order_page(order_id: str) -> FileResponse:
         """주문 추적 — 같은 상점 페이지가 주소의 주문번호를 읽어 그 주문을 그린다."""

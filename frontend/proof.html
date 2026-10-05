@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Solply — live proof</title>
+<link rel="stylesheet" href="/assets/style.css">
+<style>
+  /* 공개 증빙 페이지 — 로그인 없이 누구나. 숫자마다 체인에서 열어 볼 링크를 단다. pf- 접두사 */
+  .pf-wrap { max-width: 1040px; margin: 0 auto; padding: 0 var(--pad) 56px; }
+  .pf-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; padding: 30px 0 8px; }
+  .pf-head h1 { font-size: 22px; margin: 0; }
+  .pf-head p { margin: 4px 0 0; color: var(--ink-2); max-width: 62ch; line-height: 1.55; }
+  .pf-links { display: flex; gap: 14px; font-size: 13px; padding-top: 6px; }
+  .pf-links a { color: var(--accent); font-weight: 650; text-decoration: none; }
+  .pf-sec { margin-top: 26px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px 24px; }
+  .pf-sec h2 { font-size: 15px; margin: 0 0 4px; }
+  .pf-sec .sub { color: var(--ink-3); font-size: 12.5px; margin: 0 0 16px; line-height: 1.5; }
+  .pf-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 14px 28px; }
+  .pf-tile b { display: block; font-size: 26px; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+  .pf-tile span { font-size: 12.5px; color: var(--ink-2); }
+  .pf-tile i { display: block; font-style: normal; font-size: 11.5px; color: var(--ink-3); margin-top: 2px; }
+  .pf-bars { display: flex; align-items: flex-end; gap: 3px; height: 72px; margin-top: 18px; }
+  .pf-bars div { flex: 1; min-width: 4px; background: var(--accent-vivid); border-radius: 3px 3px 0 0; }
+  .pf-bars div.zero { background: var(--line); height: 2px !important; }
+  .pf-axis { display: flex; justify-content: space-between; font: 11px var(--mono); color: var(--ink-3); margin-top: 4px; }
+  .pf-scroll { overflow-x: auto; }
+  table.pf { width: 100%; border-collapse: collapse; font-size: 12.5px; min-width: 720px; }
+  table.pf th { text-align: left; font-weight: 600; color: var(--ink-3); font-size: 11.5px; padding: 0 10px 8px 0; border-bottom: 1px solid var(--line); }
+  table.pf td { padding: 9px 10px 9px 0; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+  table.pf td.n { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  table.pf a { color: var(--accent); text-decoration: none; font-family: var(--mono); font-size: 11.5px; }
+  .chip { display: inline-block; font-size: 11px; font-weight: 650; border-radius: 999px; padding: 1px 8px; border: 1px solid var(--line); color: var(--ink-2); white-space: nowrap; }
+  .chip.own { border-color: color-mix(in srgb, var(--info-vivid) 50%, transparent); color: var(--info); }
+  .chip.jev { border-color: color-mix(in srgb, var(--accent-vivid) 55%, transparent); color: var(--accent); background: var(--accent-quiet); }
+  .chip.llm { border-color: color-mix(in srgb, var(--warn-vivid) 55%, transparent); color: var(--warn); }
+  .chip.esc { border-style: dashed; }
+  .pf-split { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 14px 28px; margin-bottom: 18px; }
+  .pf-dec { list-style: none; margin: 0; padding: 0; }
+  .pf-dec li { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 4px 16px; padding: 11px 0; border-top: 1px solid var(--line-soft); }
+  .pf-dec .meta { font-size: 12px; color: var(--ink-3); display: flex; flex-direction: column; gap: 5px; align-items: flex-start; }
+  .pf-dec .why { font-size: 13px; color: var(--ink-2); line-height: 1.5; min-width: 0; }
+  .pf-dec .why b { color: var(--ink); }
+  .probs { display: flex; gap: 2px; height: 6px; width: 120px; border-radius: 3px; overflow: hidden; background: var(--line-soft); }
+  .probs span { display: block; height: 100%; background: var(--ink-3); }
+  .probs span.top { background: var(--accent-vivid); }
+  .pf-notes { font-size: 12px; color: var(--ink-3); line-height: 1.6; margin: 18px 0 0; }
+  @media (max-width: 620px) { .pf-dec li { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="pf-wrap">
+  <header class="pf-head">
+    <div>
+      <h1>Solply — live proof</h1>
+      <p>What real visitors did on Solply since the hackathon started, read straight from the production ledger.
+        Every payment links to its transaction on Solana devnet, so you can check it yourself.</p>
+    </div>
+    <nav class="pf-links">
+      <a href="/shop">Order something →</a>
+      <a href="/">Dashboard</a>
+      <a href="/api/traction" target="_blank" rel="noopener">Raw JSON</a>
+    </nav>
+  </header>
+  <main id="proof"><div class="empty">Loading the ledger…</div></main>
+</div>
+<script type="module" src="/assets/proof.js"></script>
+</body>
+</html>

@@ -120,3 +120,31 @@ def test_tick_skips_simulated_demand_when_off(monkeypatch):
     for n in ("settle_cards", "run_procurement", "restock_hq", "run_scheduled_payments", "settle_escrows"):
         assert n in called, n
     assert summary["sales"] == {"skipped": "simulated demand is off"}
+
+
+def test_decision_stats_split_jev_llm_and_escalated():
+    """누가 판단했나 — Jev 확정 / Jev에 물었지만 LLM이 다시 판단(escalated) / LLM만."""
+    before = traction.decisions()
+    base = {"agent": "hq", "kind": "order", "options": "accept / reject / counter",
+            "facts": {}, "policy": {}, "at": "2026-10-01T00:00:00+00:00", "provider": "vertex"}
+    db.put("decision_log", db.new_id("DEC"), {**base, "decision": "counter", "decider": "jev",
+           "latency_ms": 3000, "jev": {"choice": "counter", "confidence": 0.97, "ms": 250}})
+    db.put("decision_log", db.new_id("DEC"), {**base, "decision": "counter", "decider": "llm",
+           "latency_ms": 9000, "jev": {"choice": "accept", "confidence": 0.4, "ms": 270}})
+    db.put("decision_log", db.new_id("DEC"), {**base, "kind": "deferral", "decision": "accept",
+           "decider": "llm", "latency_ms": 7000})
+    db.put("decision_log", db.new_id("DEC"), {**base, "at": "2026-08-01T00:00:00+00:00",
+           "decision": "accept", "decider": "llm", "latency_ms": 1})  # 대회 전 — 세지 않는다
+
+    d = traction.decisions()
+    assert d["total"] - before["total"] == 3
+    assert d["jev"] - before["jev"] == 1
+    assert d["llm"] - before["llm"] == 2
+    assert d["escalated"] - before["escalated"] == 1
+    assert d["recent"][0]["at"] >= d["recent"][-1]["at"], "최근 것이 먼저"
+    assert "facts" not in d["recent"][0], "공개 집계에 판단 재료 원문은 싣지 않는다"
+
+
+def test_traction_exposes_ledger_and_decisions():
+    t = client.get("/api/traction").json()
+    assert "ledger" in t and "decisions" in t and t["network"]

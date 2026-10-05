@@ -35,6 +35,8 @@ const EN = {
   "심사 중이시라면 —": "Judging? —",
   "에서 협상 기록·데이터 상점을": " for negotiation history and the data shop",
   "에서 실행 로그와 무대 트리거를 보세요.": " for the activity log and demo triggers.",
+  "로그인 없이 실사용·결제 내역만 보려면": "No sign-in needed for real usage and payments:",
+  "공개 증빙 →": "live proof →",
   "본인확인이 완료되지 않았습니다 (": "Verification did not complete (",
   "등록이 완료되지 않았습니다 (": "Registration did not complete (",
   "다시 등록하거나 데모 모드로 입장하세요.": "Register again, or enter in demo mode.",
