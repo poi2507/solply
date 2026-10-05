@@ -2151,6 +2151,7 @@ dependencies = [
     { name = "langgraph" },
     { name = "psycopg", extra = ["binary", "pool"] },
     { name = "python-dotenv" },
+    { name = "solply-guard" },
     { name = "uvicorn", extra = ["standard"] },
     { name = "webauthn" },
 ]
@@ -2174,6 +2175,7 @@ requires-dist = [
     { name = "langgraph", specifier = ">=1.2.9" },
     { name = "psycopg", extras = ["binary", "pool"], specifier = ">=3.2" },
     { name = "python-dotenv", specifier = ">=1.0" },
+    { name = "solply-guard", editable = "../packages/solply-guard" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.30" },
     { name = "webauthn", specifier = ">=2.7.1" },
 ]
@@ -2183,6 +2185,11 @@ dev = [
     { name = "pytest", specifier = ">=8.0" },
     { name = "ruff", specifier = ">=0.6" },
 ]
+
+[[package]]
+name = "solply-guard"
+version = "0.1.0"
+source = { editable = "../packages/solply-guard" }
 
 [[package]]
 name = "starlette"

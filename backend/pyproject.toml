@@ -18,7 +18,12 @@ dependencies = [
     "langchain-core>=1.5.1",
     "langchain-google-vertexai>=3.2.4",
     "webauthn>=2.7.1",
+    "solply-guard",
 ]
+
+[tool.uv.sources]
+# 지갑 쥔 에이전트의 안전장치 — 이 레포에서 떼어 낸 독립 패키지 (packages/solply-guard)
+solply-guard = { path = "../packages/solply-guard", editable = true }
 
 [dependency-groups]
 dev = [

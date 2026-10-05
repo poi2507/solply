@@ -4,6 +4,8 @@
 모든 함수가 store_id를 명시적으로 받는다 — 지점별 인스턴스를 따로 만들지 않기 위해서다.
 """
 
+import solply_guard as sguard
+
 from app.agents import utils
 from app.core import market, protocol, x402_client
 from app.core import policy as policy_mod
@@ -46,6 +48,11 @@ def verify_delivery(store_id: str, invoice_id: str) -> dict:
     result = {"invoice_id": invoice_id, "match": not discrepancies, "discrepancies": discrepancies}
     utils.log(utils.actor_name(store_id), "delivery.verified", result)
     return result
+
+
+def _spend_policy(pol) -> sguard.SpendPolicy:
+    """점주가 화면에서 정한 한도 → 안전장치 패키지의 정책. 한도 판정 규칙은 solply-guard에 있다."""
+    return sguard.SpendPolicy(auto_pay_limit=pol.auto_pay_limit_usdc, min_reserve=pol.min_reserve_usdc)
 
 
 def assess_cashflow(store_id: str, invoice_id: str) -> dict:
@@ -119,7 +126,8 @@ def execute_payment(
     amount = protocol.from_atomic(term["amount"]) if term else invoice["amount_usdc"]
     actor = utils.actor_name(store_id)
 
-    if amount > pol.auto_pay_limit_usdc and not human_approved:
+    spend = sguard.check_spend(amount, _spend_policy(pol), human_approved=human_approved)
+    if spend.verdict is sguard.Verdict.NEEDS_HUMAN:
         utils.log(actor, "payment.blocked_over_limit", {"invoice_id": invoice_id, "amount": amount})
         return {
             "status": "needs_human_approval",
@@ -336,7 +344,7 @@ def pay_p2p_trade(store_id: str, trade_id: str) -> dict:
     pol = policy_mod.get(store_id)
     amount = trade["price_usdc"]
     actor = utils.actor_name(store_id)
-    if amount > pol.auto_pay_limit_usdc:
+    if sguard.check_spend(amount, _spend_policy(pol)).verdict is sguard.Verdict.NEEDS_HUMAN:
         utils.log(actor, "p2p.blocked_over_limit", {"trade_id": trade_id, "amount": amount})
         return {
             "status": "needs_human_approval",

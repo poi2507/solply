@@ -14,6 +14,7 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from pydantic import BaseModel, Field
+import solply_guard as sguard  # app.api.guard(요청 횟수 제한)와 이름이 겹쳐 별칭
 
 from app import config
 from app.agents import utils
@@ -296,7 +297,8 @@ def place_order(body: Order, request: Request, background: BackgroundTasks) -> d
 def _verify_wallet_payment(doc: dict, order_id: str, signature: str) -> dict | None:
     """체인에서 방문자의 이체를 대조한다 — 프런트가 보낸 값은 믿지 않는다.
 
-    성공·수취 계좌(본사 USDC)·금액·메모(주문번호)·수수료 낸 지갑(=방문자, 서명자) 다섯 가지.
+    성공·수취 계좌(본사 USDC)·금액·메모(주문번호)·수수료 낸 지갑(=방문자, 서명자) 다섯 가지 —
+    대조 규칙은 solply-guard(packages/)에 있다. 여기서는 결제 서비스 응답을 그 모양으로 옮긴다.
     아직 체인에 안 보이면 None (잠시 뒤 다시).
     """
     try:
@@ -306,18 +308,13 @@ def _verify_wallet_payment(doc: dict, order_id: str, signature: str) -> dict | N
     if not tx.get("found"):
         return None
     t = tx.get("transfer") or {}
-    problems = []
-    if not tx.get("success"):
-        problems.append("the transaction failed on-chain")
-    if t.get("destination") != config.HQ_USDC_ATA:
-        problems.append("it was not sent to the franchise HQ's USDC account")
-    if abs(float(t.get("amount") or 0) - doc["total_usdc"]) > 0.000001:
-        problems.append(f"amount {t.get('amount')} USDC does not match {doc['total_usdc']} USDC")
-    if (tx.get("memo") or "").strip() != order_id and order_id not in (tx.get("memo") or ""):
-        problems.append("the memo does not carry this order number")
-    if tx.get("feePayer") != doc.get("wallet"):
-        problems.append("it was not signed and paid by the wallet that placed the order")
-    return {"ok": not problems, "problems": problems, "tx": tx}
+    observed = sguard.Observed(
+        success=bool(tx.get("success")), destination=t.get("destination"),
+        amount=float(t["amount"]) if t.get("amount") is not None else None,
+        memo=tx.get("memo"), fee_payer=tx.get("feePayer"))
+    check = sguard.verify_payment(observed, sguard.Expected(
+        destination=config.HQ_USDC_ATA, amount=doc["total_usdc"], memo=order_id, payer=doc.get("wallet")))
+    return {"ok": check.ok, "problems": check.problems, "tx": tx}
 
 
 @router.post("/orders/{order_id}/confirm")

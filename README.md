@@ -12,6 +12,8 @@
 |---|---|
 | 🟢 **지금 돌고 있는 화면** | **https://solply-api-965647250280.us-central1.run.app** |
 | 🛒 손님으로 참여해보기 | [/shop](https://solply-api-965647250280.us-central1.run.app/shop) — 구매 한 번이 에이전트 조달을 일으킵니다 |
+| 🔎 실사용 공개 증빙 | [/proof](https://solply-api-965647250280.us-central1.run.app/proof) — 9/14 이후 실제 주문·결제 tx·에이전트 판단 주체, 로그인 없이 |
+| 🧩 오픈소스 안전장치 | [packages/solply-guard](packages/solply-guard) — 지갑 쥔 에이전트의 지출 한도·온체인 결제 대조·확신도 관문 (MIT, 의존성 0) |
 | 🎬 데모 영상 (2분 55초) | **https://youtu.be/Tx40wJV4UVQ** · 장면별 대본은 [video-script.md](docs/video-script.md) |
 
 ---
@@ -190,7 +192,8 @@ backend/app/
 ├── db/                store 파사드 → local_store(JSON) / postgres_store(JSONB 2테이블)
 └── assistant/         ADK 어시스턴트 — 사람 권한(승인·반려·예약)만 도구로 갖는다
 payments/              TypeScript — 지갑 열쇠를 든 유일한 곳 (Cloud Run에서 비공개로 잠근다)
-frontend/              빌드 없는 정적 대시보드 + 손님 페이지
+frontend/              빌드 없는 정적 대시보드 + 손님 페이지 + 공개 증빙(/proof)
+packages/solply-guard/ 떼어 낸 독립 패키지 — 백엔드가 이것을 import해 한도·결제 대조·확신도 관문을 쓴다
 scripts/video/         Playwright + ffmpeg 촬영기 — 코드가 바뀌면 영상을 다시 만든다
 ```
 

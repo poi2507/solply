@@ -17,6 +17,8 @@ RUN tar -xzf /tmp/pay.tar.gz -C /usr/local/bin && rm /tmp/pay.tar.gz \
 WORKDIR /app/backend
 
 # 의존성 레이어 (lock 그대로 — 로컬과 동일한 버전)
+# solply-guard는 경로 의존성(../packages)이라 동기화 전에 먼저 넣는다
+COPY packages/solply-guard /app/packages/solply-guard
 COPY backend/pyproject.toml backend/uv.lock ./
 RUN uv sync --frozen --no-install-project --no-dev
 

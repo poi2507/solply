@@ -62,6 +62,7 @@ test:              ## 백엔드 테스트 (임시 JSON 저장소로 격리 — �
 	rm -f /tmp/solply-test-state.json  # 실패한 이전 실행이 남긴 상태가 연쇄 실패를 만들지 않게
 	cd backend && SOLPLY_STORE=local SOLPLY_STATE_PATH=/tmp/solply-test-state.json PAYSH_ENABLED=0 uv run pytest -q
 	rm -f /tmp/solply-test-state.json
+	cd packages/solply-guard && uv run --no-project --with pytest python -m pytest -q
 
 lint:              ## 포맷·린트
 	cd backend && uv run ruff check app demo.py

@@ -10,6 +10,7 @@ import re
 import time
 from datetime import UTC, datetime
 
+import solply_guard as sguard
 from pydantic import BaseModel, Field
 
 from app import config
@@ -128,9 +129,9 @@ def _fast(kind: str, facts: dict, policy_values: dict, allowed: set[str]) -> dic
         print(f"[judge] Jev 호출 실패({kind}) — LLM으로 판단: {str(exc)[:120]}")
         return None
     ans["min_confidence_pct"] = min_pct
-    ans["accepted"] = (ans["choice"] in allowed
-                       and ans["confidence"] * 100 >= min_pct
-                       and (kind, ans["choice"]) not in jev.NEEDS_SYSTEM_TWO)
+    gate = sguard.route(ans["choice"], ans["confidence"], min_pct, allowed=allowed,
+                        always_slow={c for k, c in jev.NEEDS_SYSTEM_TWO if k == kind})
+    ans["accepted"] = gate.fast
     return ans
 
 

@@ -92,7 +92,7 @@ def test_confirm_after_onchain_match_sells_and_logs(monkeypatch):
 
 @pytest.mark.parametrize("over, word", [
     ({"success": False}, "failed"),
-    ({"transfer": {"destination": "SomeoneElse"}}, "HQ"),
+    ({"transfer": {"destination": "SomeoneElse"}}, "token account"),
     ({"transfer": {"amount": 0.01}}, "amount"),
     ({"memo": "ORD-OTHER"}, "memo"),
     ({"feePayer": "AnotherWallet"}, "signed"),
