@@ -26,6 +26,16 @@ def require_admin(
         raise HTTPException(401, "관리 토큰이 필요합니다 (X-Admin-Token 헤더)")
 
 
+def require_ops(
+    x_ops_token: str | None = Header(default=None, alias="X-Ops-Token"),
+) -> None:
+    """운영 조치 잠금 — 토큰이 설정되지 않았으면 아예 닫힌다 (fail-closed)."""
+    if not config.OPS_TOKEN:
+        raise HTTPException(403, "ops actions are disabled on this deployment")
+    if not (x_ops_token and secrets.compare_digest(x_ops_token, config.OPS_TOKEN)):
+        raise HTTPException(401, "ops token required (X-Ops-Token)")
+
+
 # 횟수 제한 — 인스턴스 메모리 창(60초). 완벽한 분산 제한이 아니라 남용 감속이
 # 목적이다: 스크립트가 지갑·재고를 비우는 속도를 사람 손 속도로 끌어내린다.
 _BUCKETS: dict[str, deque] = defaultdict(deque)

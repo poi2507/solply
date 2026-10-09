@@ -1,4 +1,4 @@
-"""운영 조치 API — 관리자 전용. 조치마다 이벤트가 남고 /proof에 '매출 아님'으로 보인다."""
+"""운영 조치 API — 운영 토큰 전용(없으면 닫힘). 조치마다 이벤트가 남고 /proof에 '매출 아님'으로 보인다."""
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 from app.api import guard
 from app.core import ops
 
-router = APIRouter(prefix="/api/ops", tags=["ops"], dependencies=[Depends(guard.require_admin)])
+router = APIRouter(prefix="/api/ops", tags=["ops"], dependencies=[Depends(guard.require_ops)])
 
 
 @router.post("/archive-sim-era")

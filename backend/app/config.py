@@ -32,6 +32,9 @@ PASSKEY_RP_ID = os.getenv("PASSKEY_RP_ID", _urlparse(SOLPLY_API_URL).hostname or
 
 # 쓰기 보호 — 상태를 바꾸는 API의 관리 토큰. 비어 있으면(로컬·테스트) 잠그지 않는다.
 ADMIN_TOKEN = os.getenv("SOLPLY_ADMIN_TOKEN", "")
+# 운영 조치(장부 보관·운영자금 이동) 전용 — ADMIN_TOKEN과 달리 비어 있으면 열리지 않는다.
+# 라이브는 관리 토큰 없이 심사위원에게 데모 트리거를 열어 두므로, 돈을 옮기는 길은 따로 잠근다.
+OPS_TOKEN = os.getenv("SOLPLY_OPS_TOKEN", "")
 
 A2A_HQ_URL = os.getenv("A2A_HQ_URL", SOLPLY_API_URL)
 A2A_STORE_URL = os.getenv("A2A_STORE_URL", SOLPLY_API_URL)

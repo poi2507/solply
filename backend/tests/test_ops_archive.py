@@ -54,8 +54,14 @@ def test_fund_store_validates_and_logs(monkeypatch):
     assert any(m["store_id"] == "store-b" and m["amount_usdc"] == 20 for m in ops.capital_moves())
 
 
-def test_ops_endpoints_need_admin(monkeypatch):
-    monkeypatch.setattr("app.config.ADMIN_TOKEN", "secret")
-    assert client.post("/api/ops/archive-sim-era").status_code in (401, 403)
-    ok = client.post("/api/ops/archive-sim-era", headers={"X-Admin-Token": "secret"})
+def test_ops_endpoints_fail_closed(monkeypatch):
+    """관리 토큰이 비어 있어도(라이브 설정) 돈을 옮기는 길은 열리지 않는다."""
+    monkeypatch.setattr("app.config.ADMIN_TOKEN", "")
+    monkeypatch.setattr("app.config.OPS_TOKEN", "")
+    assert client.post("/api/ops/archive-sim-era").status_code == 403
+    assert client.post("/api/ops/working-capital",
+                       json={"store_id": "store-b", "amount": 5, "reason": "drain"}).status_code == 403
+    monkeypatch.setattr("app.config.OPS_TOKEN", "secret")
+    assert client.post("/api/ops/archive-sim-era", headers={"X-Ops-Token": "wrong"}).status_code == 401
+    ok = client.post("/api/ops/archive-sim-era", headers={"X-Ops-Token": "secret"})
     assert ok.status_code == 200 and ok.json()["dry_run"] is True
