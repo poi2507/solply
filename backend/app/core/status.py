@@ -20,16 +20,19 @@ class InvoiceStatus(StrEnum):
     REFUSED = "refused"                    # 발주 없는 청구 — 거부하고 사람에게
     PENDING_APPROVAL = "pending_approval"  # 정책 상한 초과 — 사람 승인 대기
     SPLIT = "split"                        # 분할됨 (자식 청구서가 대신 받는다)
+    ARCHIVED = "archived"                  # 시뮬 시절(대회 전) 미결 — 장부에서 분리 보관
 
 
 # 받을 돈이 아닌 상태. 여기만 손으로 적는다.
 #   settled — 이미 받았다
 #   split   — 자식 청구서가 대신 받으므로 부모를 세면 이중 계산이 된다
 #   refused — 분쟁 확인 대기지 수취 채권이 아니다
+#   archived — 8월 시뮬레이션이 남긴 미결. 대회 기간 장부와 섞지 않으려고 따로 둔다 (10/9)
 NOT_RECEIVABLE: tuple[InvoiceStatus, ...] = (
     InvoiceStatus.SETTLED,
     InvoiceStatus.SPLIT,
     InvoiceStatus.REFUSED,
+    InvoiceStatus.ARCHIVED,
 )
 
 # 받을 돈인 상태 — 위의 여집합으로 **파생**시킨다 (사본을 만들지 않는다)
@@ -47,6 +50,7 @@ LABELS: dict[str, str] = {
     InvoiceStatus.REFUSED: "거부",
     InvoiceStatus.PENDING_APPROVAL: "승인 대기",
     InvoiceStatus.SPLIT: "분할됨",
+    InvoiceStatus.ARCHIVED: "보관(시뮬)",
 }
 
 

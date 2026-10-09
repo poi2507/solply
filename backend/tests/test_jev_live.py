@@ -160,3 +160,17 @@ def test_custom_persona_passes_through():
 
     state = jev.state_for("order", {}, {"persona": "새벽 재고를 넉넉히"})
     assert state["policy"]["persona"] == "새벽 재고를 넉넉히"
+
+
+def test_sales_series_get_a_precomputed_summary():
+    """Jev는 세기·계산에 약하다 — 시계열 옆에 코드가 계산한 요약을 붙인다 (판정은 하지 않는다)."""
+    from app.llm import jev
+
+    state = jev.state_for("order", {"지점_일별판매_7일(과거→오늘)": [2, 0, 0, 0, 3, 0, 1],
+                                    "전국_일별판매_7일(해당 지점 제외)": [0] * 7}, {})
+    s = state["facts"]["store_sales_summary"]
+    assert s == {"total": 6, "days_with_sales": "3 of 7", "last_3_days_vs_previous_4_days": "4 vs 2",
+                 "best_single_day": 3, "best_day_share_of_total_pct": 50}
+    assert state["facts"]["national_sales_summary"]["total"] == 0
+    assert state["facts"]["store_daily_sales_7d_oldest_to_today"] == [2, 0, 0, 0, 3, 0, 1], "원자료는 그대로"
+    assert jev.sales_summary("n/a") is None

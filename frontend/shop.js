@@ -46,7 +46,11 @@ async function loadBoard() {
   $("brand-tag").textContent = state.board.brand.tagline ? `${state.board.brand.tagline} ` : "";
   document.title = `${state.board.brand.name} — order`;
   if (!state.storeId || !state.board.stores.some((s) => s.id === state.storeId)) {
-    state.storeId = state.board.stores[0].id;
+    // 첫 지점은 무작위 — 늘 Store A부터 보여주니 실주문이 A에만 몰려 B·C가 매출 없이 말랐다 (10/9).
+    // 절반 이상 팔 수 있는 지점 중에서 고른다 (품절투성이 화면으로 맞이하지 않게).
+    const open = state.board.stores.filter((st) => st.items.filter((it) => it.servings > 0).length * 2 >= st.items.length);
+    const pool = open.length ? open : state.board.stores;
+    state.storeId = pool[Math.floor(Math.random() * pool.length)].id;
   }
 }
 

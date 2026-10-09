@@ -23,6 +23,7 @@ from app.api import (
     dashboard,
     data_products,
     demo,
+    ops,
     policy,
     schedules,
     shop,
@@ -50,6 +51,7 @@ app.include_router(a2a_server.router)
 app.include_router(data_products.router)
 app.include_router(demo.router)
 app.include_router(approvals.router)
+app.include_router(ops.router)
 app.include_router(assistant.router)
 app.include_router(dashboard.router)
 app.include_router(policy.router)

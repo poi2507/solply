@@ -108,6 +108,7 @@ def compute() -> dict:
         "recentOrders": recent_orders[:6],
         "ledger": _ledger(recent_orders[:LEDGER_SIZE]),
         "decisions": decisions(),
+        "capital": _capital(),
         "notes": [
             "Visitors are counted from a salted hash of the IP; raw IPs are not stored.",
             "Unique visitors are only counted from Sep 23, when hashing began.",
@@ -119,6 +120,13 @@ def compute() -> dict:
 
 
 LEDGER_SIZE = 30
+
+
+def _capital() -> list[dict]:
+    """본사가 지점에 옮긴 운영자금 — 매출이 아니므로 결제액 합계에 넣지 않고 따로 보인다."""
+    from app.core import ops
+
+    return ops.capital_moves()
 
 
 def _ledger(orders: list[dict]) -> list[dict]:

@@ -267,6 +267,7 @@ const EN = {
   "정책을 불러오지 못했습니다": "Could not load the policy",
   "직접 작성": "Write your own",
   "크게 편집": "Edit in a larger box",
+  "보관(시뮬)": "Archived (sim era)",
   // 거래 정책 화면 — 항목 이름·설명은 백엔드(policy.describe)가 한국어로 준다
   "자동결제 상한": "Auto-pay limit",
   "이 금액까지는 사람 승인 없이 결제합니다": "Up to this amount the agent pays without a person approving",
@@ -427,6 +428,8 @@ const EN = {
   "손님 구매가 조달을 촉발": "Customer purchase triggered procurement",
   "손님 구매 → 조달 완료": "Customer purchase → procurement done",
   "손님 구매 → 조달 실패": "Customer purchase → procurement failed",
+  "시뮬 시절 미결 청구서 보관": "Archived simulation-era open invoices",
+  "본사 → 지점 운영자금 (매출 아님)": "HQ → store working capital (not sales)",
   "손님 주문 (온체인 결제)": "Customer order (paid on-chain)",
   "청구서 발행": "Invoice issued",
   "청구 금액 정정": "Invoice amount corrected",

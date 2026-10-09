@@ -23,6 +23,8 @@ ACTION_LABELS: dict[str, str] = {
     "shop.trigger": "손님 구매가 조달을 촉발",
     "shop.procured": "손님 구매 → 조달 완료",
     "shop.procure_failed": "손님 구매 → 조달 실패",
+    "ops.archive_sim_era": "시뮬 시절 미결 청구서 보관",
+    "ops.working_capital": "본사 → 지점 운영자금 (매출 아님)",
     "shop.order": "손님 주문 (온체인 결제)",
     # 청구서
     "invoice.created": "청구서 발행",

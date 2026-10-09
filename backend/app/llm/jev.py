@@ -30,7 +30,34 @@ KEY_EN = {
     "본사_공급가_usdc": "hq_unit_price_usdc",
     "구매한_시세": "purchased_market_quote",
     "자기_소비_추세": "own_sales_trend",
+    "원_주문_수량": "original_order_qty",
+    "본사_축소_제안_수량": "hq_trimmed_qty",
+    "본사_근거": "hq_reasoning",
+    "자기_일별판매_7일(과거→오늘)": "own_daily_sales_7d_oldest_to_today",
 }
+
+# 일별 판매 시계열 → 요약. Jev는 세기·계산에 약하다(TypeSafe 문서) — 원자료는 그대로 두고
+# 합계·판매일 수·최근 3일 대 이전 4일을 코드가 계산해 옆에 붙인다. 판정 자체는 하지 않는다.
+SERIES_KEYS = {
+    "지점_일별판매_7일(과거→오늘)": "store_sales_summary",
+    "전국_일별판매_7일(해당 지점 제외)": "national_sales_summary",
+    "자기_일별판매_7일(과거→오늘)": "own_sales_summary",
+}
+
+
+def sales_summary(series) -> dict | None:
+    if not isinstance(series, list) or not series or not all(isinstance(x, (int, float)) for x in series):
+        return None
+    total = sum(series)
+    last3, prev = sum(series[-3:]), sum(series[:-3])
+    best = max(series)
+    return {
+        "total": total,
+        "days_with_sales": f"{sum(1 for x in series if x > 0)} of {len(series)}",
+        "last_3_days_vs_previous_4_days": f"{last3} vs {prev}",
+        "best_single_day": best,
+        "best_day_share_of_total_pct": round(best / total * 100) if total else 0,
+    }
 
 # 판단 종류별: 무엇을 묻는가 + 선택지별 경계 조건 (judge.py의 지시와 같은 뜻).
 # TypeSafe 문서의 "literal reading" 주의 — 선택지마다 언제 고르는지를 문장으로 적는다.
@@ -48,8 +75,10 @@ QUESTIONS = {
                    "reject": "The seller would breach safety stock, or a credit score is below threshold",
                    "counter": "Otherwise fine, but the unit price is above the HQ supply price"}),
     "order": ("HQ reviews a store's restock order that is larger than the base quantity.",
-              {"accept": "Sales have risen over several days, so the larger order matches real demand",
-               "counter": "Sales are flat or a one-day spike, so trim to the base quantity",
+              {"accept": "Sales rose over several days — the last 3 days clearly outsold the previous 4, "
+                         "on more than one day — so the larger order matches real demand",
+               "counter": "Sales are flat, sporadic or one day's spike — few days with sales, or one day "
+                          "carries most of the week — so trim to the base quantity",
                "reject": "The order should not be fulfilled at all"}),
     "brokerage": ("HQ decides whether to broker one stock transfer between stores from the candidate list. "
                   "Brokering is optional every round; when in doubt, HQ does not broker.",
@@ -64,8 +93,9 @@ QUESTIONS = {
                      {"p2p": "A neighbour's surplus covers it today, avoiding HQ lead time or minimum order",
                       "hq": "Order from HQ: not enough neighbour surplus, or HQ terms are better"}),
     "order_adjust": ("A store replies to HQ's proposal to trim its restock order.",
-                     {"accept": "HQ's reading of flat demand is right, so take the smaller quantity",
-                      "insist": "The store's own sales show real demand, so keep the original quantity"}),
+                     {"accept": "Our own sales are flat, sporadic or one day's spike, so HQ's smaller quantity is enough",
+                      "insist": "Our own sales rose over several days — the last 3 days clearly outsold the previous 4 — "
+                                "so keep the original quantity"}),
     "p2p_respond": ("A selling store replies to a peer trade offer.",
                     {"accept": "Sell at the offered price",
                      "counter": "This item sells well here and spare stock is thin, so ask a higher price"}),
@@ -78,8 +108,9 @@ QUESTIONS = {
 }
 
 # 라이브에서 Jev가 먼저 보는 판단 — 평가에서 전부 일치한 종류만.
-# 발주 축소 응답(order_adjust)은 11건 중 3건 불일치라 뺐고(9/30 재생에서도 확신도 높게
-# 반대로 답함), 표본이 없던 종류(차감·유예·역제안 응답·직거래 가격)도 LLM이 계속 판단한다.
+# 발주 축소 응답(order_adjust)은 뺀다: 9/30 평가 11건 중 3건 불일치(확신도 낮음), 10/9 판매 요약을
+# 붙인 재평가에선 확신도가 0.96~1.0으로 올랐지만 4건이 Vertex와 반대였다 — 지점 성향(persona)이
+# 갈라 놓는 판단이라 확신 있게 틀리는 쪽이 더 위험하다. 표본이 없던 종류도 LLM이 계속 판단한다.
 LIVE_KINDS = {"supply_route", "p2p_trade", "order", "brokerage"}
 
 # Jev가 골라도 LLM으로 넘기는 선택 — 중개 수락은 "어느 후보"까지 골라야 하는데
@@ -152,11 +183,12 @@ def state_for(kind: str, facts: dict, policy_values: dict) -> dict:
               if isinstance(v, (int, float, str, bool)) and k != "fast_decision_min_confidence_pct"}
     if isinstance(policy.get("persona"), str):
         policy["persona"] = personas.get(policy["persona"].strip(), policy["persona"])
-    return {
-        "situation": situation,
-        "facts": {KEY_EN.get(k, k): english(v) for k, v in facts.items()},
-        "policy": policy,
-    }
+    out = {KEY_EN.get(k, k): english(v) for k, v in facts.items()}
+    for key, name in SERIES_KEYS.items():
+        summary = sales_summary(facts.get(key))
+        if summary is not None:
+            out[name] = summary
+    return {"situation": situation, "facts": out, "policy": policy}
 
 
 def ask(state: dict, instructions: str, criteria: dict, *, timeout: float = 8.0, attempts: int = 2) -> dict:

@@ -77,6 +77,23 @@ function ledger(t) {
   </section>`;
 }
 
+// 본사가 지점에 옮긴 운영자금 — 매출이 아니다. 위 합계에 넣지 않고 따로, 이유와 tx를 단다.
+function capital(t) {
+  if (!t.capital?.length) return "";
+  const rows = t.capital.map((c) => `
+    <tr><td class="n">${esc(when(c.ts))}</td><td>HQ → ${esc(c.store_id)}</td>
+      <td class="n">${Number(c.amount_usdc).toFixed(2)}</td><td>${esc(c.reason)}</td><td>${txLink(c.tx, t.network)}</td></tr>`).join("");
+  return `
+  <section class="pf-sec">
+    <h2>Working capital moved by HQ — not sales</h2>
+    <p class="sub">Transfers a person made from HQ to a store so it could keep restocking. They are listed here and left out of every total above.</p>
+    <div class="pf-scroll"><table class="pf">
+      <thead><tr><th>When</th><th>Transfer</th><th>USDC</th><th>Why</th><th>Transaction</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>
+  </section>`;
+}
+
 function probs(p, choice) {
   if (!p) return "";
   const parts = Object.entries(p).sort((a, b) => b[1] - a[1]);
@@ -124,7 +141,7 @@ async function load() {
     $("proof").innerHTML = '<div class="empty">Could not load the ledger. Try again in a moment.</div>';
     return;
   }
-  $("proof").innerHTML = usage(t) + ledger(t) + decisions(t) +
+  $("proof").innerHTML = usage(t) + ledger(t) + capital(t) + decisions(t) +
     `<p class="pf-notes">${t.notes.map(esc).join(" ")} Numbers refresh every 30 seconds.</p>`;
 }
 
