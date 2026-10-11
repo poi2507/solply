@@ -1,0 +1,181 @@
+{
+ "scenes": [
+  {
+   "id": "s0",
+   "card": "titlecard",
+   "duration": 3.5,
+   "narration": "",
+   "subs": []
+  },
+  {
+   "id": "s1",
+   "clips": [
+    [
+     "clipA",
+     18,
+     4.5
+    ]
+   ],
+   "narration": "Solply runs the money side of a fried-chicken franchise. HQ ships ingredients and bills its stores. Usually people check every invoice, argue about mistakes and chase payments. Here, AI agents do that work, and every payment settles in USDC on Solana.",
+   "subs": [
+    [
+     0.0,
+     0.5,
+     "HQ bills its stores for ingredients — usually people check, argue and chase"
+    ],
+    [
+     0.5,
+     1.0,
+     "Here AI agents do it, and every payment settles in USDC on Solana"
+    ]
+   ]
+  },
+  {
+   "id": "s2",
+   "clips": [
+    [
+     "clipB",
+     12,
+     4.5
+    ]
+   ],
+   "narration": "Anyone can take part as a customer. This is a live order at Store B. Paying with the demo wallet sends one on-chain transfer, with the order number in the memo, and draws real ingredients from the store's stock.",
+   "subs": [
+    [
+     0.0,
+     0.45,
+     "A live customer order at Store B"
+    ],
+    [
+     0.45,
+     1.0,
+     "One on-chain transfer, order number in the memo — real stock drawn"
+    ]
+   ]
+  },
+  {
+   "id": "s3",
+   "clips": [
+    [
+     "clipB",
+     7,
+     17
+    ],
+    [
+     "clipB",
+     11,
+     95.5
+    ]
+   ],
+   "narration": "This order pushed five ingredients below their safety lines, so the store's agent restocked on the spot. A neighbouring store had chicken to spare, so the agent chose a peer trade over an HQ order, HQ approved it, and it was paid on-chain about a minute and a half after the order.",
+   "subs": [
+    [
+     0.0,
+     0.45,
+     "Five ingredients fell below their safety lines",
+     "top"
+    ],
+    [
+     0.45,
+     1.0,
+     "The store agent chose a peer trade — approved by HQ, paid on-chain",
+     "top"
+    ]
+   ]
+  },
+  {
+   "id": "s4",
+   "clips": [
+    [
+     "clipC",
+     12,
+     6.5
+    ]
+   ],
+   "narration": "Each of those calls went first to Jev, a fast decision model that scores the options and returns its confidence. Both cleared the bar, so Jev decided them in about a quarter of a second. When Jev is unsure, Gemini reasons the case through instead.",
+   "subs": [
+    [
+     0.0,
+     0.55,
+     "Jev scores the options and returns a confidence — about 0.25 s"
+    ],
+    [
+     0.55,
+     1.0,
+     "Under the bar, Gemini reasons it through instead"
+    ]
+   ]
+  },
+  {
+   "id": "s5",
+   "clips": [
+    [
+     "clipD",
+     12.5,
+     5.5
+    ]
+   ],
+   "narration": "The store owner sets the limits in plain numbers: how much the agent may pay on its own, the balance it must keep, and how sure Jev must be. Over the limit, the agent stops and asks a person. Code enforces these, not the model.",
+   "subs": [
+    [
+     0.0,
+     0.6,
+     "Owner-set limits: auto-pay cap · minimum balance · Jev confidence bar"
+    ],
+    [
+     0.6,
+     1.0,
+     "Enforced by code, not by the model"
+    ]
+   ]
+  },
+  {
+   "id": "s6",
+   "clips": [
+    [
+     "clipE",
+     20,
+     4.5
+    ]
+   ],
+   "narration": "Nothing here is staged. The public proof page lists every real order since the hackathon began, with its payment and the restock it caused, and each transaction opens on Solana Explorer.",
+   "subs": [
+    [
+     0.0,
+     0.55,
+     "Public proof page — every real order since Sep 14"
+    ],
+    [
+     0.55,
+     1.0,
+     "Each transaction opens on Solana Explorer"
+    ]
+   ]
+  },
+  {
+   "id": "s7",
+   "clips": [
+    [
+     "clipF",
+     13,
+     4.5
+    ]
+   ],
+   "narration": "We open-sourced the guardrails as solply-guard: spend limits, the on-chain payment check and the confidence gate. Solply runs on the same package.",
+   "subs": [
+    [
+     0.0,
+     1.0,
+     "solply-guard — open source (MIT): spend limits · payment check · confidence gate"
+    ]
+   ]
+  },
+  {
+   "id": "s8",
+   "card": "endcard",
+   "duration": 5,
+   "narration": "",
+   "subs": []
+  }
+ ]
+}

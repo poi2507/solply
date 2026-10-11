@@ -21,9 +21,11 @@ W, H, FPS = 1600, 900, 30
 # 내레이션은 Google Cloud TTS. 맥 내장 `say`보다 확연히 자연스럽고, 우리 GCP 크레딧으로 돈다.
 # 목소리를 바꾸려면 이 한 줄만 — ko-KR-Chirp3-HD-* (최신 생성형) / Neural2 / Wavenet 중에서.
 PROJECT = "gen-lang-client-0014864033"
-VOICE = "ko-KR-Chirp3-HD-Achernar"
+import os
+VOICE = os.getenv("VOICE", "ko-KR-Chirp3-HD-Achernar")  # 영어판: VOICE=en-US-Chirp3-HD-Charon
+LANG = "-".join(VOICE.split("-")[:2])
 # 제출 한도가 3분이다. 1.12배면 또박또박함을 잃지 않으면서 10% 남짓 줄어든다.
-SPEAKING_RATE = 1.12
+SPEAKING_RATE = float(os.getenv("SPEAKING_RATE", "1.12"))
 GAP = 0.55       # 내레이션 앞뒤 여백 (초)
 MAX_SPEED = 1.3  # 화면 녹화 배속 상한 — 이보다 빠르면 심사위원이 로그를 못 읽는다
 
@@ -50,7 +52,7 @@ def synthesize(text: str, out_mp3: Path) -> None:
     token = run([GCLOUD, "auth", "print-access-token"]).stdout.strip()
     body = json.dumps({
         "input": {"text": text},
-        "voice": {"languageCode": "ko-KR", "name": VOICE},
+        "voice": {"languageCode": LANG, "name": VOICE},
         "audioConfig": {"audioEncoding": "MP3", "speakingRate": SPEAKING_RATE},
     })
     req = Path("work/tts-req.json")
@@ -121,7 +123,9 @@ for s in plan["scenes"]:
     # 클립들을 정규화(+지정 길이만 사용)해서 이어붙인다
     parts = []
     for name, cap, off in clip_pairs(s):
-        src, norm = Path(f"clips/{name}.webm"), Path(f"work/n-{name}.mp4")
+        # 같은 클립을 다른 구간으로 여러 번 쓰므로 캐시 이름에 구간을 넣는다
+        src = Path(f"clips/{name}.webm")
+        norm = Path(f"work/n-{name}-{off:g}-{cap if cap else 'all'}.mp4")
         if not norm.exists():
             args = [FF, "-y", "-loglevel", "error"]
             if off:
