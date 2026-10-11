@@ -64,7 +64,9 @@ function ledger(t) {
       <td><span class="chip ${o.payer === "own_wallet" ? "own" : ""}">${o.payer === "own_wallet" ? "own wallet" : "demo wallet"}</span><br>${txLink(o.tx, t.network)}</td>
       <td>${o.invoice
         ? `${esc(o.invoice.id)} · ${esc(o.invoice.status)}<br>${txLink(o.invoice.tx, t.network)}`
-        : `<span style="color:var(--ink-3)">${o.trigger ? "restock started — no HQ invoice linked" : "stock still above safety line"}</span>`}</td>
+        : o.restock?.route === "p2p"
+          ? `peer trade with a neighbouring store · ${esc(o.restock.status || "")}`
+          : `<span style="color:var(--ink-3)">${o.trigger ? "restock started — no HQ invoice linked" : "stock still above safety line"}</span>`}</td>
     </tr>`).join("");
   return `
   <section class="pf-sec">

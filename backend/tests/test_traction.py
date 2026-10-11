@@ -157,3 +157,14 @@ def test_decider_tag_is_stripped_before_truncation():
 def test_traction_exposes_ledger_and_decisions():
     t = client.get("/api/traction").json()
     assert "ledger" in t and "decisions" in t and t["network"]
+
+
+def test_peer_trade_restock_is_named_on_the_order():
+    """이웃 직거래로 채운 주문은 '청구서 없음'이 아니라 직거래로 보인다."""
+    traction._CACHE["value"] = None
+    db.log_event("system", "shop.order", {"order_id": "ORD-T-P2P", "store_id": "store-b", "items": ["x"],
+                                          "amount_usdc": 1.0, "tx": "SIG", "trigger": "started"})
+    db.log_event("system", "shop.procured", {"order_id": "ORD-T-P2P", "store_id": "store-b",
+                                             "route": "p2p", "status": "confirmed", "sku": "CHK-10"})
+    row = next(o for o in traction.compute()["ledger"] if o["order_id"] == "ORD-T-P2P")
+    assert row["restock"] == {"route": "p2p", "status": "confirmed"} and row["invoice"] is None

@@ -41,6 +41,7 @@ def compute() -> dict:
     visitors: set[str] = set()
     recent_orders: list[dict] = []
     invoice_of: dict[str, str] = {}
+    route_of: dict[str, dict] = {}
     tot = {"orders": 0, "purchases": 0, "paid_usdc": 0.0, "triggered": 0,
            "procured": 0, "failed": 0, "sim_servings": 0, "real_servings": 0,
            "own_wallet_orders": 0, "own_wallet_usdc": 0.0}
@@ -80,6 +81,9 @@ def compute() -> dict:
             p = e.get("payload") or {}
             if p.get("order_id") and p.get("invoice_id"):
                 invoice_of[p["order_id"]] = p["invoice_id"]
+            elif p.get("order_id") and p.get("route") == "p2p":
+                # 이웃 지점 직거래로 채운 경우 — 본사 청구서가 없다
+                route_of[p["order_id"]] = {"route": "p2p", "status": p.get("status")}
         for e in orders:
             p = e.get("payload") or {}
             recent_orders.append({"ts": e["ts"], "order_id": p.get("order_id"),
@@ -99,6 +103,7 @@ def compute() -> dict:
     recent_orders.sort(key=lambda o: o["ts"], reverse=True)
     for o in recent_orders:
         o["invoice_id"] = invoice_of.get(o["order_id"])
+        o["restock"] = route_of.get(o["order_id"])
     return {
         "since": config.TRACTION_SINCE,
         "network": config.NETWORK,
