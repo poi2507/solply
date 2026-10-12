@@ -23,7 +23,11 @@ W, H, FPS = 1600, 900, 30
 PROJECT = "gen-lang-client-0014864033"
 import os
 VOICE = os.getenv("VOICE", "ko-KR-Chirp3-HD-Achernar")  # 영어판: VOICE=en-US-Chirp3-HD-Charon
-LANG = "-".join(VOICE.split("-")[:2])
+# Gemini-TTS(최신 세대)는 목소리 이름이 맨 이름(Charon 등)이고 모델·말투 지시를 함께 준다
+TTS_MODEL = os.getenv("TTS_MODEL", "")          # 예: gemini-2.5-pro-tts
+TTS_PROMPT = os.getenv("TTS_PROMPT", "")
+TTS_LANG = os.getenv("TTS_LANG", "")
+LANG = TTS_LANG or "-".join(VOICE.split("-")[:2])
 # 제출 한도가 3분이다. 1.12배면 또박또박함을 잃지 않으면서 10% 남짓 줄어든다.
 SPEAKING_RATE = float(os.getenv("SPEAKING_RATE", "1.12"))
 GAP = 0.55       # 내레이션 앞뒤 여백 (초)
@@ -50,9 +54,15 @@ def dur(path):
 def synthesize(text: str, out_mp3: Path) -> None:
     """한 장면의 내레이션을 합성한다. 실패하면 원인을 그대로 보여준다."""
     token = run([GCLOUD, "auth", "print-access-token"]).stdout.strip()
+    voice = {"languageCode": LANG, "name": VOICE}
+    inp = {"text": text}
+    if TTS_MODEL:
+        voice["modelName"] = TTS_MODEL
+        if TTS_PROMPT:
+            inp["prompt"] = TTS_PROMPT
     body = json.dumps({
-        "input": {"text": text},
-        "voice": {"languageCode": LANG, "name": VOICE},
+        "input": inp,
+        "voice": voice,
         "audioConfig": {"audioEncoding": "MP3", "speakingRate": SPEAKING_RATE},
     })
     req = Path("work/tts-req.json")
@@ -148,7 +158,9 @@ for s in plan["scenes"]:
     footage = dur(joined)
     speed = max(0.75, min(footage / target, s.get("maxSpeed", MAX_SPEED)))  # >1 이면 빨리 감기
     run([FF, "-y", "-loglevel", "error", "-i", str(joined),
-         "-vf", f"setpts=PTS/{speed:.5f},fps={FPS}", "-t", str(target),
+         # 0.75배로도 모자라면 마지막 장면을 붙잡아 길이를 채운다 — 영상이 짧으면 음성이 앞서 나간다
+         "-vf", f"setpts=PTS/{speed:.5f},fps={FPS},tpad=stop_mode=clone:stop_duration={target:.2f}",
+         "-t", str(target),
          "-c:v", "libx264", "-preset", "medium", "-crf", "20",
          "-pix_fmt", "yuv420p", "-an", str(out)])
     print(f"   {s['id']}: {footage:.1f}s → {target:.1f}s (×{speed:.2f})")
