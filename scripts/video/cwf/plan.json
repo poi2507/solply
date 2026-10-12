@@ -3,7 +3,7 @@
   {
    "id": "s0",
    "card": "titlecard",
-   "duration": 3.5,
+   "duration": 2.5,
    "narration": "",
    "subs": []
   },
@@ -39,7 +39,7 @@
      4.5
     ]
    ],
-   "narration": "Anyone can take part as a customer. This is a live order at Store B. Paying with the demo wallet sends one on-chain transfer, with the order number in the memo, and draws real ingredients from the store's stock.",
+   "narration": "Anyone can take part as a customer. This is a live order at Store B. Paying with the demo wallet sends one on-chain transfer, with the order number in the memo, and it draws real ingredients from that store's inventory.",
    "subs": [
     [
      0.0,
@@ -92,7 +92,7 @@
      22.5
     ]
    ],
-   "narration": "Agents also negotiate. On September thirtieth, HQ's agent read a store's sales, saw no steady rise, and proposed a smaller order. The store's agent answered with its own sales figures and kept its original four units. Code, not the model, fixed the final quantity.",
+   "narration": "Agents also negotiate. On September thirtieth, HQ's agent read the sales of one store, saw no steady rise, and proposed a smaller order. The store's agent answered with its own sales figures and kept its original four units. The final quantity is always set by code.",
    "subs": [
     [
      0.0,
@@ -156,7 +156,7 @@
      5.5
     ]
    ],
-   "narration": "The store owner sets the limits in plain numbers: how much the agent may pay on its own, the balance it must keep, and how sure Jev must be. Over the limit, the agent stops and asks a person. Code enforces these, not the model.",
+   "narration": "The store owner sets three limits in plain numbers. How much the agent may pay on its own, the balance it must keep, and how sure Jev must be. Over the limit, the agent stops and asks a person. These rules live in code, so the model can't bend them.",
    "subs": [
     [
      0.0,
@@ -166,7 +166,7 @@
     [
      0.6,
      1.0,
-     "Enforced by code, not by the model"
+     "These rules live in code — the model can't bend them"
     ]
    ]
   },
@@ -179,7 +179,7 @@
      3.5
     ]
    ],
-   "narration": "People stay in charge through an assistant. Ask how a negotiation went, and it answers from the same records. Within your role, it can also approve or schedule payments for you.",
+   "narration": "People stay in charge through an assistant. Ask how a negotiation went, and it answers from the same data. Within your role, it can also approve or schedule payments for you.",
    "subs": [
     [
      0.0,
@@ -239,7 +239,7 @@
   {
    "id": "s8",
    "card": "endcard",
-   "duration": 5,
+   "duration": 3.5,
    "narration": "",
    "subs": []
   }

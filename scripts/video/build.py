@@ -30,7 +30,7 @@ TTS_LANG = os.getenv("TTS_LANG", "")
 LANG = TTS_LANG or "-".join(VOICE.split("-")[:2])
 # 제출 한도가 3분이다. 1.12배면 또박또박함을 잃지 않으면서 10% 남짓 줄어든다.
 SPEAKING_RATE = float(os.getenv("SPEAKING_RATE", "1.12"))
-GAP = 0.55       # 내레이션 앞뒤 여백 (초)
+GAP = float(os.getenv("GAP", "0.55"))  # 내레이션 앞뒤 여백 (초)
 MAX_SPEED = 1.3  # 화면 녹화 배속 상한 — 이보다 빠르면 심사위원이 로그를 못 읽는다
 
 Path("work").mkdir(exist_ok=True)
@@ -86,7 +86,12 @@ for s in plan["scenes"]:
         s["narr_dur"] = 0.0
         continue
     mp3 = Path(f"work/{s['id']}-tts.mp3")
-    synthesize(s["narration"], mp3)
+    # 같은 대본·목소리로 이미 고른 녹음이 있으면 재사용한다 (takes.py가 장면별로 골라 둔다)
+    key = {"text": s["narration"], "voice": VOICE, "model": TTS_MODEL, "prompt": TTS_PROMPT}
+    meta = Path(f"work/{s['id']}-tts.json")
+    if not (mp3.exists() and meta.exists() and json.loads(meta.read_text()) == key):
+        synthesize(s["narration"], mp3)
+        meta.write_text(json.dumps(key))
     run([FF, "-y", "-loglevel", "error", "-i", str(mp3), "-ar", "48000", "-ac", "2", str(wav)])
     s["narr_dur"] = dur(wav)
     print(f"   {s['id']}: {s['narr_dur']:.1f}s")
