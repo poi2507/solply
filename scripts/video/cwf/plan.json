@@ -84,6 +84,47 @@
    ]
   },
   {
+   "id": "s3b",
+   "clips": [
+    [
+     "clipG",
+     16,
+     22.5
+    ]
+   ],
+   "narration": "Agents also negotiate. On September thirtieth, HQ's agent read a store's sales, saw no steady rise, and proposed a smaller order. The store's agent answered with its own sales figures and kept its original four units. Code, not the model, fixed the final quantity.",
+   "subs": [
+    [
+     0.0,
+     0.5,
+     "Sep 30 — HQ's agent proposes a smaller order from the sales data"
+    ],
+    [
+     0.5,
+     1.0,
+     "The store's agent pushes back with its own sales — four units kept"
+    ]
+   ]
+  },
+  {
+   "id": "s3c",
+   "clips": [
+    [
+     "clipH",
+     9,
+     7.5
+    ]
+   ],
+   "narration": "Stores trade with each other too. When one runs short, its agent buys from a neighbour's surplus at the market index price, HQ approves the deal, and the payment goes through escrow on Solana.",
+   "subs": [
+    [
+     0.0,
+     1.0,
+     "Store-to-store trades: priced off the index, approved by HQ, paid through escrow"
+    ]
+   ]
+  },
+  {
    "id": "s4",
    "clips": [
     [
@@ -92,7 +133,7 @@
      6.5
     ]
    ],
-   "narration": "Each of those calls went first to Jev, a fast decision model that scores the options and returns its confidence. Both cleared the bar, so Jev decided them in about a quarter of a second. When Jev is unsure, Gemini reasons the case through instead.",
+   "narration": "Every one of these calls goes first to Jev, a fast decision model that scores the options and returns its confidence. The two behind this morning's order cleared the bar, so Jev decided them in about a quarter of a second. When Jev is unsure, as it was on September thirtieth, Gemini reasons the case through instead.",
    "subs": [
     [
      0.0,
@@ -126,6 +167,31 @@
      0.6,
      1.0,
      "Enforced by code, not by the model"
+    ]
+   ]
+  },
+  {
+   "id": "s5b",
+   "clips": [
+    [
+     "clipI",
+     17,
+     3.5
+    ]
+   ],
+   "narration": "People stay in charge through an assistant. Ask how a negotiation went, and it answers from the same records. Within your role, it can also approve or schedule payments for you.",
+   "subs": [
+    [
+     0.0,
+     0.55,
+     "Ask the assistant — it answers from the same records",
+     "top"
+    ],
+    [
+     0.55,
+     1.0,
+     "Within your role, it can approve or schedule payments",
+     "top"
     ]
    ]
   },

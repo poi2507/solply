@@ -189,7 +189,89 @@ async function clipF() {
   });
 }
 
-const CLIPS = { clipA, clipB, clipC, clipD, clipE, clipF };
+
+// s3b — 에이전트끼리 협상: 9/30 발주량 협상 (본사 축소 제안 ↔ 지점 반박)
+async function clipG() {
+  await clip("clipG", { role: "hq" }, async (page, mark) => {
+    await page.goto(API + "/?lang=en", { waitUntil: "domcontentloaded" });
+    await page.waitForSelector("#metrics div", { timeout: 60000 }).catch(() => {});
+    await sleep(2500);
+    for (let i = 0; i < 40; i++) {   // 9/30까지 하루씩 넘긴다
+      const label = await page.textContent("#day-label").catch(() => "");
+      if (label && label.includes("2026-09-30")) break;
+      await page.click("#day-prev");
+      await sleep(900);
+    }
+    await page.waitForSelector('tr[data-inv="INV-0930-A2279"]', { timeout: 30000 });
+    await sleep(1500);
+    await page.evaluate(() => { document.body.style.zoom = 1.2; });
+    await page.evaluate(() => document.querySelector('tr[data-inv="INV-0930-A2279"]').scrollIntoView({ block: "center" }));
+    await sleep(1500); mark("row");
+    await page.click('tr[data-inv="INV-0930-A2279"]');
+    await page.waitForSelector("tr.detail", { timeout: 30000 });
+    await sleep(1500);
+    await page.evaluate(() => document.querySelector("tr.detail").scrollIntoView({ behavior: "smooth", block: "start" }));
+    await sleep(3000); mark("timeline");
+    await glowText(page, "tr.detail .tl-why, tr.detail .msg, tr.detail li", "counter", 4);
+    await sleep(5000);
+    await glowText(page, "tr.detail .tl-why, tr.detail .msg, tr.detail li", "insist", 4);
+    await sleep(6000);
+    await smoothScroll(page, 400, 4000);
+    await sleep(2000); mark("end");
+  });
+}
+
+// s3c — 지점 간 직거래 카드 (오늘 아침 주문이 일으킨 거래)
+async function clipH() {
+  await clip("clipH", { role: "hq" }, async (page, mark) => {
+    await page.goto(API + "/?lang=en", { waitUntil: "domcontentloaded" });
+    await page.waitForSelector("#trades", { timeout: 60000 });
+    await sleep(3000);
+    await page.evaluate(() => { document.body.style.zoom = 1.2; });
+    await page.evaluate(() => document.querySelector("#p-trades").scrollIntoView({ behavior: "smooth", block: "start" }));
+    await sleep(3000); mark("trades");
+    await glow(page, "#trades > *", 4);
+    await sleep(6000);
+    await page.evaluate(() => document.querySelector("#feed, #p-feedwide")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    await sleep(3000); mark("feed");
+    await glowText(page, "#feed li", "Escrow released", 4);
+    await sleep(5000); mark("end");
+  });
+}
+
+// s5b — 사람이 쓰는 어시스턴트: 질문을 치고 답이 오기까지
+async function waitForReply(page, timeout = 90000) {
+  const t0 = Date.now();
+  while (Date.now() - t0 < timeout) {
+    const ok = await page.evaluate(() => {
+      const bots = [...document.querySelectorAll("#chat-log li.bot")];
+      const last = bots[bots.length - 1];
+      const input = document.getElementById("chat-input");
+      return !!last && last.textContent.trim() !== "…" && last.textContent.trim().length > 8 && input && !input.disabled;
+    });
+    if (ok) return true;
+    await sleep(700);
+  }
+  return false;
+}
+
+async function clipI() {
+  await clip("clipI", { role: "hq" }, async (page, mark) => {
+    await page.goto(API + "/?lang=en", { waitUntil: "domcontentloaded" });
+    await page.waitForSelector("#metrics div", { timeout: 60000 }).catch(() => {});
+    await sleep(2500); mark("loaded");
+    await page.click("#chat-fab");
+    await sleep(1000);
+    await page.locator("#chat-input").pressSequentially(
+      "How did the negotiation on invoice INV-0930-A2279 go?", { delay: 45 });
+    await sleep(600);
+    await page.locator("#chat-form button[type=submit]").click(); mark("sent");
+    const ok = await waitForReply(page, 90000); mark(ok ? "reply" : "no reply");
+    await sleep(7000); mark("end");
+  });
+}
+
+const CLIPS = { clipA, clipB, clipC, clipD, clipE, clipF, clipG, clipH, clipI };
 (async () => {
   const targets = process.argv.slice(2);
   if (!targets.length || targets.some((t) => !CLIPS[t])) {
